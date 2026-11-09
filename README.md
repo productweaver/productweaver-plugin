@@ -44,7 +44,7 @@ copilot plugin install productweaver@productweaver-plugin
 - Python 3.9 or newer.
 - [uv](https://docs.astral.sh/uv/), which installs the one Python package the
   skill needs (PyYAML) the first time it runs. Without uv, install it once
-  yourself: `python3 -m pip install pyyaml`.
+  yourself: `python3 -m pip install pyyaml==6.0.3`.
 - Transcripts as `.md`, `.txt`, `.docx` or `.pdf` files.
 
 ## Use it

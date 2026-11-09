@@ -3,6 +3,16 @@
 Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning.
 
+## 0.1.2 — 2026-11-09
+
+Changes for the Anthropic directory review. The plugin works as before.
+
+- The Python packages the skill uses now have exact versions, and a lock file
+  ships with the script, so uv installs the same packages on every machine.
+- The discovery map now holds the readable build of js-yaml 4.1.0 instead of
+  the minified one. The code is the same version, and each map file is about
+  75 KB larger.
+
 ## 0.1.1 — 2026-11-09
 
 Changes for the Anthropic directory review. The plugin works as before.

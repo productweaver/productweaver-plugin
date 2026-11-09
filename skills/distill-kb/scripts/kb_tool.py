@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.9"
-# dependencies = ["pyyaml>=6"]
+# dependencies = ["pyyaml==6.0.3"]
 # ///
 """kb_tool.py - keep an ODI knowledge base (one YAML file) growing from interview transcripts.
 
@@ -20,9 +20,9 @@ Commands
                                                               check the structure, then every quote and transcript hash
   migrate   <kb.yaml>                                         bring an older KB up to the current schema version
 
-Run it with no setup:   uv run kb_tool.py <command> ...      (uv installs PyYAML in its cache the first time)
-Or install PyYAML once: python3 -m pip install pyyaml
-.docx transcripts need python-docx, .pdf transcripts need pypdf.
+Run it with no setup:   uv run --locked kb_tool.py <command> ...      (uv installs PyYAML in its cache the first time)
+Or install PyYAML once: python3 -m pip install pyyaml==6.0.3
+.docx transcripts need python-docx==1.2.0, .pdf transcripts need pypdf==6.21.4.
 
 Every run, including a failed one or a dry run, appends one JSON line to logs/kb_tool.jsonl next to the KB:
 what was asked, how it ended, error and warning codes, counts, versions. Never quotes, names or file names.
@@ -50,7 +50,7 @@ from typing import Any, Callable
 try:
     import yaml
 except ImportError:  # pragma: no cover - depends on the machine
-    sys.exit("PyYAML is missing. Run `uv run kb_tool.py ...` or `python3 -m pip install pyyaml`.")
+    sys.exit("PyYAML is missing. Run `uv run --locked kb_tool.py ...` or `python3 -m pip install pyyaml==6.0.3`.")
 
 try:
     import jsonschema as _jsonschema  # optional: richer schema messages when it is installed
@@ -351,7 +351,8 @@ def read_text(path: str) -> str:
             import docx  # noqa: PLC0415  (python-docx, optional)
         except ImportError:
             raise KbError(f"{path}: reading .docx needs python-docx "
-                          "(uv run --with python-docx kb_tool.py ... or pip install python-docx)",
+                          "(uv run --locked --with python-docx==1.2.0 kb_tool.py ... "
+                          "or pip install python-docx==1.2.0)",
                           code="reader_missing") from None
         return "\n".join(paragraph.text for paragraph in docx.Document(path).paragraphs)
     if ext == ".pdf":
@@ -359,7 +360,8 @@ def read_text(path: str) -> str:
             from pypdf import PdfReader  # noqa: PLC0415  (optional)
         except ImportError:
             raise KbError(f"{path}: reading .pdf needs pypdf "
-                          "(uv run --with pypdf kb_tool.py ... or pip install pypdf)", code="reader_missing") from None
+                          "(uv run --locked --with pypdf==6.21.4 kb_tool.py ... or pip install pypdf==6.21.4)",
+                          code="reader_missing") from None
         return "\n".join((page.extract_text() or "") for page in PdfReader(path).pages)
     raise KbError(f"unsupported transcript type: {path}", code="transcript_type")
 

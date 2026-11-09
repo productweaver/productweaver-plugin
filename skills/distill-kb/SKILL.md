@@ -14,13 +14,13 @@ One YAML file is the knowledge base (KB). Each run reads new transcripts, extrac
 The script needs Python 3.9 or newer and PyYAML. Run it from this skill's folder, so it finds its schemas and the map template:
 
 ```
-uv run <skill folder>/scripts/kb_tool.py <command> ...       # no setup: uv installs PyYAML the first time
-python3 <skill folder>/scripts/kb_tool.py <command> ...      # when PyYAML is installed (python3 -m pip install pyyaml)
+uv run --locked <skill folder>/scripts/kb_tool.py <command> ...   # no setup: uv installs PyYAML the first time
+python3 <skill folder>/scripts/kb_tool.py <command> ...           # when PyYAML is installed (python3 -m pip install pyyaml==6.0.3)
 ```
 
-Below, `kb_tool` stands for either line. Do not write plain `python`; many machines do not have it. `.docx` transcripts need `python-docx` and `.pdf` transcripts need `pypdf`, for example `uv run --with pypdf <skill folder>/scripts/kb_tool.py ...`.
+Below, `kb_tool` stands for either line. Do not write plain `python`; many machines do not have it. `.docx` transcripts need `python-docx` and `.pdf` transcripts need `pypdf`. Add them with `--with python-docx==1.2.0` or `--with pypdf==6.21.4`, for example `uv run --locked --with pypdf==6.21.4 <skill folder>/scripts/kb_tool.py ...`.
 
-Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool next to the KB, in `KB/tools/`, only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `references/kb-schema.json`, `references/patch-schema.json` and `assets/discovery-map-template.html` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
+Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool next to the KB, in `KB/tools/`, only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_tool.py.lock`, `references/kb-schema.json`, `references/patch-schema.json` and `assets/discovery-map-template.html` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
 
 ## What a run changes, and what it leaves alone
 
@@ -173,7 +173,8 @@ The KB's fields are explained one by one in `references/kb-schema.md`. Read it b
 
 ## Files in this skill
 
-- `scripts/kb_tool.py`: init, context, merge (with format, quote, reference and clarity checks), apply, review, map, validate and migrate. Needs PyYAML, plus python-docx or pypdf for .docx or .pdf transcripts. Carries its own dependency list, so `uv run` needs no setup.
+- `scripts/kb_tool.py`: init, context, merge (with format, quote, reference and clarity checks), apply, review, map, validate and migrate. Needs PyYAML, plus python-docx or pypdf for .docx or .pdf transcripts. Carries its own dependency list, so `uv run --locked` needs no setup.
+- `scripts/kb_tool.py.lock`: the exact package versions `uv run --locked` installs. Keep it next to the script.
 - `assets/discovery-map-template.html`: the interactive map viewer. `map` fills it with the KB. Opened on its own, it lets anyone load a KB file.
 - `references/odi-rules.md`: how to write each kind of statement, with examples and common mistakes. Read it before extracting.
 - `references/patch-format.md`: the patch format the merge accepts, with a worked example. Read it before writing a patch.
