@@ -1,0 +1,187 @@
+# The ODI knowledge base: field reference
+
+*Made with [Product Weaver](https://productweaver.com).*
+
+One YAML file holds a whole study. This page explains every field. The machine-checkable version is `kb-schema.json` (JSON Schema, draft 2020-12). `kb_tool.py validate` checks every KB against it, and `merge` refuses to write a KB that would break it.
+
+**Who writes what.** The skill writes the statements, and the script stamps IDs, counts, dates and hashes. People decide on proposals. Fields marked *computed* are recalculated on every merge, so don't edit them by hand.
+
+**Extra fields are allowed.** Anything not listed here is kept and ignored, so older files and your own notes keep loading.
+
+## At a glance
+
+```yaml
+meta:                 # about the study
+market_core_job:      # the one job the whole map is built around
+clusters:             # segments of people, optional
+interviews: []        # one record per conversation
+job_map:
+  steps: []           # what people do, on the 8 ODI stages
+desired_outcomes:
+  outcomes: []        # how people judge each step
+proposed_changes: []  # structural changes waiting for a decision
+changelog: []         # what happened to the KB, and when
+survey / simulation / value_themes / use_cases:   # derived layers, rebuilt on request
+```
+
+Required at the top level: `meta`, `interviews`, `job_map`, `desired_outcomes`.
+
+## Shared pieces
+
+**Evidence item.** A quote that supports a step, an outcome or a proposal. It is used everywhere except inside an interview's own record.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `interview` | string of digits | yes | ID of the interview the quote comes from, such as `"07"` |
+| `source` | `transcript`, `quoted_in_notes` or `interviewer_notes` | yes | The interviewee's words in a transcript, their words quoted in notes, or the interviewer's paraphrase |
+| `quote` | string | yes | Exact words, copied character for character from the transcript |
+| `name` | string | no | *Computed.* The interviewee's name, filled in for readability |
+
+**Own statement.** A statement inside an interview record: `{statement, evidence}`, where each evidence item is `{source, quote}` because the interview is implied.
+
+**Stage.** One of `define`, `locate`, `prepare`, `confirm`, `execute`, `monitor`, `modify` or `conclude`.
+
+**History.** A list of `{date, was}` (old wording) or `{date, was_id}` (old outcome ID), added when an approved proposal changes something.
+
+## `meta`
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `project` | string | yes | Study or client name |
+| `schema_version` | integer | no | Version of this schema; currently 1. `kb_tool.py migrate` raises it, and every command refuses a newer one |
+| `method` | string | no | Method used |
+| `interviewer` | string | no | Who ran the interviews |
+| `created` | date | no | When the KB was started |
+| `interview_count` | integer | no | *Computed.* Number of interviews |
+| `date_range` | string | no | *Computed.* First to last interview date |
+| `caveat` | string | no | A warning every reader should see, such as "sample interviews" |
+| `generated_with` | string | no | *Computed.* Product Weaver credit |
+| `tool_version` | string | no | *Computed.* Version of `kb_tool.py` that last wrote the file |
+| `style` | mapping | no | Writing rules for this study that override the script's defaults, see below |
+
+**`meta.style`**
+
+| Field | Type | Meaning |
+|---|---|---|
+| `limits` | mapping of kind to integer | Maximum words per kind of statement: `executor` (16), `job` (10), `step` (10), `outcome` (16), `feeling` (12), `rationale` (30) |
+| `banned` | list of strings | Tokens a statement may not contain. Default: `(`, `;`, `e.g.`, `i.e.`, ` and/or `, `/` |
+| `idioms` | list of strings | Phrases with "and" or "or" that are one idea. Default: `bread and butter`, `in and out` |
+| `acronyms` | list of strings | Abbreviations every reviewer in this market knows. Default: `OTR`, `US`, `UK`, `EU` |
+
+Each key replaces the default list, or for `limits` the named entries, so copy the defaults you want to keep.
+
+## `market_core_job`
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `statement` | string | yes | The core functional job: verb + object + context, no solution, at most 10 words |
+| `job_executor` | string | no | Who carries out the job |
+| `status` | `proposed` or `approved` | no | `proposed` until the team confirms it |
+| `history` | history | no | Earlier wordings |
+
+## `clusters`
+
+A map from a short segment code (`seq`, `fleet`) to `{name, description, interviews}`. `interviews` is *computed* from each interview's `cluster`.
+
+## `interviews[]`
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `id` | string of digits | yes | *Computed.* Assigned on merge: `"01"`, `"02"`… |
+| `name` | string | yes | Interviewee |
+| `file` | string | yes | Transcript file, written the same way for every record |
+| `sha256` | 64 hex characters | no | *Computed.* Content hash; catches a renamed copy of the same transcript |
+| `date` | date | no | When the conversation happened |
+| `added` | date | no | *Computed.* When it entered the KB |
+| `format` | string | no | `Transcript`, `Notes` or `Transcript + notes` |
+| `cluster` | string | no | Segment code from `clusters` |
+| `tags` | list of strings | no | Details that don't belong in statements, such as city or years in business |
+| `job_executor` | own statement | yes | Who they are, at most 16 words |
+| `core_functional_job` | own statement | yes | Their own core job, at most 10 words |
+| `related_jobs` | list of own statements | no | Other jobs they do alongside |
+| `emotional_jobs` | list of own statements | no | How they want to feel |
+| `social_jobs` | list of own statements | no | How they want to be seen |
+| `analyst_note` | string | no | Anything a reader must know, such as "the carrier picks his loads" |
+
+An empty list is a finding: the interview gave no evidence for that kind of job.
+
+## `job_map`
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `core_job` | string | no | Copy of `market_core_job.statement` |
+| `status` | string | no | `proposed` after a bootstrap |
+| `stages` | list of `{key, name}` | no | The 8 stages, for display |
+| `steps` | list | yes | See below |
+
+**`steps[]`**
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `n` | integer | yes | Step number. Stable once published, because outcome IDs depend on it |
+| `stage` | stage | yes | Where the step sits in the job |
+| `statement` | string | yes | Verb + object, at most 10 words |
+| `covers` | string | no | One line on what the step includes |
+| `evidence` | list of evidence items | no | Quotes of people doing this step |
+| `interviews` | list of IDs | no | *Computed.* Who is quoted |
+| `coverage` | integer | no | *Computed.* How many interviews are quoted |
+| `history` | history | no | Earlier wordings |
+
+## `desired_outcomes.outcomes[]`
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `id` | `"<step>.<k>"` | yes | *Computed.* Outcome `6.3` is the third outcome of step 6 |
+| `step` | integer | yes | The step it measures |
+| `statement` | string | yes | Starts with Minimize, Maximize, Increase or Reduce. At most 16 words |
+| `evidence` | list of evidence items | no | Quotes showing people judge the step this way |
+| `interviews`, `interview_count`, `quote_count` | | no | *Computed* |
+| `added` | date | no | *Computed.* When it entered the KB |
+| `merged_into` | outcome ID | no | Set when the outcome was merged into another. The record stays, so old references still resolve |
+| `history` | history | no | Earlier wordings or IDs |
+
+## `proposed_changes[]`
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `id` | `P<n>` | yes | *Computed* |
+| `type` | `new_step`, `reword_step`, `reword_outcome`, `reword_core_job`, `merge_outcomes`, `move_outcome`, `new_segment` or `other` | yes | What kind of change |
+| `target` | string or integer | no | Step number, outcome ID or segment code |
+| `stage` | stage | no | For `new_step` |
+| `merge` | outcome ID | no | For `merge_outcomes`: the outcome folded into `target` |
+| `to_step` | integer | no | For `move_outcome` |
+| `proposal` | string | yes | The new wording, or the change in one line |
+| `rationale` | string | yes | Why, in one sentence of at most 30 words |
+| `status` | `pending`, `approved` or `rejected` | yes | Decided with `kb_tool.py apply` |
+| `raised`, `decided`, `note` | | no | When it was raised and decided, and the decision note |
+| `evidence` | list of evidence items | no | The quotes behind it |
+
+## `changelog[]`
+
+One entry per thing that happened to the KB. Every entry has `date`, `action` and usually `summary`, a sentence for people. `action` is one of `init`, `merge`, `decide`, `rebuild`, `edit` or `migrate`. The script logs `init`, `merge`, `decide`, `migrate` and `edit` (when `validate --rehash` accepts changed transcripts). Log `rebuild` when a derived layer is rebuilt and `edit` after a hand edit.
+
+Entries the script writes also carry `ts`, the time with timezone, and `run_id`, the ID of the run in `logs/kb_tool.jsonl` (see `run-log.md`), so a change can be traced to its log line and its backup. A `merge` entry may carry `provenance`, copied from the patch: `assistant`, `model`, `started`, `transcripts_read` (as KB interview IDs) and `notes`.
+
+A `merge` entry also carries structured fields, so tools do not have to parse the sentence:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `patch` | string | File name of the patch |
+| `added_interviews` | list of IDs | Interviews this merge added |
+| `new_outcomes` | list of outcome IDs | Outcomes this merge added |
+| `step_quotes`, `outcome_quotes` | integer | Quotes added to steps and to outcomes |
+| `ts` | string | When the script wrote the entry, ISO 8601 with timezone |
+| `run_id` | string | The run that wrote it; the same value is on its line in `logs/kb_tool.jsonl` |
+| `provenance` | mapping | Who extracted the batch: `assistant`, `model`, `started`, `transcripts_read`, `notes` |
+| `proposals` | list of `P<n>` | Proposals this merge filed |
+| `bootstrap` | boolean | Present and true when the merge created the core job and job map |
+
+A `decide` entry carries `proposal` (the ID) and `decision` (`approved` or `rejected`).
+
+## Backups
+
+Every write except `init` first copies the KB to `backups/` next to it, as `<name>.<date>-<time>-<microseconds>.yaml`. The newest 20 copies are kept.
+
+## Derived layers
+
+`survey`, `simulation`, `value_themes` and `use_cases` are built from the layers above, on request. Their content is free-form, but each may carry `stale: true` and `stale_reasons`. The script sets these when new evidence arrives, and a rebuild clears them.

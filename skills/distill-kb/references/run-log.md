@@ -1,0 +1,126 @@
+# The run log
+
+`kb_tool.py` appends one JSON line to `KB/logs/kb_tool.jsonl`, next to the KB, every time it runs. Successful runs, refused merges, dry runs and crashes all get a line. The log answers three questions the KB alone cannot: what was tried and failed, how long things take, and which assistant did what. Read it with any JSONL tool, or with Python:
+
+```
+python3 -c "import json,sys; [print(json.loads(l)['command'], json.loads(l)['exit_code'], json.loads(l)['errors']) for l in open('KB/logs/kb_tool.jsonl')]"
+```
+
+Set `KB_TOOL_LOG=0` to switch the log off. It is append-only and small: a line is under 1 KB, so a thousand runs are under 1 MB.
+
+## What the log never holds
+
+The KB, the map and the review sheet hold personal data: interviewees' names and their words. The log does not. A line holds IDs, counts, codes, hashes, versions and paths relative to the KB folder. It never holds a quote, an error message (messages can contain quotes), an interviewee's name, a transcript file name, the `--note` text of a decision, or an absolute path. A `--transcripts` root that is a single file is logged as `<file>`; the `notes` field of a patch's provenance is kept out. So the log can be shared with the skill's maintainers for debugging without a data-protection question.
+
+## Fields
+
+Every line has these fields. The order is stable, so lines are easy to compare.
+
+| Field | Meaning |
+|---|---|
+| `run_id` | 12 hex characters, unique per run. Changelog entries the script writes carry the same value |
+| `ts` | When the run started, ISO 8601 with timezone |
+| `duration_ms` | How long the run took |
+| `command` | `init`, `context`, `merge`, `apply`, `review`, `map`, `validate` or `migrate` |
+| `args` | The options given, with paths relative to the KB folder. `--note`, `--project`, `--interviewer` and the KB path are left out. `transcripts` lists the roots; a root that is a file shows as `<file>` |
+| `exit_code` | 0 success, 1 refused or failed with a message, 2 crashed |
+| `written` | True when the run changed the KB file |
+| `tool_version`, `schema_version` | Which `kb_tool.py` ran, and which KB schema it writes |
+| `python`, `os` | Python version and platform |
+| `agent` | The assistant running the tool: `KB_TOOL_AGENT` if set, else `claude-code` or `gemini-cli` when their environment marker is present, else the terminal program, else null |
+| `kb_sha256_before`, `kb_sha256_after` | Hash of the KB file before and after. Equal means nothing changed; a change between two runs means a hand edit |
+| `kb` | Size of the KB after the run: `interviews`, `steps`, `thin_steps`, `outcomes` (live ones), `pending_proposals` and the `stale` derived layers |
+| `errors`, `warnings` | Codes with counts, such as `{"quote_not_found": 3}`. See Codes below |
+
+Commands add their own fields:
+
+| Field | Command | Meaning |
+|---|---|---|
+| `dry_run`, `nothing_new` | merge | Whether it was a dry run, and whether the patch had nothing new |
+| `patch_sha256` | merge | Hash of the patch file, so retries of the same patch can be counted |
+| `bootstrap` | merge | True when the merge created the core job and job map |
+| `counts` | merge | `interviews_added`, `interviews_skipped`, `outcomes_added`, `step_quotes`, `outcome_quotes`, `proposals_filed` |
+| `provenance` | merge | The patch's provenance block without `notes`: `assistant`, `model`, `started`, `transcripts_read` as KB IDs |
+| `backup` | merge, apply, validate, migrate | The backup made before the write, relative to the KB folder |
+| `proposal`, `proposal_type`, `decision` | apply | What was decided on and how. Logged even when the apply is refused |
+| `out`, `since` | review, map | The file written; for review, the date new items are counted from |
+| `structure_problems`, `outcome_quotes`, `drifted`, `rehash` | validate | Structure problems found, outcome quotes in the KB, transcripts whose content changed, whether `--rehash` was given |
+| `schema_from` | migrate | The schema version the KB had before |
+| `exception` | any | The exception class when the tool crashed |
+
+## Codes
+
+Each problem has a short stable code. Errors block the command; warnings do not. Count codes across runs to see what trips assistants up: many `quote_not_found` errors mean quotes are being tidied, many `clarity_length` errors mean the word limits need explaining, many `proposal_ref` errors mean targets are being guessed instead of read from `context`.
+
+### Errors that refuse a merge
+
+| Code | Meaning |
+|---|---|
+| `patch_format` | The patch does not match `patch-schema.json` |
+| `quote_not_found` | A quote is not in its transcript word for word |
+| `quote_empty` | A quote is empty |
+| `evidence_missing` | An item that needs evidence has none |
+| `evidence_shape` | An evidence item is not a mapping with interview, source and quote |
+| `source_invalid` | `source` is not transcript, quoted_in_notes or interviewer_notes |
+| `interview_unresolved` | Evidence names an interview that is unknown, skipped or has no transcript |
+| `clarity_length` | A statement is over the word limit for its kind |
+| `clarity_banned` | A statement carries brackets, a semicolon, an example, an aside or a slash |
+| `clarity_etc` | A statement ends a list with etc. |
+| `rationale_length` | A proposal's rationale is over the word limit |
+| `bootstrap_conflict` | A bootstrap was given but the KB already has a core job or job map |
+| `key_duplicate` | A new interview key is used twice in the patch |
+| `key_is_id` | A new interview key is already an interview ID in the KB |
+| `transcript_missing` | A transcript file named in the patch or the KB is not under `--transcripts` |
+| `step_duplicate` | A bootstrap uses a step number twice |
+| `step_missing` | A step named in the patch does not exist |
+| `outcome_missing` | An outcome named in the patch does not exist |
+| `outcome_merged` | An outcome named in the patch was merged into another |
+| `outcome_direction` | A new outcome does not start with Minimize, Maximize, Increase or Reduce |
+| `outcome_duplicate` | A new outcome repeats an existing one or another new one |
+| `proposal_ref` | A proposal points at a step, outcome or segment that does not fit |
+| `structure` | The KB that would result, or the KB as it stands, breaks `kb-schema.json` or its cross-references |
+
+### Warnings
+
+| Code | Meaning |
+|---|---|
+| `ids_unquoted` | Interview IDs were not quoted and were read as zero-padded strings |
+| `unknown_key` | A top-level key the patch format does not have was ignored |
+| `bootstrap_repeated` | The bootstrap was already applied; ignored |
+| `interview_skipped` | An interview is already in the KB, by file name or content hash |
+| `evidence_dropped` | Patch items whose evidence came only from skipped interviews were dropped |
+| `transcript_changed` | A transcript's content differs from when it was added. An error in `validate` |
+| `transcripts_root_missing` | A `--transcripts` folder or file does not exist |
+| `segment_unknown` | A new interview names a segment the KB does not have |
+| `clarity_two_jobs` | A job or step statement may hold two jobs |
+| `clarity_acronym` | A statement uses an abbreviation not on the study's list |
+| `provenance_ref` | `provenance.transcripts_read` names something that is not an interview ID or a patch key |
+
+### Errors that stop a command
+
+| Code | Meaning |
+|---|---|
+| `file_missing` | The KB or the patch file does not exist |
+| `yaml_invalid` | The KB or the patch is not valid YAML |
+| `kb_shape` | The KB is not a YAML mapping |
+| `kb_exists` | `init` refused to overwrite an existing KB |
+| `patch_empty` | The patch file is empty |
+| `patch_shape` | The patch is not a YAML mapping |
+| `schema_version` | The KB's schema version is not a number or is newer than the tool knows |
+| `migrate_needed` | The KB uses an older schema version; run `migrate` |
+| `schema_unsupported` | A JSON Schema uses a keyword the built-in checker does not support |
+| `skill_file_missing` | A schema or the map template that ships with the skill was not found |
+| `template_invalid` | The map template has no place to put the KB |
+| `style_invalid` | `meta.style` is not shaped as documented |
+| `transcript_duplicate` | A transcript file name exists under two `--transcripts` roots |
+| `transcript_unreadable` | A transcript could not be read |
+| `transcript_type` | A transcript has an extension the tool does not read |
+| `reader_missing` | python-docx or pypdf is needed and not installed |
+| `proposal_missing` | `apply` named a proposal that is not in the KB |
+| `proposal_decided` | `apply` named a proposal that was already approved or rejected |
+| `proposal_stale` | The proposal's target no longer exists as it was raised; fix the KB or reject it |
+| `crash` | The tool raised an unexpected exception. A bug; the traceback was printed |
+
+## Reading the log with the changelog
+
+A changelog entry in the KB and its log line share `run_id`. So for any change in the KB you can find how long the run took, what else it warned about, which backup it made and, for a merge, which patch and which assistant. The reverse also works: a merge line with `written: true` names the backup to restore if the batch turns out to be wrong.

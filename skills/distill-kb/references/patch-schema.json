@@ -1,0 +1,395 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://productweaver.com/schemas/odi-patch/v1",
+  "title": "ODI knowledge base patch",
+  "description": "One YAML file describing what a batch of interview transcripts adds to an ODI knowledge base. kb_tool.py merge checks a patch against this schema before any other check. Every key is optional, but a patch needs at least one of them. Write interview and outcome IDs in quotes, like \"01\" and \"6.3\". The prose version is patch-format.md. Made with Product Weaver · productweaver.com",
+  "type": "object",
+  "properties": {
+    "interviews": {
+      "type": "array",
+      "description": "New interviews only. Each one gets a short key you choose; the merge assigns the real ID.",
+      "items": {
+        "$ref": "#/$defs/new_interview"
+      }
+    },
+    "bootstrap": {
+      "$ref": "#/$defs/bootstrap"
+    },
+    "step_evidence": {
+      "type": "array",
+      "description": "Quotes showing someone doing an existing step.",
+      "items": {
+        "type": "object",
+        "required": [
+          "step",
+          "evidence"
+        ],
+        "properties": {
+          "step": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "evidence": {
+            "$ref": "#/$defs/evidence_list"
+          }
+        }
+      }
+    },
+    "outcome_evidence": {
+      "type": "array",
+      "description": "Quotes supporting an existing outcome.",
+      "items": {
+        "type": "object",
+        "required": [
+          "outcome",
+          "evidence"
+        ],
+        "properties": {
+          "outcome": {
+            "$ref": "#/$defs/outcome_id"
+          },
+          "evidence": {
+            "$ref": "#/$defs/evidence_list"
+          }
+        }
+      }
+    },
+    "new_outcomes": {
+      "type": "array",
+      "description": "Outcomes no existing outcome covers. The statement must start with Minimize, Maximize, Increase or Reduce.",
+      "items": {
+        "type": "object",
+        "required": [
+          "step",
+          "statement",
+          "evidence"
+        ],
+        "properties": {
+          "step": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "$ref": "#/$defs/evidence_list"
+          }
+        }
+      }
+    },
+    "proposed_changes": {
+      "type": "array",
+      "description": "Structural changes. Stored as pending for the user to decide.",
+      "items": {
+        "$ref": "#/$defs/proposal"
+      }
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    }
+  },
+  "$defs": {
+    "interview_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A KB interview ID in quotes (\"07\") or a key declared under interviews in this patch (n1)."
+    },
+    "outcome_id": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "An outcome ID in quotes, such as \"6.3\"."
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "define",
+        "locate",
+        "prepare",
+        "confirm",
+        "execute",
+        "monitor",
+        "modify",
+        "conclude"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "transcript",
+        "quoted_in_notes",
+        "interviewer_notes"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "interview",
+        "source",
+        "quote"
+      ],
+      "properties": {
+        "interview": {
+          "$ref": "#/$defs/interview_ref"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "evidence_list": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "own_evidence": {
+      "type": "object",
+      "description": "Evidence inside an interview's own record. The interview is implied.",
+      "required": [
+        "source",
+        "quote"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "own_statement": {
+      "type": "object",
+      "required": [
+        "statement",
+        "evidence"
+      ],
+      "properties": {
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/own_evidence"
+          }
+        }
+      }
+    },
+    "new_interview": {
+      "type": "object",
+      "required": [
+        "key",
+        "name",
+        "file",
+        "job_executor",
+        "core_functional_job"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "date": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "cluster": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "job_executor": {
+          "$ref": "#/$defs/own_statement"
+        },
+        "core_functional_job": {
+          "$ref": "#/$defs/own_statement"
+        },
+        "related_jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/own_statement"
+          }
+        },
+        "emotional_jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/own_statement"
+          }
+        },
+        "social_jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/own_statement"
+          }
+        },
+        "analyst_note": {
+          "type": "string"
+        }
+      }
+    },
+    "bootstrap": {
+      "type": "object",
+      "description": "Only for a KB that has no core job yet.",
+      "required": [
+        "market_core_job",
+        "steps"
+      ],
+      "properties": {
+        "market_core_job": {
+          "type": "object",
+          "required": [
+            "statement"
+          ],
+          "properties": {
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "job_executor": {
+              "type": "string"
+            }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "n",
+              "stage",
+              "statement"
+            ],
+            "properties": {
+              "n": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "stage": {
+                "$ref": "#/$defs/stage"
+              },
+              "statement": {
+                "type": "string",
+                "minLength": 1
+              },
+              "covers": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "proposal": {
+      "type": "object",
+      "required": [
+        "type",
+        "proposal",
+        "rationale"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "new_step",
+            "reword_step",
+            "reword_outcome",
+            "reword_core_job",
+            "merge_outcomes",
+            "move_outcome",
+            "new_segment",
+            "other"
+          ]
+        },
+        "target": {
+          "type": [
+            "string",
+            "integer"
+          ],
+          "description": "Step number for reword_step, outcome ID in quotes for reword_outcome, merge_outcomes and move_outcome, segment key for new_segment. Leave out or empty for new_step and reword_core_job."
+        },
+        "stage": {
+          "$ref": "#/$defs/stage"
+        },
+        "merge": {
+          "$ref": "#/$defs/outcome_id"
+        },
+        "to_step": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "covers": {
+          "type": "string"
+        },
+        "proposal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Where a batch came from: which assistant and model extracted it, when that started, which interviews were read, and notes for later readers. Optional. The merge copies it into the KB's changelog entry, with keys turned into IDs.",
+      "properties": {
+        "assistant": {
+          "type": "string",
+          "description": "The AI assistant that wrote the patch, such as claude-code, codex, cursor, copilot or gemini-cli."
+        },
+        "model": {
+          "type": "string",
+          "description": "The model behind it, such as claude-opus-5-5."
+        },
+        "started": {
+          "type": "string",
+          "description": "When the assistant started reading transcripts for this batch, ISO 8601 with timezone."
+        },
+        "transcripts_read": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interview_ref"
+          },
+          "description": "The interviews read for this batch. Never file names: they carry the interviewee's name."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Anything a later reader should know about how this batch was extracted."
+        }
+      }
+    }
+  }
+}
