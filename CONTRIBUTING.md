@@ -30,4 +30,5 @@ Apache License 2.0, as section 5 of the [LICENSE](LICENSE) describes.
 
 ## More
 
-The plugin's home page is <https://www.productweaver.com/plugin>.
+The plugin's home page is this repository's README. Learn about Product
+Weaver at <https://www.productweaver.com>.

@@ -73,7 +73,6 @@ PATCH_SECTIONS = ("interviews", "bootstrap", "step_evidence", "outcome_evidence"
 PATCH_KEYS = (*PATCH_SECTIONS, "provenance")  # every top-level key a patch may carry
 PROVENANCE_KEYS = ("assistant", "model", "started", "transcripts_read", "notes")
 LOG_FOLDER, LOG_FILE = "logs", "kb_tool.jsonl"
-AGENT_MARKERS = (("CLAUDECODE", "claude-code"), ("GEMINI_CLI", "gemini-cli"))  # env var set by the host -> its name
 DIRECTION = re.compile(r"^(Minimize|Maximize|Increase|Reduce) ")
 OUTCOME_ID = re.compile(r"^[0-9]+\.[0-9]+$")
 TRANSCRIPT_EXTS = (".md", ".markdown", ".txt", ".docx", ".pdf")
@@ -152,9 +151,10 @@ def agent_name() -> str | None:
     given = os.environ.get("KB_TOOL_AGENT", "").strip()
     if given:
         return given
-    for variable, name in AGENT_MARKERS:
-        if os.environ.get(variable):
-            return name
+    if os.environ.get("CLAUDECODE"):
+        return "claude-code"
+    if os.environ.get("GEMINI_CLI"):
+        return "gemini-cli"
     return os.environ.get("TERM_PROGRAM", "").strip().lower() or None
 
 

@@ -1,10 +1,6 @@
 # The run log
 
-`kb_tool.py` appends one JSON line to `KB/logs/kb_tool.jsonl`, next to the KB, every time it runs. Successful runs, refused merges, dry runs and crashes all get a line. The log answers three questions the KB alone cannot: what was tried and failed, how long things take, and which assistant did what. Read it with any JSONL tool, or with Python:
-
-```
-python3 -c "import json,sys; [print(json.loads(l)['command'], json.loads(l)['exit_code'], json.loads(l)['errors']) for l in open('KB/logs/kb_tool.jsonl')]"
-```
+`kb_tool.py` appends one JSON line to `KB/logs/kb_tool.jsonl`, next to the KB, every time it runs. Successful runs, refused merges, dry runs and crashes all get a line. The log answers three questions the KB alone cannot: what was tried and failed, how long things take, and which assistant did what. Read it with any JSONL tool.
 
 Set `KB_TOOL_LOG=0` to switch the log off. It is append-only and small: a line is under 1 KB, so a thousand runs are under 1 MB.
 

@@ -1,10 +1,10 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "productweaver",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Product management skills for your AI assistant, from Product Weaver. The first skill, distill-kb, turns customer interview transcripts into an Outcome-Driven Innovation knowledge base, with every quote checked against its transcript.",
   "author": { "name": "Product Weaver", "url": "https://www.productweaver.com" },
-  "homepage": "https://www.productweaver.com/plugin",
+  "homepage": "https://github.com/productweaver/productweaver-plugin",
   "repository": "https://github.com/productweaver/productweaver-plugin",
   "license": "Apache-2.0",
   "keywords": ["product-management", "jobs-to-be-done", "outcome-driven-innovation", "customer-interviews", "knowledge-base"],
@@ -15,7 +15,7 @@
         "shortDescription": "Turn customer interviews into an ODI knowledge base",
         "developerName": "Product Weaver",
         "category": "Productivity",
-        "websiteURL": "https://www.productweaver.com/plugin",
+        "websiteURL": "https://github.com/productweaver/productweaver-plugin",
         "logo": "./assets/icon.png"
       }
     }

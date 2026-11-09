@@ -3,6 +3,16 @@
 Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning.
 
+## 0.1.1 — 2026-11-09
+
+Changes for the Anthropic directory review. The plugin works as before.
+
+- `kb_tool.py` now names each environment variable it reads directly. It
+  still makes no network calls, and the variables only tell the local run log
+  which assistant ran the tool.
+- The run log guide no longer includes a Python one-liner.
+- The plugin's home and documentation links now point to this repository.
+
 ## 0.1.0 — 2026-11-09
 
 First release.
