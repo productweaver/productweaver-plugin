@@ -1,6 +1,6 @@
 ---
 name: distill-kb
-description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a YAML knowledge base that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, evidence quotes attached, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "YAML". From Product Weaver (productweaver.com).
+description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a YAML knowledge base that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "YAML". From Product Weaver (productweaver.com).
 ---
 
 # distill-kb: fold interviews into an ODI knowledge base
@@ -11,7 +11,7 @@ One YAML file is the knowledge base (KB). Each run reads new transcripts, extrac
 
 ## Running the script
 
-The script needs Python 3.9 or newer and PyYAML. Run it from this skill's folder, so it finds its schemas and the map template:
+The script needs Python 3.9 or newer and PyYAML. It finds its schemas and the map template next to itself, so run it from the root of the workspace, where the study lives:
 
 ```
 uv run --locked <skill folder>/scripts/kb_tool.py <command> ...   # no setup: uv installs PyYAML the first time
@@ -20,12 +20,12 @@ python3 <skill folder>/scripts/kb_tool.py <command> ...           # when PyYAML 
 
 Below, `kb_tool` stands for either line. Do not write plain `python`; many machines do not have it. `.docx` transcripts need `python-docx` and `.pdf` transcripts need `pypdf`. Add them with `--with python-docx==1.2.0` or `--with pypdf==6.21.4`, for example `uv run --locked --with pypdf==6.21.4 <skill folder>/scripts/kb_tool.py ...`.
 
-Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool next to the KB, in `KB/tools/`, only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_tool.py.lock`, `references/kb-schema.json`, `references/patch-schema.json` and `assets/discovery-map-template.html` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
+Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool into `.pw-kb/tools/` only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_tool.py.lock`, `references/kb-schema.json`, `references/patch-schema.json` and `assets/discovery-map-template.html` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
 
 ## What a run changes, and what it leaves alone
 
-- **Writes (evidence layers):** interviews, job executor, core functional job, related, emotional and social jobs per interview, and each new interview's links to the study's core jobs; new evidence on existing job steps and outcomes; new outcomes.
-- **Proposes, never applies:** anything that changes the shared structure. That covers a new core job, a new job step, a reworded step, outcome or core job, a merge of two outcomes, a moved outcome or step, a changed link of an earlier interview, or a new segment. These go to `proposed_changes` with status `pending`. The user decides, then `kb_tool apply` acts.
+- **Writes (evidence layers):** interviews, job executor, core functional job, related, emotional and social jobs per interview, and each new interview's links to the study's core jobs; new evidence on existing job steps and outcomes; new outcomes; current solutions (what people use today for each step, and what they stopped using), with their groups.
+- **Proposes, never applies:** anything that changes the shared structure. That covers a new core job, a new job step, a reworded step, outcome or core job, a merge of two outcomes, a moved outcome or step, a changed link of an earlier interview, a new segment, two solutions that are one, a solution in the wrong group, or a renamed solution or group. These go to `proposed_changes` with status `pending`. The user decides, then `kb_tool apply` acts.
 - **Flags, never rewrites:** derived layers (`survey`, `simulation`, `value_themes`, `use_cases`). The script marks them `stale: true` with a reason. They are rebuilt on request, not on every run.
 
 The exception is a brand-new KB with no core job yet. Then the run proposes the core job or jobs and their job maps as a `bootstrap`, marked `status: proposed`, so the user can review them. The merge also files one `confirm_core_job` decision per core job, saying how many people back it. Approving it marks the job approved.
@@ -34,56 +34,86 @@ The exception is a brand-new KB with no core job yet. Then the run proposes the 
 
 Most studies have one core job. When the people interviewed do different jobs, for example restaurant owners who order ingredients and kitchen managers who staff each shift, the study has several. Each core job has a letter (`A`, `B`…) and its own job map, so every step and outcome ID starts with its job's letter: step `B.2`, outcome `B.2.3`. The letter is there even with one job.
 
-Every interview's own core functional job links to the core job it rolls up to (`job: "B"`). That is the person's main job. A related job may link to another core job, so one person can belong to several. An interview whose job fits none of them stays unlinked, with the reason in its core functional job's `unlinked_reason`. When the person is linked later, the tool moves that reason into history. How to decide whether two people share a core job is in `references/odi-rules.md`, "One job or several".
+Every interview's own core functional job links to the core job it rolls up to (`job: "B"`). That is the person's main job. A related job may link to another core job, so one person can belong to several. An interview whose job fits none of them stays unlinked, with the reason in its core functional job's `unlinked_reason`. When the person is linked later, the tool moves that reason into history. How to decide whether two people share a core job is in `references/pw-rules.md`, "One job or several".
+
+## Where the study lives
+
+Everything the skill makes goes into one folder, `.pw-kb/`, at the root of the workspace: the folder the session started in (in Claude Code, the project folder). One workspace holds one study.
+
+```
+.pw-kb/
+  pw-kb.yaml           the knowledge base (KB)
+  transcripts/         a copy of every transcript the KB quotes; merge makes it
+  patches/             one file per batch, the audit trail
+  backups/             the KB before each write; the newest 20 are kept
+  logs/kb_tool.jsonl   one line per run of the tool
+  review.md            the review sheet
+  discovery-map.html   the interactive map
+```
+
+Run every command from the workspace root, with the paths as shown. The tool refuses a KB anywhere else. Never write the skill's files outside `.pw-kb/`. The user's own transcripts stay where they are; the merge copies them in.
 
 ## Workflow
 
 ### 1. Find the KB and the transcripts
 
-Ask only if they cannot be found. Typical layout: `<study>/KB/odi-kb.yaml` with transcripts in `<study>/Interviews/`.
+The KB is `.pw-kb/pw-kb.yaml`. Ask where the new transcripts are only if they cannot be found.
 
-No KB yet: `kb_tool init KB/odi-kb.yaml --project "<name>"`. Add `--interviewer "<name>"` only when the user or the transcripts say who ran the interviews; never fill it in from anywhere else.
+No KB yet: `kb_tool init .pw-kb/pw-kb.yaml --project "<name>"`. Add `--interviewer "<name>"` only when the user or the transcripts say who ran the interviews; never fill it in from anywhere else.
+
+`.pw-kb/` holds interviewees' names, their words and their transcripts. When `init` prints a `git:` line, the workspace is a git repository: ask the user once whether to share the study through git. If they say no, write `.pw-kb/.gitignore` containing the single line `*`. Do not ask again later.
+
+**A study made by an earlier version of the skill** sits in a `KB/` folder, with its transcripts in `Interviews/` next to it. The tool refuses it with a message to run `migrate`. Run, from the workspace root:
+
+```
+kb_tool migrate <study>/KB/<file>.yaml --to .pw-kb/pw-kb.yaml --transcripts <study>/Interviews
+```
+
+It copies the transcripts, moves the KB, patches, backups, logs, review sheet and map into `.pw-kb/`, renames the KB `pw-kb.yaml` and keeps the old file as a backup. If a transcript is missing, or `.pw-kb/` already holds a study, it moves nothing and says why. Then tell the user where the study is now and what was left in the old folder, and ask about git as above.
 
 ### 2. Load the current structure
 
 ```
-kb_tool context KB/odi-kb.yaml            # add --json for the same information as one JSON object
+kb_tool context .pw-kb/pw-kb.yaml            # add --json for the same information as one JSON object
 ```
 
-This prints each core job with its steps, outcomes and IDs, then every person with their own core job and the core job it links to, the segments, the files already processed, pending proposals and stale layers. Map new evidence against this. Skip any transcript whose file is in "processed files". The script also skips it, matching by file name and content hash, so re-running the same batch never double-counts.
+This prints each core job with its steps, outcomes and IDs, then the current solutions by group, every person with their own core job and the core job it links to, the segments, the files already processed, pending proposals and stale layers. Map new evidence against this. Skip any transcript whose file is in "processed files". The script also skips it, matching by file name and content hash, so re-running the same batch never double-counts.
 
-A KB made before several core jobs were possible (schema 1) is refused with a message to run `kb_tool migrate KB/odi-kb.yaml`. Run it, then tell the user: the core job is now core job A, and every step and outcome ID gained the letter, so `6.3` is now `A.6.3`.
+A KB with an older schema is refused with a message to run `kb_tool migrate .pw-kb/pw-kb.yaml`; moving an older study upgrades it in the same step. When either says it migrated from schema version 1, tell the user: the core job is now core job A, and every step and outcome ID gained the letter, so `6.3` is now `A.6.3`.
 
 ### 3. Read each new transcript in full, then extract
 
-Read the whole transcript before writing anything. The rules for each statement are in `references/odi-rules.md`; read that file once per session, starting with "Write for the reviewer first". Founders, product managers, domain experts and architects will review these statements, so each one should be short, plain and land on the first read. The merge blocks statements that are too long or carry asides. In short:
+Read the whole transcript before writing anything. The rules for each statement are in `references/pw-rules.md`; read that file once per session, starting with "Write for the reviewer first". Founders, product managers, domain experts and architects will review these statements, so each one should be short, plain and land on the first read. The merge blocks statements that are too long or carry asides. In short:
 
 - **Per interview:** the job executor (who they are, in this market), their core functional job (verb + object + context, no solution, no success words), related jobs, emotional jobs ("feel…", "avoid feeling…") and social jobs ("be seen as…"). Each needs 1 to 3 supporting quotes. If there is no evidence for a job type, use an empty list. Do not infer.
 - **Which core job:** ask "why?" of the person's own core job until it meets one of the study's core jobs. Link it there with `job`. Link a related job too when it is another core job of the study. If none fits, leave `job` out and raise a `new_core_job` proposal that lists the interview, or, when the person carries out none of the study's jobs, say why in `unlinked_reason` on their `core_functional_job`. For example, a driver whose carrier picks the loads does not plan loads. Their quotes still count as evidence for the steps they do perform.
-- **First batch:** decide the core jobs from all the interviews before you link anyone. Write each person's own core job, group the ones that meet, then settle each person left over, as in `references/odi-rules.md`, "The odd one out". Bootstrap every core job you found, `A`, `B`… in order, each with its own steps.
+- **First batch:** decide the core jobs from all the interviews before you link anyone. Write each person's own core job, group the ones that meet, then settle each person left over, as in `references/pw-rules.md`, "The odd one out". Bootstrap every core job you found, each with its own steps. Letter them by how many people have the job as their main job, the most first: that one is `A`. On a tie, the job whose first interview comes first. Number each job's steps in stage order.
 - **Against the shared structure:** a passage about *doing* a step goes to `step_evidence`, under the core job it serves. A passage about how they judge success or failure goes to `outcome_evidence` when an existing outcome covers it, and to `new_outcomes` only when none does. Prefer existing outcomes: compare by the object of control, not the wording. A near-duplicate outcome splits the evidence and weakens both.
+- **Current solutions:** whenever someone says what they use to do a step, or what they stopped using, record it: a product, an everyday tool, other people or their own method. Name it as they do, link it to the step it serves and put it in the group of solutions that compete for the same work, with one sentence on why they belong together. Cite a solution `context` already lists by its ID. The rules are in `references/pw-rules.md`, "Current solutions".
 - **Structural signals go to `proposed_changes`:** an activity no step covers, a step or outcome the new evidence shows is worded wrong, two outcomes that are really one, a step under the wrong core job, a core job the study lacks, an earlier interview linked to the wrong job, a new kind of executor or segment. Give each a rationale and evidence. Every target you name must exist in `context` output: the merge refuses a proposal that points at a missing step, outcome, core job or interview.
 
 ### 4. Quote exactly
 
-Copy quotes character for character from the transcript. Trim to the shortest span that carries the point, but never stitch two spans together or tidy the grammar. The comparison ignores differences in whitespace, curly versus straight quotes, dashes, ellipses and markdown markers, so you do not need to reproduce those. Text pulled from a PDF often carries hyphens where lines were broken ("trans- port"); the check does not undo that, so quote the text as the PDF gives it or fix the transcript file first. When a quote is refused, the message shows the closest span in the transcript, so the fix is usually one edit.
+Copy quotes character for character from the transcript. Trim to the shortest span that carries the point, but never stitch two spans together or tidy the grammar. The comparison ignores differences in whitespace, curly versus straight quotes, dashes, ellipses and markdown markers, so you do not need to reproduce those. Text pulled from a PDF often carries hyphens where lines were broken ("trans- port"); the check does not undo that, so quote the text as the PDF gives it, or save a corrected text copy in `.pw-kb/transcripts/` and name that file in the patch. Never edit the user's own transcripts. When a quote is refused, the message shows the closest span in the transcript, so the fix is usually one edit.
+
+When a quote names someone who was not interviewed, such as a colleague or a family member, pick a span without the name if one still carries the point. If none does, keep the name and say so in your report: the map and the review sheet show every quote.
 
 Tag the source honestly:
 
 - `transcript` for the interviewee's words in a transcript
 - `quoted_in_notes` for the interviewee's words inside quotation marks in notes
-- `interviewer_notes` for the interviewer's own paraphrase, which is weaker evidence
+- `interviewer_notes` for the interviewer's own paraphrase, which is weaker evidence. A header or note line someone else wrote about the interview, such as "# Interview: Ana Lima, service writer", counts as this too. Quote it only when the person never says it in their own words
 
 ### 5. Write the patch, dry-run, merge
 
-Write the patch to `KB/patches/<date>-<batch>.yaml`, using the format in `references/patch-format.md`. Open it with a `provenance` block: which assistant and model you are, when you started reading, which interviews you read (by ID or key, never by file name) and any note a later reader needs. The merge copies it into the KB's changelog, so every batch can be traced to who extracted it and how. Write every ID in quotes: interviews `"01"`, core jobs `"B"`, steps `"B.2"`, outcomes `"B.2.3"`. Unquoted, YAML reads an interview ID as a number. Then:
+Write the patch to `.pw-kb/patches/<date>-<batch>.yaml`, using the format in `references/patch-format.md`. Open it with a `provenance` block: which assistant and model you are, when you started reading, which interviews you read (by ID or key, never by file name) and any note a later reader needs. The merge copies it into the KB's changelog, so every batch can be traced to who extracted it and how. Write every ID in quotes: interviews `"01"`, core jobs `"B"`, steps `"B.2"`, outcomes `"B.2.3"`. Unquoted, YAML reads an interview ID as a number. Then:
 
 ```
-kb_tool merge KB/odi-kb.yaml KB/patches/<file>.yaml --transcripts Interviews --dry-run
-kb_tool merge KB/odi-kb.yaml KB/patches/<file>.yaml --transcripts Interviews
+kb_tool merge .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml --transcripts <folder with the new transcripts> --dry-run
+kb_tool merge .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml --transcripts <folder with the new transcripts>
 ```
 
-Before merging, copy new transcripts into the study's transcripts folder, the one earlier records point to. Write each `file:` the same way existing records do (check `context`), so every record resolves the same way. Pass `--transcripts` once per folder if some transcripts still sit elsewhere; a file name that exists in two of those folders is refused. The script reads only the transcripts the KB and the patch cite.
+In the patch, `file:` is the transcript's file name. `--transcripts` says where the new ones are; pass it once per folder, or leave it out when the patch adds no interview. A file name that exists in two of those folders is refused. The KB's own copies in `.pw-kb/transcripts/` always come first, so the transcripts of earlier interviews are read from there. The real merge copies each new transcript into `.pw-kb/transcripts/` and records it as `transcripts/<file name>`; the user's originals are never changed. The script reads only the transcripts the KB and the patch cite.
 
 The dry run and the real merge run the same checks in the same order, so a clean dry run is never followed by a refused merge. Each check blocks the merge:
 
@@ -95,19 +125,21 @@ The dry run and the real merge run the same checks in the same order, so a clean
 
 Warnings do not block: an interview skipped because it is already in the KB (its evidence is dropped), an unquoted interview ID that was read as `"01"`, an unknown top-level key, or a transcript whose content changed since it was added.
 
-A real merge first copies the current KB to `KB/backups/` (the newest 20 copies are kept), then writes the new KB, recounts all coverage numbers, marks derived layers stale and appends a changelog entry that lists what was added, stamped with the time and the `run_id` of the run. Keep the patch file: it is the audit trail of what each batch added. Re-running a batch that was merged already is a no-op. Add `--json` to get one JSON object with `ok`, `errors`, `warnings`, `run_id` and the changes, instead of text.
+A real merge first copies the new transcripts into `.pw-kb/transcripts/` and the current KB to `.pw-kb/backups/` (the newest 20 copies are kept), then writes the new KB, recounts all coverage numbers, marks derived layers stale and appends a changelog entry that lists what was added, stamped with the time and the `run_id` of the run. Keep the patch file: it is the audit trail of what each batch added. Re-running a batch that was merged already is a no-op. Add `--json` to get one JSON object with `ok`, `errors`, `warnings`, `run_id` and the changes, instead of text.
 
 ### 6. Refresh the review sheet and the map
 
 ```
-kb_tool review KB/odi-kb.yaml
-kb_tool map KB/odi-kb.yaml
+kb_tool review .pw-kb/pw-kb.yaml
+kb_tool map .pw-kb/pw-kb.yaml
 ```
 
 Run both after every merge or approved proposal, so reviewers never open a stale picture.
 
-- `KB/review.md` is a plain sheet listing decisions waiting, what is new since the last merge, the job map by stage with interview counts and the steps to ask about next.
-- `KB/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. It is one file with the KB inside: it opens in any browser and works offline.
+- `.pw-kb/review.md` is a plain sheet listing decisions waiting, what is new since the last merge, the job map by stage with interview counts and the steps to ask about next.
+- `.pw-kb/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It is one file with the KB inside: it opens in any browser and works offline.
+
+A folder whose name starts with a dot is hidden in Finder and in most file dialogs. When you point the user to these files, give the full path, and offer to open the map in their browser.
 
 **The map contains personal data.** It embeds every interviewee's name and every quote. Before suggesting that anyone share it, say so, and let the user decide who may see it. The same goes for the KB file and `review.md`.
 
@@ -122,9 +154,16 @@ The reader may be a founder or a domain expert, not an ODI specialist, so write 
 - what the new evidence strengthened: name the outcomes in words, with the ID after the text, never as a bare list of IDs. This holds for every mention, including a passing one in a closing remark: a reviewer cannot hold "1.1 and 5.1" in their head.
 - new outcomes, each as its full statement
 - decisions waiting: what and why in one line each, and how to answer ("approve P1")
-- after a first batch: each core job by its statement, its steps in plain words and how many people back it; then ask the user to confirm each one ("approve P1") or say what to change
-- what to ask about next (thin steps), and which derived layers are now out of date
+- current solutions, briefly: each new group in one line with its why and its most used solutions, then what people stopped using and why. Point to the Solutions view in the map for the full list
+- what to ask about next: per core job, the steps that fewest people support, at most 5, as `review.md` lists them under "Ask about these next"; and which derived layers are now out of date
 - a pointer to `review.md` and `discovery-map.html`, with the note that the map holds the interviewees' names and quotes
+
+**After a first batch** everything is new, so that list would be the whole study. Report this instead, and leave the rest to `review.md` and the map:
+
+- each core job by its statement, how many people have it as their main job, its number of steps and three of them in plain words; then ask the user to confirm each one ("approve P1") or say what to change
+- each person in one line: who they are and the core job they are linked to, or why none
+- the rest as counts, with the one or two findings that matter most: outcomes, current solutions and their groups, and what people stopped using
+- what to ask about next, as above, and the pointer to `review.md` and `discovery-map.html`
 
 Skip tool jargon such as "patch", "object of control" or "verbatim check" unless the user uses it. Say "every quote matches the transcript word for word". Flag anything that should change how the user reads the KB, such as a new interview that contradicts the core job, or a segment that keeps growing without a home.
 
@@ -133,16 +172,20 @@ Skip tool jargon such as "patch", "object of control" or "verbatim check" unless
 When the user decides:
 
 ```
-kb_tool apply KB/odi-kb.yaml P3 --decision approve --note "agreed in review"
+kb_tool apply .pw-kb/pw-kb.yaml P3 --decision approve --note "agreed in review"
 ```
 
-`apply` re-checks that the proposal's target still exists before it acts. A proposal raised against an outcome that was since merged or moved is refused with a message, not applied blindly. Automatic actions exist for `new_step`, `reword_step`, `reword_outcome`, `reword_core_job`, `merge_outcomes`, `move_outcome`, `new_segment`, `new_core_job`, `confirm_core_job`, `move_step` and `relink_interview`. A rejected `confirm_core_job` changes nothing: ask the user what is wrong with the job, then propose `reword_core_job`, or `move_step` and `relink_interview`. Old wording and old links are kept in `history`. IDs stay stable: new steps get the next free number in their core job, and merged outcomes keep a `merged_into` pointer instead of being deleted. A moved outcome or step gets the next free ID where it lands, the old ID goes to `history`, and pending proposals that cited the old ID are updated. For `other`, edit the KB by hand, then run `validate`.
+`apply` re-checks that the proposal's target still exists before it acts. A proposal raised against an outcome that was since merged or moved is refused with a message, not applied blindly. Automatic actions exist for `new_step`, `reword_step`, `reword_outcome`, `reword_core_job`, `merge_outcomes`, `move_outcome`, `new_segment`, `new_core_job`, `confirm_core_job`, `move_step`, `relink_interview`, `merge_solutions`, `move_solution`, `reword_solution` and `reword_solution_group`. A rejected `confirm_core_job` changes nothing: ask the user what is wrong with the job, then propose `reword_core_job`, or `move_step` and `relink_interview`. Old wording and old links are kept in `history`. IDs stay stable: new steps get the next free number in their core job, and merged outcomes keep a `merged_into` pointer instead of being deleted. A moved outcome or step gets the next free ID where it lands, the old ID goes to `history`, and pending proposals that cited the old ID are updated. For `other`, edit the KB by hand, then run `validate`.
 
 An approved `new_core_job` gets the next free letter, its steps are numbered from 1 and the interviews it lists are linked to it. It has no outcomes yet, because outcome IDs need the job to exist. Right after approval, reread those interviews and write a short follow-up patch that cites them by ID and adds the new job's outcomes and step evidence. Also check the people → jobs list in `context` for earlier interviews whose related job is the new core job, and propose `relink_interview` for them.
 
 ## When asked whether the study holds more than one job
 
-Run `context` and read the people → jobs list. Ask "why?" of each person's own core job, as in `references/odi-rules.md`, "One job or several". Group the people whose jobs meet. For a group that no core job fits, propose `new_core_job` with its steps and people. Then propose `move_step` for steps that belong to the new job and `relink_interview` for people linked to the wrong one. Tell the user how many people support each job before they decide. Splitting a job is a big change to the map, so propose; never edit the KB by hand for it.
+Run `context` and read the people → jobs list. Ask "why?" of each person's own core job, as in `references/pw-rules.md`, "One job or several". Group the people whose jobs meet. For a group that no core job fits, propose `new_core_job` with its steps and people. Then propose `move_step` for steps that belong to the new job and `relink_interview` for people linked to the wrong one. Tell the user how many people support each job before they decide. Splitting a job is a big change to the map, so propose; never edit the KB by hand for it.
+
+## When asked about current solutions or the competition
+
+Run `context` and read the CURRENT SOLUTIONS block, or point the user to the Solutions view in the map. Groups grow batch by batch, so they drift. When a group holds solutions that do different work, or two groups do the same work, write a patch that proposes `move_solution` for each solution that should move. Add a new group in the same patch when none fits. Propose `reword_solution_group` when a group's name or why no longer fits its members, and `merge_solutions` when two solutions are the same thing under two names. Tell the user why each group holds what it holds. Never edit the KB by hand for it.
 
 ## When asked to rebuild a derived layer
 
@@ -172,30 +215,30 @@ Every file this skill produces carries a light Product Weaver credit: the map's 
 
 ## What the script records
 
-Every run appends one JSON line to `KB/logs/kb_tool.jsonl`, next to the KB: the command and its options, how it ended, error and warning codes with counts, what changed as counts, the versions in use, the assistant that ran it and a hash of the KB before and after. Refused merges, dry runs and crashes are logged too; they are what shows where the instructions or the patch format confuse an assistant. The log never holds a quote, an interviewee's name, a transcript file name or an absolute path, so it can be shared for debugging. `references/run-log.md` lists every field and every code.
+Every run appends one JSON line to `.pw-kb/logs/kb_tool.jsonl`: the command and its options, how it ended, error and warning codes with counts, what changed as counts, the versions in use, the assistant that ran it and a hash of the KB before and after. Refused merges, dry runs and crashes are logged too; they are what shows where the instructions or the patch format confuse an assistant. The log never holds a quote, an interviewee's name, a transcript file name or an absolute path, so it can be shared for debugging. `references/run-log.md` lists every field and every code.
 
 Each changelog entry the script writes carries `ts` and `run_id`, so a change in the KB can be traced to its log line, its backup and its patch. The script recognises Claude Code and Gemini CLI from their environment; in any other assistant, set `KB_TOOL_AGENT=<assistant>/<model>` before calling it so the `agent` field is right. The `provenance` block in a patch does the same for merges. `KB_TOOL_LOG=0` switches the log off. The log belongs to the study: do not send it anywhere unless the user asks.
 
 ## Checking a KB
 
 ```
-kb_tool validate KB/odi-kb.yaml --transcripts Interviews
+kb_tool validate .pw-kb/pw-kb.yaml
 ```
 
-First checks the KB's structure against `kb-schema.json`: required fields, ID formats, stages, source types and the references between steps and outcomes. Then it re-checks every stored quote against its transcript and compares each transcript with the content hash stored when it was added. A transcript that changed is reported; if the change is intended, add `--rehash` to accept the new content once every quote matches. Leave out `--transcripts` to check structure only. Run it after any hand edit. `merge` runs the same structure check and refuses to write a KB that would break it.
+First checks the KB's structure against `kb-schema.json`: required fields, ID formats, stages, source types and the references between steps and outcomes. Then it re-checks every stored quote against the study's copy of its transcript in `.pw-kb/transcripts/` and compares each copy with the content hash stored when it was added. A transcript that changed is reported; if the change is intended, add `--rehash` to accept the new content once every quote matches. Add `--structure-only` to skip the quotes. A copy that is missing is reported; put the transcript back in `.pw-kb/transcripts/` under the same name. Run it after any hand edit. `merge` runs the same structure check and refuses to write a KB that would break it.
 
-Each KB records its schema version. `kb_tool migrate KB/odi-kb.yaml` brings an older KB up to date, keeping a backup; every other command refuses an older KB with a message to migrate, and a KB written by a newer version of the tool with a message to update the skill.
+Each KB records its schema version. `kb_tool migrate .pw-kb/pw-kb.yaml` brings an older KB up to date, keeping a backup; every other command refuses an older KB with a message to migrate, and a KB written by a newer version of the tool with a message to update the skill.
 
 The KB's fields are explained one by one in `references/kb-schema.md`. Read it before editing a KB by hand or building anything that reads one.
 
 ## Files in this skill
 
-- `scripts/kb_tool.py`: init, context, merge (with format, quote, reference and clarity checks), apply, review, map, validate and migrate. Needs PyYAML, plus python-docx or pypdf for .docx or .pdf transcripts. Carries its own dependency list, so `uv run --locked` needs no setup.
+- `scripts/kb_tool.py`: init, context, merge (with format, quote, reference and clarity checks), apply, review, map, validate and migrate (which also moves a study made by an earlier version into `.pw-kb/`). Needs PyYAML, plus python-docx or pypdf for .docx or .pdf transcripts. Carries its own dependency list, so `uv run --locked` needs no setup.
 - `scripts/kb_tool.py.lock`: the exact package versions `uv run --locked` installs. Keep it next to the script.
 - `assets/discovery-map-template.html`: the interactive map viewer. `map` fills it with the KB. Opened on its own, it lets anyone load a KB file.
-- `references/odi-rules.md`: how to write each kind of statement, with examples and common mistakes. Read it before extracting.
+- `references/pw-rules.md`: how to write each kind of statement, with examples and common mistakes. Read it before extracting.
 - `references/patch-format.md`: the patch format the merge accepts, with a worked example. Read it before writing a patch.
 - `references/patch-schema.json`: the same format as a JSON Schema, checked first by every merge.
 - `references/kb-schema.md`: every field of the KB, what it means and who writes it.
 - `references/kb-schema.json`: the same model as a JSON Schema (draft 2020-12), checked by `validate`, `merge` and `apply`.
-- `references/run-log.md`: what `KB/logs/kb_tool.jsonl` records, field by field, and every error and warning code.
+- `references/run-log.md`: what `.pw-kb/logs/kb_tool.jsonl` records, field by field, and every error and warning code.

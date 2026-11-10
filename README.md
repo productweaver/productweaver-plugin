@@ -10,7 +10,9 @@ success by, each backed by verbatim quotes. Every quote is checked against its
 transcript before it goes in, so the knowledge base never holds paraphrased
 evidence. It grows with every batch of interviews. When the people you
 interviewed do different jobs, it finds each core job and keeps track of who
-does which.
+does which. It also collects what people use today to get each step done, and
+what they stopped using: their current solutions, grouped by the work they
+compete for.
 
 ## Install
 
@@ -57,6 +59,7 @@ Ask your assistant in plain words, for example:
 - "Start an ODI knowledge base for the Acme study from these transcripts."
 - "Add these three calls to the knowledge base and show me what changed."
 - "Do these interviews show more than one core job?"
+- "What do people use today to find suppliers, and what did they give up?"
 
 The assistant reads the transcripts, proposes what to add, and merges it into
 the knowledge base. It then writes a review sheet with decisions waiting for
@@ -76,9 +79,12 @@ assistant itself works as it always does with the files it reads.
 
 ## Files it writes
 
-All files stay next to your knowledge base, usually in a `KB/` folder:
+All files go into one folder, `.pw-kb/`, at the root of your workspace. One
+workspace holds one study.
 
-- `odi-kb.yaml`, the knowledge base;
+- `pw-kb.yaml`, the knowledge base;
+- `transcripts/`, a copy of each transcript the knowledge base quotes. Your own
+  files are never changed;
 - `review.md`, the review sheet;
 - `discovery-map.html`, the interactive map, which works offline;
 - `patches/`, one file per batch, the audit trail of what each batch added;
@@ -86,8 +92,13 @@ All files stay next to your knowledge base, usually in a `KB/` folder:
 - `logs/kb_tool.jsonl`, one line per run, for debugging. It holds no quotes,
   names or file names.
 
-The knowledge base, review sheet, map and patches contain interviewees' names
-and words. They stay on your machine unless you share them.
+The knowledge base, transcripts, review sheet, map and patches contain
+interviewees' names and words. They stay on your machine unless you share
+them. If your workspace is a git repository, the assistant asks once whether
+to share the study through git.
+
+A study made by version 0.2.0 or earlier sits in a `KB/` folder. The assistant
+moves it into `.pw-kb/` the first time you use it, and keeps a backup.
 
 ## Where it works
 

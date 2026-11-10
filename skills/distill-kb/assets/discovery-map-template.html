@@ -16,6 +16,8 @@
   --accent-soft:#e7edfc;
   --ev1:#d6eedf; --ev2:#9fd3b4; --ev3:#4fa97a; --ev4:#1f7a4f;
   --amber:#a86400; --amber-soft:#fdf1dc;
+  /* what people use today, by kind: kept apart from the green evidence ramp and from amber */
+  --sol-product:#6a4bd4; --sol-tool:#1f8fc2; --sol-people:#a52f7c; --sol-own:#d44a2e;
   --quote:#f7f8fa;
   --shadow:0 6px 24px rgba(20,30,60,.12);
   --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -28,6 +30,7 @@
     --accent:#7da0ff; --accent-soft:#1f2a47;
     --ev1:#1d3a2b; --ev2:#2b6447; --ev3:#3f9a6c; --ev4:#78d3a3;
     --amber:#f0b45a; --amber-soft:#3a2c17; --quote:#151a23; --shadow:0 6px 24px rgba(0,0,0,.45);
+    --sol-product:#7d5fe6; --sol-tool:#2fa0d4; --sol-people:#c04d98; --sol-own:#e85f3f;
     color-scheme:dark;
   }
 }
@@ -36,6 +39,7 @@
   --accent:#7da0ff; --accent-soft:#1f2a47;
   --ev1:#1d3a2b; --ev2:#2b6447; --ev3:#3f9a6c; --ev4:#78d3a3;
   --amber:#f0b45a; --amber-soft:#3a2c17; --quote:#151a23; --shadow:0 6px 24px rgba(0,0,0,.45);
+  --sol-product:#7d5fe6; --sol-tool:#2fa0d4; --sol-people:#c04d98; --sol-own:#e85f3f;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -66,6 +70,9 @@ h1 .goal{color:var(--accent)}
 .flow{align-self:center;color:var(--muted);font-size:1.1rem}
 .chip.check{border-color:transparent;background:var(--ev1)}
 .chip.check span{color:var(--ink)}
+button.chip{color:var(--ink);text-align:left;cursor:pointer}
+button.chip:hover{border-color:var(--accent)}
+button.chip:hover span{color:var(--accent)}
 .jobs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .jobs[hidden]{display:none}
 .jobs .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:var(--muted);margin-right:4px}
@@ -81,6 +88,12 @@ h1 .goal{color:var(--accent)}
 
 main{flex:1;display:grid;grid-template-columns:290px minmax(0,1fr);min-height:0;position:relative}
 @media (max-width:860px){main{grid-template-columns:1fr;grid-template-rows:auto 70vh}}
+/* on phones the page scrolls: the sidebar gets its own height instead of being squeezed out by the 70vh map */
+@media (max-width:860px){html,body{height:auto} main{flex:none} aside.side{height:60vh;border-right:0;border-bottom:1px solid var(--line)}}
+/* the Solutions view takes the full width: the sidebar steps aside */
+main.wide{grid-template-columns:minmax(0,1fr)}
+main.wide aside.side{display:none}
+@media (max-width:860px){main.wide{grid-template-rows:minmax(70vh,1fr)}}
 
 aside.side{border-right:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;min-height:0}
 .tabs{display:flex;border-bottom:1px solid var(--line)}
@@ -105,7 +118,7 @@ aside.side{border-right:1px solid var(--line);background:var(--surface);display:
   radial-gradient(circle, var(--line) 1px, transparent 1.2px) 0 0/22px 22px, var(--bg);min-height:0;touch-action:none}
 .stage svg{width:100%;height:100%;display:block;cursor:grab;user-select:none}
 .stage svg.dragging{cursor:grabbing}
-.toolbar{position:absolute;top:12px;left:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+.toolbar{position:absolute;top:12px;left:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none;z-index:6}
 .toolbar > *{pointer-events:auto}
 .search{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px 10px;box-shadow:var(--shadow)}
 .search input{border:0;background:transparent;color:var(--ink);width:210px;outline:none;font-size:.88rem}
@@ -113,6 +126,13 @@ aside.side{border-right:1px solid var(--line);background:var(--surface);display:
 .tgroup button{border:0;background:none;color:var(--ink);padding:6px 11px;font-size:.82rem;font-weight:600;border-right:1px solid var(--line)}
 .tgroup button:last-child{border-right:0}
 .tgroup button:hover{background:var(--accent-soft);color:var(--accent)}
+.tgroup button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.viewsw{display:flex;gap:2px;padding:2px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.viewsw button{border:0;background:none;color:var(--muted);padding:5px 12px;font-size:.82rem;font-weight:700;border-radius:8px}
+.viewsw button:hover{color:var(--accent)}
+.viewsw button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent)}
+.stage.solmode .toolbar > :not(.viewsw){display:none}
+.stage.solmode svg,.stage.solmode .legend,.stage.solmode .madewith{visibility:hidden}
 .filterpill{background:var(--accent);color:#fff;border-radius:10px;padding:6px 12px;font-size:.82rem;font-weight:600;box-shadow:var(--shadow);display:flex;gap:8px;align-items:center}
 .filterpill button{border:0;background:rgba(255,255,255,.25);color:#fff;border-radius:6px;padding:0 6px}
 .legend{position:absolute;left:12px;bottom:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;box-shadow:var(--shadow);font-size:.76rem;color:var(--muted);display:grid;gap:5px;max-width:330px}
@@ -139,6 +159,59 @@ aside.side{border-right:1px solid var(--line);background:var(--surface);display:
 .tog circle{fill:var(--surface);stroke:var(--accent);stroke-width:1.4}
 .tog text{fill:var(--accent);font-size:11px;font-weight:700}
 .thinflag{fill:var(--amber)}
+.node.sol .t1{font-size:13px}
+.node.sol.gone rect.box{stroke:var(--muted);stroke-dasharray:5 4}
+.sw.dash{background:transparent;border:1.5px dashed var(--muted)}
+.legend.wide{max-width:min(400px,calc(100% - 24px))}
+
+/* Solutions view: a full-width table over the map, inside the stage */
+/* --soltop is the toolbar's height, set from script; content fades out as it scrolls under the floating view switch */
+.solview{position:absolute;inset:0;overflow:auto;z-index:5;background:var(--bg);padding:var(--soltop,64px) 20px 32px;
+  -webkit-mask-image:linear-gradient(to bottom,transparent calc(var(--soltop,64px) - 14px),#000 calc(var(--soltop,64px) - 2px));
+  mask-image:linear-gradient(to bottom,transparent calc(var(--soltop,64px) - 14px),#000 calc(var(--soltop,64px) - 2px))}
+.stage.solmode{background:var(--bg)}
+@media (min-width:861px){.stage.has-drawer .solview{padding-right:calc(min(420px,100%) + 20px)}}
+.solin{max-width:1180px;display:grid;gap:12px}
+.solin h2{margin:0;font-size:1.15rem;line-height:1.3;text-wrap:balance}
+.solin h3{margin:14px 0 0;font-size:.95rem}
+.twrap{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.soltable{width:100%;border-collapse:collapse;font-size:.86rem}
+.soltable thead th{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--muted);text-align:left;padding:8px 12px;white-space:nowrap}
+.soltable td,.soltable tbody th{padding:8px 12px;border-top:1px solid var(--line);vertical-align:top;text-align:left;font-weight:400}
+.soltable tr[data-row]{cursor:pointer}
+.soltable tr[data-row]:hover{background:var(--bg)}
+.soltable tr.on{background:var(--accent-soft)}
+.soltable tr.ghead th{padding:0}
+.gbtn{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 16px;width:100%;border:0;background:var(--quote);color:var(--ink);text-align:left;padding:10px 12px;font-size:.84rem}
+.gbtn .gname{font-weight:700;font-size:.92rem}
+.gbtn .gnum{grid-column:2;grid-row:1;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.gbtn .gwhy{grid-column:1 / -1;color:var(--muted)}
+.gbtn:hover .gname,.gbtn[aria-pressed="true"] .gname{color:var(--accent)}
+.gbtn[aria-pressed="true"]{background:var(--accent-soft)}
+.solname{border:0;background:none;padding:0;color:var(--accent);font-weight:700;text-align:left;font-size:.9rem}
+.solname:hover{text-decoration:underline}
+.sline{display:block}
+.sline + .sline{margin-top:3px}
+.mcell{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+.mbar{display:inline-block;width:56px;height:6px;border-radius:3px;background:var(--bg);border:1px solid var(--line);overflow:hidden}
+.mbar i{display:block;height:100%;background:var(--ev3)}
+.why{font-family:var(--font-read);font-size:.92rem}
+.why small{display:block;font-family:var(--font);color:var(--muted);font-size:.74rem;margin-top:2px}
+.ktag{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;color:var(--ink)}
+.ktag i{width:8px;height:8px;border-radius:2px;flex:none}
+.oitem .meta{display:flex;gap:8px;align-items:center;flex:none;color:var(--muted);font-size:.78rem;white-space:nowrap}
+.linkbtn{border:0;background:none;padding:0;color:inherit;text-decoration:underline;text-underline-offset:2px;font-size:inherit}
+.linkbtn:hover{color:var(--accent)}
+@media (max-width:860px){
+  .solview{padding-left:12px;padding-right:12px}
+  .soltable thead{display:none}
+  .soltable,.soltable tbody,.soltable tr,.soltable td,.soltable tbody th{display:block}
+  .soltable tr[data-row]{padding:10px 12px;border-top:1px solid var(--line)}
+  .soltable tr[data-row] > *{border:0;padding:2px 0}
+  .soltable td{display:grid;grid-template-columns:100px minmax(0,1fr);gap:10px}
+  .soltable td::before{content:attr(data-l);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--muted);padding-top:2px}
+  .soltable tr.ghead th{border-top:1px solid var(--line)}
+}
 
 .tip{position:fixed;z-index:30;pointer-events:none;max-width:320px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:9px 11px;font-size:.82rem;line-height:1.4}
 .tip .tk{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--muted)}
@@ -180,6 +253,8 @@ blockquote.para{border-left-color:var(--amber)}
 .feel div{background:var(--bg);border-radius:8px;padding:6px 9px}
 .tags{display:flex;flex-wrap:wrap;gap:5px}
 .tag{font-size:.74rem;border:1px solid var(--line);border-radius:5px;padding:1px 7px;color:var(--muted)}
+button.tag{background:none;font-size:.74rem}
+button.tag:hover{border-color:var(--accent);color:var(--accent)}
 
 /* modal */
 .modal{position:fixed;inset:0;background:rgba(10,15,30,.45);display:grid;place-items:center;z-index:40;padding:16px}
@@ -235,11 +310,17 @@ blockquote.para{border-left-color:var(--amber)}
 
   <section class="stage" id="stage" aria-label="Map of the customer's job">
     <svg id="svg" role="img" aria-label="Mind map: main goal, stages, steps and success measures"><g id="vp"><g id="edges"></g><g id="nodes"></g></g></svg>
-    <div class="toolbar">
+    <div class="solview" id="solview" role="tabpanel" aria-labelledby="vSol" hidden></div>
+    <div class="toolbar" id="toolbar">
+      <div class="viewsw" id="viewsw" role="tablist" aria-label="Choose a view" hidden>
+        <button type="button" role="tab" id="vMap" aria-selected="true" tabindex="0">Map</button>
+        <button type="button" role="tab" id="vSol" aria-selected="false" aria-controls="solview" tabindex="-1">Solutions</button>
+      </div>
       <label class="search"><span aria-hidden="true">⌕</span><input id="q" type="search" placeholder="Search the map and the quotes" aria-label="Search"></label>
       <div class="tgroup" role="group" aria-label="Map controls">
         <button type="button" id="bExpand" title="Show every success measure">Open all</button>
         <button type="button" id="bCollapse" title="Show steps only">Close all</button>
+        <button type="button" id="bSols" aria-pressed="false" title="Show what people use today at each step" hidden>Show solutions</button>
         <button type="button" id="bFit" title="Fit the map to the screen">Fit</button>
         <button type="button" id="bIn" aria-label="Zoom in">+</button>
         <button type="button" id="bOut" aria-label="Zoom out">−</button>
@@ -4156,6 +4237,14 @@ const SRC = {
   quoted_in_notes:["Their own words, quoted in notes","notes"],
   interviewer_notes:["Interviewer's summary, not their exact words","paraphrase"]
 };
+/* what people use today to get a step done: [plain label, color token] */
+const KINDS = {
+  product:["Product or app","--sol-product"],
+  everyday_tool:["Everyday tool","--sol-tool"],
+  people:["Other people","--sol-people"],
+  own_method:["Own method","--sol-own"]
+};
+const kindOf = k => KINDS[k] || ["Other","--muted"];
 function plainOutcome(s){
   const r = [
     [/^Minimize the time (it takes )?to /i,"Less time to "],
@@ -4171,6 +4260,28 @@ function plainOutcome(s){
 }
 const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const plural = (n,w,p) => `${n} ${n===1?w:(p||w+"s")}`;
+const short = (s,n) => { s=String(s||""); if(s.length<=n) return s; const cut=s.slice(0,n-1); return cut.slice(0,Math.max(cut.lastIndexOf(" "),n-20)).replace(/[\s,;:.]+$/,"")+"…"; };
+const names = ids => ids.map(id=>M.ivById[id]?.name||("Interview "+id)).join(", "); // plain text: wrap in esc()
+/* the same sentence from the same person counts once */
+function uniqEv(list){ const seen=new Set(); return list.filter(e=>{ const k=e.interview+"\u0000"+(e.quote||""); if(seen.has(k)) return false; seen.add(k); return true; }); }
+/* Solutions seen from one core job (or from all when job is null). Current users are people on a
+   current use; people who stopped count only if they use it nowhere else in the same scope. */
+function solScope(sols, groups, job){
+  const uniq = a => [...new Set(a)];
+  const items = sols.map(sol=>{
+    const at = sol.at.filter(a=>!job || a.step.job===job); if(!at.length) return null;
+    const cur = uniq(at.flatMap(a=>a.cur)), stop = uniq(at.flatMap(a=>a.stop)).filter(x=>!cur.includes(x));
+    const curEv = uniqEv(at.flatMap(a=>a.curEv)), stopEv = uniqEv(at.flatMap(a=>a.stopEv));
+    return {sol, at, cur, stop, curEv, stopEv, ment:curEv.length};
+  }).filter(Boolean);
+  const byUse = (a,b) => b.cur.length-a.cur.length || b.ment-a.ment || a.sol.name.localeCompare(b.sol.name);
+  const gs = groups.map(g=>{
+    const its = items.filter(x=>x.sol.group===g.id && x.cur.length).sort(byUse);
+    return {g, items:its, ment:its.reduce((n,x)=>n+x.ment,0), people:uniq(its.flatMap(x=>x.cur))};
+  }).filter(x=>x.items.length).sort((a,b)=>b.ment-a.ment || b.people.length-a.people.length);
+  const gone = items.filter(x=>x.stop.length).sort((a,b)=>b.stop.length-a.stop.length || a.sol.name.localeCompare(b.sol.name));
+  return {items, groups:gs, gone, inUse:items.filter(x=>x.cur.length).length, onlyStopped:items.filter(x=>!x.cur.length).length};
+}
 
 /* ---------- model ---------- */
 let M = null;
@@ -4204,21 +4315,58 @@ function build(raw){
   const people = arr => [...new Set(arr.map(e=>e.interview))];
   outs.forEach(o=>{ o.people=people(o.ev); o.job=o.step.split(".")[0]; });
   steps.forEach(s=>{ s.people=people(s.ev); s.outs=outs.filter(o=>o.step===s.key); s.allPeople=[...new Set([...s.people,...s.outs.flatMap(o=>o.people)])]; });
+  // what people use today to get a step done (schema 2 only), grouped by the work the solutions compete for
+  const stepByKey = Object.fromEntries(steps.map(s=>[s.key,s]));
+  const cs = !v1 && raw.current_solutions && typeof raw.current_solutions==="object" ? raw.current_solutions : {};
+  const normStep = x => { const m=String(x??"").match(/^([A-Za-z]+)\.0*(\d+)$/); return m ? `${m[1]}.${+m[2]}` : String(x??""); };
+  const groups = Object.entries(cs.groups && typeof cs.groups==="object" ? cs.groups : {}).map(([id,g])=>({
+    id:String(id), name:(g&&g.name)||String(id), why:(g&&g.why)||"", list:((g&&g.solutions)||[]).map(String)}));
+  const sols = (Array.isArray(cs.solutions)?cs.solutions:[]).filter(s=>s && s.id!=null && !s.merged_into).map(s=>{
+    const id=String(s.id), listed=groups.find(g=>g.list.includes(id));
+    const uses=(s.uses||[]).filter(Boolean).map(u=>({step:normStep(u.step), status:u.status==="stopped"?"stopped":"current",
+      ev:(u.evidence||[]).map(e=>({...e, interview:String(e.interview)}))})).filter(u=>stepByKey[u.step]);
+    uses.forEach(u=>{ u.job=u.step.split(".")[0]; });
+    return {id, name:s.name||id, kind:s.kind||"", group:s.group!=null?String(s.group):(listed?listed.id:""), added:s.added||"",
+      uses, jobs:[...new Set(uses.map(u=>u.job))], at:[]};
+  }).filter(s=>s.uses.length);
+  sols.forEach(s=>{ if(!groups.some(g=>g.id===s.group)) s.group=""; });
+  if(sols.some(s=>s.group==="")) groups.push({id:"", name:"Not in a group yet", why:"", list:[]});
+  steps.forEach(s=>{ s.sols=[]; });
+  sols.forEach(sol=>{ [...new Set(sol.uses.map(u=>u.step))].forEach(k=>{
+    const at=sol.uses.filter(u=>u.step===k), st=stepByKey[k];
+    const curEv=uniqEv(at.filter(u=>u.status!=="stopped").flatMap(u=>u.ev)), stopEv=uniqEv(at.filter(u=>u.status==="stopped").flatMap(u=>u.ev));
+    const cur=people(curEv), entry={sol, step:st, cur, stop:people(stopEv).filter(x=>!cur.includes(x)), curEv, stopEv, ev:uniqEv([...curEv,...stopEv])};
+    st.sols.push(entry); sol.at.push(entry);
+  }); });
+  steps.forEach(s=>{
+    s.sols.sort((a,b)=>b.cur.length-a.cur.length||b.stop.length-a.stop.length||a.sol.name.localeCompare(b.sol.name));
+    s.solPeople=people(s.sols.flatMap(x=>x.ev));
+    s.solText=s.sols.map(x=>x.sol.name+" "+x.ev.map(e=>e.quote).join(" ")).join(" ");
+  });
   const jobs = jobsRaw.map(j=>{ const id=String(j.id); return {id, statement:j.statement||"", status:j.status||"", executor:j.job_executor||"",
     main:ivs.filter(i=>i.main===id).map(i=>i.id), also:ivs.filter(i=>i.main!==id && i.also.includes(id)).map(i=>i.id),
     steps:steps.filter(s=>s.job===id), outs:outs.filter(o=>o.job===id)}; });
+  jobs.forEach(j=>{ j.sols=solScope(sols, groups, j.id);
+    j.people=[...new Set([...j.main, ...j.also, ...j.steps.flatMap(s=>[...s.allPeople, ...s.solPeople])])]; });
   const quotes = steps.reduce((a,s)=>a+s.ev.length,0)+outs.reduce((a,o)=>a+o.ev.length,0)
+    + sols.reduce((a,s)=>a+s.uses.reduce((b,u)=>b+u.ev.length,0),0)
     + ivs.reduce((a,i)=>a+i.whoEv.length+i.goalEv.length+[...i.related,...i.emotional,...i.social].reduce((b,j)=>b+(j.evidence||[]).length,0),0);
   // per-person contribution, across every core job
   ivs.forEach(i=>{
-    i.steps = steps.filter(s=>s.people.includes(i.id)).map(s=>s.id);
+    const said = e => e.interview===i.id;
+    i.steps = steps.filter(s=>s.people.includes(i.id)||s.solPeople.includes(i.id)).map(s=>s.id);
     i.outs = outs.filter(o=>o.people.includes(i.id)).map(o=>o.id);
-    i.quoteCount = steps.reduce((a,s)=>a+s.ev.filter(e=>e.interview===i.id).length,0)+outs.reduce((a,o)=>a+o.ev.filter(e=>e.interview===i.id).length,0);
-    i.touched = [...new Set([...steps.filter(s=>s.people.includes(i.id)).map(s=>s.job), ...outs.filter(o=>o.people.includes(i.id)).map(o=>o.job)])];
+    i.quoteCount = steps.reduce((a,s)=>a+s.ev.filter(said).length,0)+outs.reduce((a,o)=>a+o.ev.filter(said).length,0)
+      + sols.reduce((a,s)=>a+s.uses.reduce((b,u)=>b+u.ev.filter(said).length,0),0);
+    i.touched = [...new Set([...steps.filter(s=>s.people.includes(i.id)||s.solPeople.includes(i.id)).map(s=>s.job), ...outs.filter(o=>o.people.includes(i.id)).map(o=>o.job)])];
+    i.solsUsed = sols.filter(s=>s.at.some(a=>a.cur.includes(i.id)));
+    i.solsStopped = sols.filter(s=>!i.solsUsed.includes(s) && s.at.some(a=>a.stop.includes(i.id)));
   });
   return {raw, project:(raw.meta||{}).project||"Discovery study", caveat:(raw.meta||{}).caveat||"",
     jobs, jobById:Object.fromEntries(jobs.map(j=>[j.id,j])), job:null, goal:"", goalStatus:"", executor:"",
     ivs, ivById, allSteps:steps, allOuts:outs, steps, outs, quotes,
+    solList:sols, solById:Object.fromEntries(sols.map(s=>[s.id,s])), groups, groupById:Object.fromEntries(groups.map(g=>[g.id,g])),
+    hasSols:sols.length>0, solAll:solScope(sols, groups, null), sols:null,
     proposals:(raw.proposed_changes||[]).filter(p=>p.status==="pending"),
     changelog:raw.changelog||[], segments:raw.clusters||{}};
 }
@@ -4228,6 +4376,7 @@ function chooseJob(id){
   M.job = j ? j.id : null;
   M.steps = j ? j.steps : M.allSteps; M.outs = j ? j.outs : M.allOuts;
   M.goal = j ? j.statement : ""; M.goalStatus = j ? j.status : ""; M.executor = j ? j.executor : "";
+  M.sols = j ? j.sols : M.solAll;
 }
 const many = () => M.jobs.length>1;
 const doers = n => n===1 ? "1 person does it" : `${n} people do it`;
@@ -4235,8 +4384,9 @@ const jobName = id => M.jobById[id] ? `${M.jobById[id].statement} (${id})` : id;
 function setJob(id, keep){
   if(id===M.job) return;
   chooseJob(id); expanded=new Set(); selected=null;
-  if(!keep){ personHL=null; closeDrawer(); }
+  if(!keep){ personHL=null; solHL=null; closeDrawer(); }
   renderHeader(); renderJobs(); renderPeople(); renderNext(); updatePill(); render(); fit(true);
+  if(solMode) renderSolView();
 }
 
 /* ---------- header, strip, sidebar ---------- */
@@ -4255,14 +4405,19 @@ function renderHeader(){
     [M.steps.length,"steps in their job","What customers actually do, in order, to get their goal done."+(many()?" Counted for the core job shown.":"")],
     [M.outs.length,"measures of success","How customers judge whether a step went well, in their own terms."+(many()?" Counted for the core job shown.":"")]
   ];
+  // what people use today sits beside the flow, not in it: it is context, not a step toward the insights
+  const sc = M.sols, solTip = "Products, everyday tools, other people and their own methods that people use now to get a step done. Click to see them all."
+    + (sc && sc.onlyStopped ? ` Plus ${sc.onlyStopped} more that people stopped using.` : "") + (many()?" Counted for the core job shown.":"");
+  const solChip = M.hasSols ? `<span class="flow" aria-hidden="true"></span><button class="chip" type="button" id="solChip" data-tip="${esc(solTip)}"><b>${sc.inUse}</b><span>${sc.inUse===1?"solution":"solutions"}<br>in use today</span></button>` : "";
   document.getElementById("strip").innerHTML = chips.map((c,i)=>`<div class="chip" tabindex="0" data-tip="${esc(c[2])}"><b>${c[0]}</b><span>${c[1]}</span></div>${i<chips.length-1?'<span class="flow" aria-hidden="true">→</span>':""}`).join("")
-    + `<span class="flow" aria-hidden="true"></span><div class="chip check" tabindex="0" data-tip="Every insight on this map points back to the quotes behind it. Click any box to read them."><b>✓</b><span>every insight<br>traced to a quote</span></div>`
+    + solChip + `<span class="flow" aria-hidden="true"></span><div class="chip check" tabindex="0" data-tip="Every insight on this map points back to the quotes behind it. Click any box to read them."><b>✓</b><span>every insight<br>traced to a quote</span></div>`
     + (thin?`<div class="chip" tabindex="0" data-tip="Steps that fewer than 3 people talked about. More conversations would firm them up." style="border-color:var(--amber)"><b style="color:var(--amber)">${thin}</b><span>${thin===1?"step needs":"steps need"}<br>more voices</span></div>`:"");
   document.getElementById("strip").querySelectorAll("[data-tip]").forEach(el=>{
     el.addEventListener("mouseenter",e=>showTip(e,`<div>${esc(el.dataset.tip)}</div>`));
     el.addEventListener("mousemove",moveTip); el.addEventListener("mouseleave",hideTip);
     el.addEventListener("focus",e=>showTip(e,`<div>${esc(el.dataset.tip)}</div>`)); el.addEventListener("blur",hideTip);
   });
+  const sb=document.getElementById("solChip"); if(sb) sb.addEventListener("click",()=>{ hideTip(); setView(true); });
 }
 function renderJobs(){
   const box = document.getElementById("jobs");
@@ -4330,13 +4485,14 @@ function humanLog(c){
   if(c.action==="init") return "Study started.";
   if(c.action==="decide") return "Team decision: "+(c.summary||"");
   if(c.action==="migrate" || c.action==="edit") return c.summary||"File maintenance.";
-  if(Array.isArray(c.added_interviews) || typeof c.outcome_quotes==="number"){
+  if(Array.isArray(c.added_interviews) || typeof c.outcome_quotes==="number" || Array.isArray(c.new_solutions)){
     // structured changelog entries, written by kb_tool.py 0.2 and later
-    const iv=c.added_interviews||[], no=(c.new_outcomes||[]).length, q=c.outcome_quotes||0;
+    const iv=c.added_interviews||[], no=(c.new_outcomes||[]).length, q=c.outcome_quotes||0, ns=(c.new_solutions||[]).length;
     const parts=[];
     if(c.bootstrap) parts.push(/core jobs/.test(c.summary||"")?"Core jobs and steps drafted.":"Main goal and steps drafted.");
     if(iv.length) parts.push(`Added ${plural(iv.length,"conversation")} (${iv.join(", ")}).`);
     if(no) parts.push(`${plural(no,"new measure")} of success.`);
+    if(ns) parts.push(`${plural(ns,"new solution")} people use or used.`);
     if(q) parts.push(`${plural(q,"new quote")} on measures of success.`);
     return parts.join(" ")||(c.summary||"Update.");
   }
@@ -4348,12 +4504,14 @@ function humanLog(c){
 }
 function renderNext(){
   const p = document.getElementById("pane-next");
-  const thinSteps = M.steps.filter(s=>s.allPeople.length<3).sort((a,b)=>a.allPeople.length-b.allPeople.length);
+  const allThin = M.steps.filter(s=>s.allPeople.length<3).sort((a,b)=>a.allPeople.length-b.allPeople.length);
+  const thinSteps = allThin.slice(0,5), moreThin = allThin.length-thinSteps.length; // after a first batch every step is thin: name the 5 with fewest voices
   const lone = M.outs.filter(o=>o.people.length===1);
   const unlinked = M.ivs.filter(i=>!i.main);
   p.innerHTML = `<p class="hint">These parts of the map rest on only a few voices. A couple more conversations would show if they hold up. Click one to find it on the map.${many()?` Shown for ${esc(jobName(M.job))}.`:""}</p>
     <div class="sect">Steps with fewer than 3 voices</div>
     ${thinSteps.length?thinSteps.map(s=>`<button class="gap" type="button" data-go="${s.id}">${esc(s.text)}<small>${plural(s.allPeople.length,"person","people")} so far</small></button>`).join(""):`<p class="hint">None. Every step has at least 3 voices.</p>`}
+    ${moreThin?`<p class="hint">These are the ${thinSteps.length} with the fewest voices. ${plural(moreThin,"more step")} also ${moreThin===1?"has":"have"} fewer than 3.</p>`:""}
     <div class="sect">Measures heard from one person only</div>
     ${lone.length?`<p class="hint">${plural(lone.length,"measure")} of success. A good question to test in the next conversation is whether others feel the same.</p>`+lone.slice(0,8).map(o=>`<button class="gap" type="button" data-go="${o.id}">${esc(o.plain)}<small>${esc(M.ivById[o.people[0]]?.name||"")}</small></button>`).join(""):`<p class="hint">None.</p>`}
     ${unlinked.length&&M.jobs.length?`<div class="sect">People linked to no core job</div><p class="hint">Their own job fits none of the core jobs. Their quotes still count where they do a step.</p>`+unlinked.map(i=>`<button class="gap" type="button" data-person="${esc(i.id)}">${esc(i.name)}<small>${esc(i.whyNone||i.note||i.goal)}</small></button>`).join(""):""}
@@ -4365,8 +4523,10 @@ function renderNext(){
 
 /* ---------- map ---------- */
 const COL = {root:0, stage:310, step:520, out:880};
-const WID = {root:260, stage:150, step:300, out:320};
+const WID = {root:260, stage:150, step:300, out:320, sol:230};
 let expanded = new Set(), selected=null, personHL=null, searchHL=null;
+let showSols = false, solHL = null, solMode = false; // solHL: {kind:"sol"|"group", id}
+const solOn = sol => !!solHL && (solHL.kind==="group" ? sol.group===solHL.id : sol.id===solHL.id);
 let view = {x:40,y:40,k:1};
 function wrap(text, chars){
   const words=String(text).split(/\s+/); const lines=[]; let cur="";
@@ -4374,16 +4534,23 @@ function wrap(text, chars){
   if(cur) lines.push(cur); return lines;
 }
 function strengthColor(n){ return n>=6?"var(--ev4)":n>=4?"var(--ev3)":n>=2?"var(--ev2)":n>=1?"var(--ev1)":"var(--line)"; }
+function stepNode(s){
+  const sn={id:s.id,type:"step",ref:s,kids:[]};
+  if(expanded.has(s.id)) s.outs.forEach(o=>sn.kids.push({id:o.id,type:"out",ref:o,kids:[]}));
+  // what people use at this step, after its measures
+  if(showSols) s.sols.forEach(x=>sn.kids.push({id:"x"+s.key+"~"+x.sol.id,type:"sol",ref:x,kids:[]}));
+  return sn;
+}
 function makeTree(){
   const root={id:"root",type:"root",kids:[]};
   STAGES.forEach(([k,name,desc])=>{
     const ss=M.steps.filter(s=>s.stage===k).sort((a,b)=>a.n-b.n); if(!ss.length) return;
     const st={id:"g-"+k,type:"stage",key:k,name,desc,kids:[]};
-    ss.forEach(s=>{ const sn={id:s.id,type:"step",ref:s,kids:[]}; if(expanded.has(s.id)) s.outs.forEach(o=>sn.kids.push({id:o.id,type:"out",ref:o,kids:[]})); st.kids.push(sn); });
+    ss.forEach(s=>st.kids.push(stepNode(s)));
     root.kids.push(st);
   });
   const other=M.steps.filter(s=>!STAGES.some(x=>x[0]===s.stage));
-  if(other.length){ const st={id:"g-other",type:"stage",key:"other",name:"Other",desc:"Steps without a stage.",kids:[]}; other.forEach(s=>{const sn={id:s.id,type:"step",ref:s,kids:[]}; if(expanded.has(s.id)) s.outs.forEach(o=>sn.kids.push({id:o.id,type:"out",ref:o,kids:[]})); st.kids.push(sn);}); root.kids.push(st); }
+  if(other.length){ const st={id:"g-other",type:"stage",key:"other",name:"Other",desc:"Steps without a stage.",kids:[]}; other.forEach(s=>st.kids.push(stepNode(s))); root.kids.push(st); }
   return root;
 }
 function measure(n){
@@ -4392,8 +4559,11 @@ function measure(n){
     n.meta = many() ? `Core job ${M.job} · ${doers(M.jobById[M.job].main.length)}` : `The main goal · ${plural(M.ivs.length,"conversation")}`; }
   else if(n.type==="stage"){ n.lines=[n.name]; n.meta=`${plural(n.kids.length,"step")}`; }
   else if(n.type==="step"){ const s=n.ref; n.lines=wrap(s.text,chars); n.meta=`${plural(s.allPeople.length,"person","people")} · ${plural(s.outs.length,"measure")}`; }
+  else if(n.type==="sol"){ const x=n.ref; n.lines=wrap(x.sol.name,chars);
+    n.meta=`${x.cur.length?plural(x.cur.length,"person","people"):"No one now"} · ${kindOf(x.sol.kind)[0]}`;
+    n.meta2=x.stop.length?`${x.stop.length} stopped using it`:""; }
   else { const o=n.ref; n.lines=wrap(o.plain,chars); n.meta=`${plural(o.people.length,"person","people")} · ${plural(o.ev.length,"quote")}`; }
-  n.h = 18 + n.lines.length*17 + 16;
+  n.h = 18 + n.lines.length*17 + 16 + (n.meta2?14:0);
   n.kids.forEach(measure);
 }
 function place(n, depth, y0){
@@ -4415,11 +4585,14 @@ function layout(){
 }
 function nodeMatches(n){
   const hits=[];
-  if(personHL){ if(n.type==="step") hits.push(n.ref.people.includes(personHL)||n.ref.outs.some(o=>o.people.includes(personHL))); else if(n.type==="out") hits.push(n.ref.people.includes(personHL)); else hits.push(null); }
+  if(personHL){ if(n.type==="step") hits.push(n.ref.people.includes(personHL)||n.ref.outs.some(o=>o.people.includes(personHL))||n.ref.solPeople.includes(personHL)); else if(n.type==="out") hits.push(n.ref.people.includes(personHL)); else if(n.type==="sol") hits.push(n.ref.ev.some(e=>e.interview===personHL)); else hits.push(null); }
   if(searchHL){ const q=searchHL; let t="";
-    if(n.type==="step") t=n.ref.text+" "+n.ref.ev.map(e=>e.quote).join(" ")+" "+n.ref.outs.map(o=>o.text+" "+o.ev.map(e=>e.quote).join(" ")).join(" ");
+    if(n.type==="step") t=n.ref.text+" "+n.ref.ev.map(e=>e.quote).join(" ")+" "+n.ref.outs.map(o=>o.text+" "+o.ev.map(e=>e.quote).join(" ")).join(" ")+" "+n.ref.solText;
     else if(n.type==="out") t=n.ref.text+" "+n.ref.ev.map(e=>e.quote+" "+(e.name||"")).join(" ");
-    else t=""; hits.push(n.type==="step"||n.type==="out"? t.toLowerCase().includes(q):null); }
+    else if(n.type==="sol") t=n.ref.sol.name+" "+kindOf(n.ref.sol.kind)[0]+" "+n.ref.ev.map(e=>e.quote).join(" ");
+    else t=""; hits.push(n.type==="step"||n.type==="out"||n.type==="sol"? t.toLowerCase().includes(q):null); }
+  // a picked solution or group lights up the steps where people use it; measures step back
+  if(solHL){ if(n.type==="step") hits.push(n.ref.sols.some(x=>solOn(x.sol))); else if(n.type==="sol") hits.push(solOn(n.ref.sol)); else if(n.type==="out") hits.push(false); else hits.push(null); }
   const decided=hits.filter(h=>h!==null);
   if(!decided.length) return null; return decided.every(Boolean);
 }
@@ -4428,21 +4601,26 @@ function render(keepId){
   layout();
   if(anchor){ const n=flat.find(f=>f.id===keepId); if(n){ view.x=anchor.sx-n.x*view.k; view.y=anchor.sy-n.y*view.k; } }
   const E=[], N=[];
-  const anyHL = personHL||searchHL;
+  const anyHL = personHL||searchHL||solHL;
   flat.forEach(n=>{
     const m = anyHL?nodeMatches(n):null;
     n.dim = anyHL && m===false;
     if(n.parent){ const p=n.parent; const x1=p.x+p.w, y1=p.y+p.h/2, x2=n.x, y2=n.y+n.h/2, mx=(x1+x2)/2;
       E.push(`<path class="edge${n.dim?" dim":""}" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/>`); }
-    let g=`<g class="node ${n.type}${n.dim?" dim":""}${anyHL&&m===true?" hit":""}${selected===n.id?" sel":""}" data-id="${n.id}" transform="translate(${n.x},${n.y})" tabindex="0" role="button" aria-label="${esc((n.lines||[]).join(" "))}">`;
-    g+=`<rect class="box" width="${n.w}" height="${n.h}" rx="${n.type==="root"?14:10}"/>`;
+    const isSol = n.type==="sol", gone = isSol && !n.ref.cur.length;
+    const label = isSol ? `${n.ref.sol.name}, ${n.meta}${n.meta2?", "+n.meta2:""}` : (n.lines||[]).join(" ");
+    let g=`<g class="node ${n.type}${gone?" gone":""}${n.dim?" dim":""}${anyHL&&m===true?" hit":""}${selected===n.id?" sel":""}" data-id="${esc(n.id)}" transform="translate(${n.x},${n.y})" tabindex="0" role="button" aria-label="${esc(label)}">`;
+    g+=`<rect class="box" width="${n.w}" height="${n.h}" rx="${n.type==="root"?14:isSol?16:10}"/>`;
     let ppl=0;
     if(n.type==="step"){ ppl=n.ref.allPeople.length; }
     if(n.type==="out"){ ppl=n.ref.people.length; }
     if(n.type==="step"||n.type==="out"){ g+=`<rect x="0" y="0" width="6" height="${n.h}" rx="3" fill="${strengthColor(ppl)}"/>`; }
-    const tx = n.type==="step"||n.type==="out"?18:14;
+    // a solution's side bar shows its kind, not how many people said it
+    if(isSol){ g+=`<rect x="6" y="9" width="5" height="${n.h-18}" rx="2.5" fill="var(${kindOf(n.ref.sol.kind)[1]})"/>`; }
+    const tx = n.type==="step"||n.type==="out"||isSol?18:14;
     n.lines.forEach((l,i)=>{ g+=`<text class="t1" x="${tx}" y="${22+i*17}">${esc(l)}</text>`; });
     g+=`<text class="t2" x="${tx}" y="${22+n.lines.length*17+4}">${esc(n.meta)}</text>`;
+    if(n.meta2) g+=`<text class="t2" x="${tx}" y="${22+n.lines.length*17+18}">${esc(n.meta2)}</text>`;
     if(n.type==="step" && n.ref.allPeople.length<3){ g+=`<circle class="thinflag" cx="${n.w-12}" cy="12" r="5"><title>Needs more conversations</title></circle>`; }
     if(n.type==="step" && n.ref.outs.length){ const open=expanded.has(n.id);
       g+=`<g class="tog" transform="translate(${n.w},${n.h/2})"><circle r="11"/><text text-anchor="middle" y="4">${open?"−":"+"}</text></g>`; }
@@ -4463,10 +4641,12 @@ function onNodeClick(n, toggleOnly){
   hideTip();
   if(n.type==="step" && n.ref.outs.length){ if(expanded.has(n.id)) { if(toggleOnly) expanded.delete(n.id); } else expanded.add(n.id); }
   if(toggleOnly){ render(n.id); ensureVisible(n.id); return; }
+  // a solution box also lights up every other step where people use it
+  if(n.type==="sol"){ solHL={kind:"sol", id:n.ref.sol.id}; updatePill(); }
   selected=n.id; render(n.id); openDetails(n); ensureVisible(n.id);
 }
 function fitHits(){
-  const hits=flat.filter(n=>!n.dim && (n.type==="step"||n.type==="out")); if(!hits.length) return;
+  const hits=flat.filter(n=>!n.dim && (n.type==="step"||n.type==="out"||n.type==="sol")); if(!hits.length) return;
   const r=svg.getBoundingClientRect(); const dw=drawer.classList.contains("open")?drawer.getBoundingClientRect().width:0;
   const L=Math.min(...hits.map(b=>b.x)), R=Math.max(...hits.map(b=>b.x+b.w))+16, T=Math.min(...hits.map(b=>b.y)), B=Math.max(...hits.map(b=>b.y+b.h));
   const aw=r.width-dw-40, ah=r.height-110;
@@ -4491,14 +4671,22 @@ function tipFor(n){
   if(n.type==="step"){ const s=n.ref; return `<div class="tk">A step in their job</div><div class="tt">${esc(s.text)}</div>
     <div class="tm">${plural(s.allPeople.length,"person","people")} talked about this step. Click to see ${plural(s.outs.length,"measure")} of how they judge it, with their exact words.</div>
     ${s.allPeople.length<3?`<div class="tc" style="color:var(--amber)">Needs more conversations</div>`:""}`; }
+  if(n.type==="sol"){ const x=n.ref, q=(x.curEv[0]||x.stopEv[0]);
+    return `<div class="tk">${x.cur.length?"What they use for this step":"Stopped using it for this step"}</div><div class="tt">${esc(x.sol.name)}</div>
+    <div class="tm">${esc(kindOf(x.sol.kind)[0])}${M.groupById[x.sol.group]&&x.sol.group?` · ${esc(M.groupById[x.sol.group].name)}`:""}</div>
+    <div class="tm">${x.cur.length?`Used here by ${esc(names(x.cur))}.`:"No one here uses it now."}${x.stop.length?` Stopped: ${esc(names(x.stop))}.`:""}</div>
+    ${q?`<div class="tm" style="margin-top:5px;font-style:italic">“${esc(short(q.quote,130))}”</div>`:""}<div class="tc">Click for what they said</div>`; }
   const o=n.ref; return `<div class="tk">A measure of success</div><div class="tt">${esc(o.plain)}</div>
     <div class="tm">Said by ${o.people.map(id=>esc(M.ivById[id]?.name||id)).join(", ")||"no one yet"}.</div>
     ${o.ev[0]?`<div class="tm" style="margin-top:5px;font-style:italic">“${esc(o.ev[0].quote.length>130?o.ev[0].quote.slice(0,127)+"…":o.ev[0].quote)}”</div>`:""}<div class="tc">Click for all quotes</div>`;
 }
 function renderLegend(){
+  document.getElementById("legend").classList.toggle("wide", showSols && M.hasSols);
   document.getElementById("legend").innerHTML = `
     <div class="row"><b style="color:var(--ink)">How many people said it</b></div>
     <div class="row"><span><i class="sw" style="background:var(--ev1)"></i>1</span><span><i class="sw" style="background:var(--ev2)"></i>2–3</span><span><i class="sw" style="background:var(--ev3)"></i>4–5</span><span><i class="sw" style="background:var(--ev4)"></i>6+</span><span><i class="sw" style="background:var(--amber);border-radius:50%;width:10px"></i>needs more voices</span></div>
+    ${showSols && M.hasSols ? `<div class="row"><b style="color:var(--ink)">What they use today</b></div>
+    <div class="row">${Object.values(KINDS).map(([l,v])=>`<span><i class="sw" style="background:var(${v})"></i>${esc(l)}</span>`).join("")}<span><i class="sw dash"></i>dashed = stopped using</span></div>` : ""}
     <div class="row">Click a step's + to see how customers judge it. Drag to move, scroll to zoom.</div>`;
 }
 
@@ -4523,6 +4711,7 @@ document.getElementById("bOut").onclick=()=>{ const r=svg.getBoundingClientRect(
 document.getElementById("bFit").onclick=()=>fit(false);
 document.getElementById("bExpand").onclick=()=>{ M.steps.forEach(s=>{ if(s.outs.length) expanded.add(s.id); }); render(); fit(true); };
 document.getElementById("bCollapse").onclick=()=>{ expanded.clear(); render(); fit(true); };
+document.getElementById("bSols").onclick=()=>{ showSols=!showSols; syncSolControls(); render(); fit(true); };
 function focusNode(id){
   const target = M.allOuts.find(x=>x.id===id) || M.allSteps.find(x=>x.id===id);
   if(target && M.job && target.job!==M.job) setJob(target.job, true);
@@ -4554,20 +4743,99 @@ document.getElementById("q").addEventListener("input",e=>{
 });
 function updatePill(){
   const parts=[]; if(personHL) parts.push(`What ${M.ivById[personHL]?.name} added`); if(searchHL) parts.push(`Matches for “${searchHL}”`);
+  if(solHL){ const s=solHL.kind==="group"?M.groupById[solHL.id]:M.solById[solHL.id];
+    if(s) parts.push(solHL.kind==="group"?`Steps where people use one of “${s.name}”`:`Steps where people use ${s.name}`); }
   document.getElementById("pill").hidden=!parts.length; document.getElementById("pillText").textContent=parts.join(" · ");
 }
-document.getElementById("pillX").onclick=()=>{ personHL=null; searchHL=null; document.getElementById("q").value=""; document.querySelectorAll(".person").forEach(b=>b.setAttribute("aria-pressed","false")); updatePill(); render(); };
+document.getElementById("pillX").onclick=()=>{ personHL=null; searchHL=null; solHL=null; document.getElementById("q").value=""; document.querySelectorAll(".person").forEach(b=>b.setAttribute("aria-pressed","false")); updatePill(); render(); };
+
+/* ---------- what people use today: picking, the toggle and the Solutions view ---------- */
+function pickSol(id){
+  const s=M.solById[id]; if(!s) return;
+  if(many() && !s.jobs.includes(M.job) && s.jobs.length) setJob(s.jobs[0], true);
+  solHL={kind:"sol", id}; updatePill(); openSolution(id);
+  if(solMode) renderSolView(); else { render(); fitHits(); }
+}
+function pickGroup(id){
+  const g=M.groupById[id]; if(!g) return;
+  solHL={kind:"group", id}; updatePill(); openGroup(id);
+  if(solMode) renderSolView(); else { render(); fitHits(); }
+}
+function syncSolControls(){
+  const b=document.getElementById("bSols"); b.hidden=!M.hasSols; b.setAttribute("aria-pressed", String(showSols && M.hasSols));
+  document.getElementById("viewsw").hidden=!M.hasSols;
+}
+const stageEl=document.getElementById("stage"), solview=document.getElementById("solview"), toolbar=document.getElementById("toolbar");
+function padSolView(){ if(solMode) solview.style.setProperty("--soltop", (toolbar.offsetTop+toolbar.offsetHeight+14)+"px"); }
+/* The Solutions view is an overlay inside the stage, so the drawer still opens beside it and the map keeps its size underneath. */
+function setView(sol, keepMap){
+  const on = !!sol && !!M && M.hasSols;
+  if(on===solMode && (!on || !solview.hidden)) return;
+  solMode = on; hideTip();
+  stageEl.classList.toggle("solmode", on); document.querySelector("main").classList.toggle("wide", on);
+  solview.hidden = !on; svg.toggleAttribute("inert", on);
+  document.getElementById("vMap").setAttribute("aria-selected", String(!on)); document.getElementById("vSol").setAttribute("aria-selected", String(on));
+  document.getElementById("vMap").tabIndex = on?-1:0; document.getElementById("vSol").tabIndex = on?0:-1;
+  if(on){ renderSolView(); padSolView(); solview.scrollTop=0; }
+  else if(!keepMap) requestAnimationFrame(()=>fit(true));
+}
+document.getElementById("vMap").onclick=()=>setView(false);
+document.getElementById("vSol").onclick=()=>setView(true);
+document.getElementById("viewsw").addEventListener("keydown",e=>{
+  if(e.key!=="ArrowLeft" && e.key!=="ArrowRight") return;
+  e.preventDefault(); setView(!solMode); document.getElementById(solMode?"vSol":"vMap").focus();
+});
+function renderSolView(){
+  const sc=M.sols, job=many()?` for ${jobName(M.job)}`:"";
+  const maxM=Math.max(1,...sc.groups.flatMap(g=>g.items.map(x=>x.ment)));
+  const stepsIn = list => `<span>${list.map(a=>`<span class="sline">${esc(a.step.text)}</span>`).join("")}</span>`;
+  const row = x => `<tr data-row="${esc(x.sol.id)}"${solOn(x.sol)?' class="on"':""}>
+      <th scope="row" data-l="Solution"><button type="button" class="solname" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button></th>
+      <td data-l="Type">${ktag(x.sol.kind)}</td>
+      <td data-l="Mentions"><span class="mcell"><span class="mbar" aria-hidden="true"><i style="width:${Math.round(100*x.ment/maxM)}%"></i></span>${x.ment}</span></td>
+      <td data-l="People">${esc(names(x.cur))}</td>
+      <td data-l="Steps">${stepsIn(x.at.filter(a=>a.cur.length))}</td></tr>`;
+  const group = g => `<tbody><tr class="ghead"><th colspan="5" scope="colgroup"><button type="button" class="gbtn" data-group="${esc(g.g.id)}" aria-pressed="${!!solHL && solHL.kind==="group" && solHL.id===g.g.id}">
+      <span class="gname">${esc(g.g.name)}</span><span class="gnum">${plural(g.ment,"mention")} · ${plural(g.people.length,"person","people")}</span>
+      ${g.g.why?`<span class="gwhy"><b>Why grouped:</b> ${esc(g.g.why)}</span>`:""}</button></th></tr>${g.items.map(row).join("")}</tbody>`;
+  const why = x => { const e=x.stopEv.find(v=>x.stop.includes(v.interview))||x.stopEv[0];
+    return e?`<span class="why">“${esc(short(e.quote,140))}”<small>${esc(M.ivById[e.interview]?.name||"")}</small></span>`:`<span class="hint">No reason recorded.</span>`; };
+  const goneRow = x => `<tr data-row="${esc(x.sol.id)}"${solOn(x.sol)?' class="on"':""}>
+      <th scope="row" data-l="Solution"><button type="button" class="solname" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button></th>
+      <td data-l="Type">${ktag(x.sol.kind)}</td>
+      <td data-l="Who stopped">${esc(names(x.stop))}</td>
+      <td data-l="Step">${stepsIn(x.at.filter(a=>a.stop.length))}</td>
+      <td data-l="Why they stopped">${why(x)}</td></tr>`;
+  solview.innerHTML = `<div class="solin">
+    <h2>Solutions in use today${esc(job)}</h2>
+    <p class="hint" style="margin:0">What people rely on now to get a step done: products and apps, everyday tools, other people and their own methods. They are grouped by the work they compete for. Click a name to read what people said.</p>
+    ${sc.groups.length?`<div class="twrap"><table class="soltable"><thead><tr><th scope="col" style="width:24%">Solution</th><th scope="col" style="width:14%">Type</th><th scope="col" style="width:12%">Mentions</th><th scope="col" style="width:20%">People</th><th scope="col">Steps</th></tr></thead>
+      ${sc.groups.map(group).join("")}</table></div>`:`<p class="hint">${sc.items.length?"No one uses any of them now.":"No solutions are recorded for this core job yet."}${many()?" Pick another core job above.":""}</p>`}
+    ${sc.gone.length?`<h3>Stopped using</h3><p class="hint" style="margin:0">Things people used for a step and then dropped. Their reasons often point at what matters.</p>
+      <div class="twrap"><table class="soltable"><thead><tr><th scope="col" style="width:24%">Solution</th><th scope="col" style="width:14%">Type</th><th scope="col" style="width:16%">Who stopped</th><th scope="col" style="width:22%">Step</th><th scope="col">Why they stopped</th></tr></thead>
+      <tbody>${sc.gone.map(goneRow).join("")}</tbody></table></div>`:""}
+  </div>`;
+}
+solview.addEventListener("click",e=>{
+  const g=e.target.closest("[data-group]"); if(g){ pickGroup(g.dataset.group); return; }
+  const b=e.target.closest("[data-sol]"); if(b){ pickSol(b.dataset.sol); return; }
+  const tr=e.target.closest("tr[data-row]"); if(tr) pickSol(tr.dataset.row);
+});
+function ktag(k){ const [l,v]=kindOf(k); return `<span class="ktag"><i style="background:var(${v})"></i>${esc(l)}</span>`; }
 
 /* ---------- details drawer ---------- */
 const drawer=document.getElementById("drawer");
 function closeDrawer(){ drawer.classList.remove("open"); document.getElementById("stage").classList.remove("has-drawer"); selected=null; document.querySelectorAll(".node.sel").forEach(n=>n.classList.remove("sel")); }
 document.getElementById("dClose").onclick=closeDrawer;
 function setDrawer(kind,title,body){ document.getElementById("dKind").textContent=kind; document.getElementById("dTitle").textContent=title; document.getElementById("dBody").innerHTML=body; drawer.classList.add("open"); document.getElementById("stage").classList.add("has-drawer");
-  document.getElementById("dBody").querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>focusNode(b.dataset.go)));
-  document.getElementById("dBody").querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>{ jobFor(b.dataset.person); setPerson(b.dataset.person); openPerson(b.dataset.person); fitHits(); }));
+  // links that point at the map leave the Solutions view first
+  document.getElementById("dBody").querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>{ setView(false, true); focusNode(b.dataset.go); }));
+  document.getElementById("dBody").querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>{ setView(false, true); jobFor(b.dataset.person); setPerson(b.dataset.person); openPerson(b.dataset.person); fitHits(); }));
   document.getElementById("dBody").querySelectorAll("[data-job]").forEach(b=>b.addEventListener("click",()=>setJob(b.dataset.job, true)));
+  document.getElementById("dBody").querySelectorAll("[data-sol]").forEach(b=>b.addEventListener("click",()=>pickSol(b.dataset.sol)));
+  document.getElementById("dBody").querySelectorAll("[data-group]").forEach(b=>b.addEventListener("click",()=>pickGroup(b.dataset.group)));
 }
-function meter(n){ const t=Math.max(1,M.ivs.length); return `<div class="meter"><span><b>${plural(n,"person","people")}</b> of ${t}</span><span class="bar"><i style="width:${Math.round(100*n/t)}%"></i></span></div>`; }
+function meter(n, total){ const t=Math.max(1,total||M.ivs.length); return `<div class="meter"><span><b>${plural(n,"person","people")}</b> of ${t}</span><span class="bar"><i style="width:${Math.round(100*n/t)}%"></i></span></div>`; }
 function quotesHTML(ev){
   if(!ev.length) return `<p class="hint">No quotes yet.</p>`;
   const by={}; ev.forEach(e=>{ (by[e.interview]=by[e.interview]||[]).push(e); });
@@ -4598,9 +4866,11 @@ function openDetails(n){
       ${s.allPeople.length<3?`<div class="flag">Only ${plural(s.allPeople.length,"person","people")} talked about this step so far. One or two more conversations would show if it holds up.</div>`:""}
       ${s.covers?`<div class="explain">${esc(s.covers)}</div>`:""}
       <div><div class="sect">How they judge this step (${s.outs.length})</div><div class="olist">${s.outs.slice().sort((a,b)=>b.people.length-a.people.length).map(o=>`<button class="oitem" type="button" data-go="${o.id}"><span>${esc(o.plain)}</span>${dots(o.people.length)}</button>`).join("")||`<p class="hint">None yet.</p>`}</div></div>
+      ${M.hasSols?stepSolsHTML(s):""}
       <div><div class="sect">What people said while describing it</div>${quotesHTML(s.ev)}</div>`);
     return;
   }
+  if(n.type==="sol"){ openSolution(n.ref.sol.id); return; }
   const o=n.ref, step=M.allSteps.find(s=>s.key===o.step);
   setDrawer("A measure of success",o.plain,`
     ${meter(o.people.length)}
@@ -4611,6 +4881,7 @@ function openDetails(n){
 }
 function openPerson(id){
   const i=M.ivById[id]; if(!i) return;
+  const solN=i.solsUsed.length+i.solsStopped.length;
   const list=(arr,label)=>arr.length?`<div><div class="sect">${label}</div><div class="feel">${arr.map(j=>`<div>${esc(j.statement)}</div>`).join("")}</div></div>`:"";
   setDrawer("A conversation",i.name,`
     <div class="tags">${i.date?`<span class="tag">${esc(fmtDate(i.date))}</span>`:""}${i.format?`<span class="tag">${esc(i.format)}</span>`:""}${i.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>
@@ -4621,7 +4892,43 @@ function openPerson(id){
     ${list(i.emotional,"How they want to feel")}
     ${list(i.social,"How they want to be seen")}
     ${list(i.related,"Other jobs they juggle")}
-    <div class="callout">This conversation added <b>${plural(i.quoteCount,"quote")}</b> to <b>${plural(i.steps.length,"step")}</b> and <b>${plural(i.outs.length,"measure")}</b> of success. They are lit up on the map.</div>`);
+    ${i.solsUsed.length?`<div><div class="sect">What they use today</div><div class="olist">${i.solsUsed.map(solItem).join("")}</div></div>`:""}
+    ${i.solsStopped.length?`<div><div class="sect">What they stopped using</div><div class="olist">${i.solsStopped.map(solItem).join("")}</div></div>`:""}
+    <div class="callout">This conversation added <b>${plural(i.quoteCount,"quote")}</b> to <b>${plural(i.steps.length,"step")}</b>${solN?`, <b>${plural(i.outs.length,"measure")}</b> of success and <b>${plural(solN,"solution")}</b>`:` and <b>${plural(i.outs.length,"measure")}</b> of success`}. They are lit up on the map.</div>`);
+}
+const solItem = s => `<button class="oitem" type="button" data-sol="${esc(s.id)}"><span>${esc(s.name)}</span><span class="meta">${ktag(s.kind)}</span></button>`;
+const scopeTotal = () => many() && M.jobById[M.job] ? M.jobById[M.job].people.length : M.ivs.length;
+/* step drawer: what people use for this step today, and what they dropped */
+function stepSolsHTML(s){
+  const now=s.sols.filter(x=>x.cur.length), gone=s.sols.filter(x=>x.stop.length);
+  return `<div><div class="sect">What they use today (${now.length})</div>
+    <div class="olist">${now.map(x=>`<button class="oitem" type="button" data-sol="${esc(x.sol.id)}"><span>${esc(x.sol.name)}</span><span class="meta">${ktag(x.sol.kind)}<span>${plural(x.cur.length,"person","people")}</span></span></button>`).join("")||`<p class="hint">No one named one for this step yet.</p>`}</div>
+    ${gone.length?`<p class="hint" style="margin:6px 0 0">Stopped using: ${gone.map(x=>`<button type="button" class="linkbtn" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button> (${esc(names(x.stop))})`).join(", ")}</p>`:""}</div>`;
+}
+function openSolution(id){
+  const s=M.solById[id]; if(!s) return;
+  const inJob=M.sols.items.find(x=>x.sol===s), sc=inJob||M.solAll.items.find(x=>x.sol===s); if(!sc) return;
+  const g=s.group?M.groupById[s.group]:null, other=many()?s.jobs.filter(j=>j!==M.job):[];
+  const where=a=>`${a.cur.length?plural(a.cur.length,"person","people"):"no one now"}${a.stop.length?`, ${a.stop.length} stopped`:""}`;
+  setDrawer(sc.cur.length?"A solution in use today":"A solution people stopped using", s.name, `
+    <div class="tags"><span class="tag">${ktag(s.kind)}</span>${g?`<button type="button" class="tag" data-group="${esc(g.id)}" title="Show the whole group">Group: ${esc(g.name)}</button>`:""}</div>
+    ${g&&g.why?`<div class="explain"><b>Why it is grouped with others:</b> ${esc(g.why)}</div>`:""}
+    ${sc.cur.length?meter(sc.cur.length, inJob?scopeTotal():M.ivs.length):`<div class="flag">No one in these conversations uses it now. ${plural(sc.stop.length,"person","people")} stopped using it.</div>`}
+    <div><div class="sect">Used for</div><div class="olist">${sc.at.map(a=>`<button class="oitem" type="button" data-go="${esc(a.step.id)}"><span>${esc(a.step.text)}</span><span class="meta">${where(a)}</span></button>`).join("")}</div></div>
+    ${sc.curEv.length?`<div><div class="sect">What they said (${plural(sc.curEv.length,"quote")})</div>${quotesHTML(sc.curEv)}</div>`:""}
+    ${sc.stopEv.length?`<div><div class="sect">Why they stopped</div>${quotesHTML(sc.stopEv)}</div>`:""}
+    ${other.length&&inJob?`<p class="hint" style="margin:0">Also used in ${other.map(j=>`<button type="button" class="linkbtn" data-job="${esc(j)}">${esc(jobName(j))}</button>`).join(", ")}. The numbers above count ${esc(jobName(M.job))} only.</p>`:""}`);
+}
+function openGroup(id){
+  const g=M.groupById[id]; if(!g) return;
+  const its=M.sols.items.filter(x=>x.sol.group===id).sort((a,b)=>b.cur.length-a.cur.length||b.ment-a.ment);
+  const ppl=[...new Set(its.flatMap(x=>x.cur))];
+  setDrawer("A group of solutions", g.name, `
+    ${g.why?`<div class="explain"><b>Why grouped:</b> ${esc(g.why)}</div>`:`<div class="explain">These solutions have not been sorted into a group yet.</div>`}
+    ${meter(ppl.length, scopeTotal())}
+    <div><div class="sect">Solutions in this group (${its.length})</div><div class="olist">${its.map(x=>`<button class="oitem" type="button" data-sol="${esc(x.sol.id)}"><span>${esc(x.sol.name)}</span><span class="meta">${ktag(x.sol.kind)}<span>${x.cur.length?plural(x.cur.length,"person","people"):"stopped"}</span></span></button>`).join("")}</div></div>
+    <div><div class="sect">Who uses one of them</div>${ppl.length?`<p style="margin:0">${ppl.map(p=>`<button type="button" class="linkbtn" data-person="${esc(p)}">${esc(M.ivById[p]?.name||p)}</button>`).join(", ")}</p>`:`<p class="hint">No one uses one now.</p>`}</div>
+    ${many()?`<p class="hint" style="margin:0">Counted for ${esc(jobName(M.job))}.</p>`:""}`);
 }
 
 /* ---------- tooltip ---------- */
@@ -4652,6 +4959,8 @@ document.getElementById("btnRead").onclick=()=>openModal(`
     <dt>Measures of success</dt><dd>Open a step with + to see them. Each one is a way customers judge that step, such as "less time to find a load". They are written so a survey can later ask how much each one matters.</dd>
     <dt>Colored edge</dt><dd>How many people said it. Darker green means more people.</dd>
     <dt>Amber dot</dt><dd>Fewer than 3 people talked about this step. It needs more conversations.</dd>
+    ${M.hasSols?`<dt>Solutions in use today</dt><dd>The products, everyday tools, other people and own methods people rely on now to get a step done. They are grouped by the work they compete for, and each group says why. Turn on Show solutions to see them beside each step, or open the Solutions view for the full list.</dd>
+    <dt>Stopped using</dt><dd>Something people used for a step and then dropped. On the map it has a dashed outline. Why they stopped is often a clue to what matters.</dd>`:""}
   </dl>
   <p>Click any box to read the exact quotes behind it. Pick a person on the left to see what their conversation added.</p>`);
 document.getElementById("btnBuilt").onclick=()=>openModal(`
@@ -4669,7 +4978,7 @@ document.getElementById("btnBuilt").onclick=()=>openModal(`
 const fileIn=document.getElementById("file");
 document.getElementById("btnOpen").onclick=()=>fileIn.click();
 fileIn.onchange=()=>{ if(fileIn.files[0]) readFile(fileIn.files[0]); fileIn.value=""; };
-function readFile(f){ const r=new FileReader(); r.onload=()=>{ try{ const txt=String(r.result); const data=f.name.endsWith(".json")?JSON.parse(txt):jsyaml.load(txt); load(data); }catch(err){ openModal(`<h2 id="mTitle">That file didn't load</h2><div class="err">${esc(err.message)}</div><p>Open the knowledge base YAML file, usually <b>KB/odi-kb.yaml</b>.</p>`); } }; r.readAsText(f); }
+function readFile(f){ const r=new FileReader(); r.onload=()=>{ try{ const txt=String(r.result); const data=f.name.endsWith(".json")?JSON.parse(txt):jsyaml.load(txt); load(data); }catch(err){ openModal(`<h2 id="mTitle">That file didn't load</h2><div class="err">${esc(err.message)}</div><p>Open the knowledge base YAML file, <b>.pw-kb/pw-kb.yaml</b> in your workspace. The folder is hidden: on a Mac, press Cmd+Shift+. in the file dialog to show it.</p>`); } }; r.readAsText(f); }
 let dragDepth=0; const dropEl=document.getElementById("drop");
 addEventListener("dragenter",e=>{ e.preventDefault(); dragDepth++; dropEl.hidden=false; });
 addEventListener("dragleave",()=>{ dragDepth=Math.max(0,dragDepth-1); if(!dragDepth) dropEl.hidden=true; });
@@ -4677,11 +4986,12 @@ addEventListener("dragover",e=>e.preventDefault());
 addEventListener("drop",e=>{ e.preventDefault(); dragDepth=0; dropEl.hidden=true; const f=e.dataTransfer.files[0]; if(f) readFile(f); });
 
 function load(raw){
-  M=build(raw); chooseJob(null); expanded=new Set(); selected=null; personHL=null; searchHL=null; closeDrawer();
+  M=build(raw); chooseJob(null); expanded=new Set(); selected=null; personHL=null; searchHL=null; solHL=null; showSols=false; closeDrawer();
+  setView(false, true); syncSolControls();
   renderHeader(); renderJobs(); renderPeople(); renderProgress(); renderNext(); updatePill();
   render(); requestAnimationFrame(()=>fit(true));
 }
-addEventListener("resize",()=>{ clearTimeout(window._rt); window._rt=setTimeout(()=>fit(true),150); });
+addEventListener("resize",()=>{ clearTimeout(window._rt); window._rt=setTimeout(()=>{ fit(true); padSolView(); },150); });
 load(SAMPLE);
 </script>
 </body>

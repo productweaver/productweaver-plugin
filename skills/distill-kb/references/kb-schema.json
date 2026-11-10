@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://productweaver.com/schemas/odi-kb/v2",
+  "$id": "https://productweaver.com/schemas/pw-kb/v2",
   "title": "ODI knowledge base",
   "description": "One YAML file holding an Outcome-Driven Innovation study built from interview transcripts. Made with Product Weaver · productweaver.com. Extra fields are allowed so older and derived layers keep loading; the fields below are the contract.",
   "type": "object",
@@ -58,7 +58,7 @@
           "properties": {
             "limits": {
               "type": "object",
-              "description": "Maximum words per kind of statement: executor, job, step, outcome, feeling, rationale.",
+              "description": "Maximum words per kind of statement: executor, job, step, outcome, feeling, rationale, solution, group.",
               "additionalProperties": {
                 "type": "integer",
                 "minimum": 1
@@ -381,6 +381,109 @@
         }
       }
     },
+    "current_solutions": {
+      "type": "object",
+      "description": "What people use today to get a step done, and what they stopped using. Optional: the first merge that adds a solution creates it.",
+      "properties": {
+        "groups": {
+          "type": "object",
+          "description": "Groups of solutions that compete for the same work, keyed by a short lowercase key.",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "name",
+              "why"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "why": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Why these solutions belong together, in one sentence."
+              },
+              "added": {
+                "type": "string"
+              },
+              "history": {
+                "$ref": "#/$defs/history"
+              },
+              "solutions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/solution_id"
+                },
+                "description": "Computed: the live solutions in this group."
+              }
+            }
+          }
+        },
+        "solutions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "kind",
+              "group",
+              "uses"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/solution_id"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "$ref": "#/$defs/solution_kind"
+              },
+              "group": {
+                "$ref": "#/$defs/group_key"
+              },
+              "added": {
+                "type": "string"
+              },
+              "uses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/solution_use"
+                }
+              },
+              "interviews": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/interview_id"
+                },
+                "description": "Computed: who is quoted on a current use."
+              },
+              "stopped_by": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/interview_id"
+                },
+                "description": "Computed: who is quoted only on stopped uses."
+              },
+              "quote_count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Computed: how many different quotes mention it."
+              },
+              "merged_into": {
+                "$ref": "#/$defs/solution_id"
+              },
+              "history": {
+                "$ref": "#/$defs/history"
+              }
+            }
+          }
+        }
+      }
+    },
     "proposed_changes": {
       "type": "array",
       "items": {
@@ -411,24 +514,43 @@
               "confirm_core_job",
               "move_step",
               "relink_interview",
+              "merge_solutions",
+              "move_solution",
+              "reword_solution",
+              "reword_solution_group",
               "other"
             ]
           },
           "target": {
             "type": "string",
-            "description": "Step ID, outcome ID, core job ID, segment key or interview ID, by type."
+            "description": "Step ID for reword_step and move_step; outcome ID for reword_outcome, merge_outcomes and move_outcome; core job ID for reword_core_job and confirm_core_job; segment key for new_segment; interview ID for relink_interview; solution ID for merge_solutions, move_solution and reword_solution; group key for reword_solution_group."
           },
           "stage": {
             "$ref": "#/$defs/stage"
           },
           "merge": {
-            "$ref": "#/$defs/outcome_id"
+            "type": "string",
+            "pattern": "^([A-Z]{1,2}\\.[0-9]+\\.[0-9]+|S[0-9]+)$",
+            "description": "merge_outcomes: the outcome folded into target. merge_solutions: the solution folded into target."
           },
           "to_step": {
             "$ref": "#/$defs/step_id"
           },
           "to_job": {
             "$ref": "#/$defs/job_id"
+          },
+          "to_group": {
+            "$ref": "#/$defs/group_key",
+            "description": "move_solution: the group the solution moves to."
+          },
+          "kind": {
+            "$ref": "#/$defs/solution_kind",
+            "description": "reword_solution: the solution's corrected kind."
+          },
+          "why": {
+            "type": "string",
+            "minLength": 1,
+            "description": "reword_solution_group: the group's new reason, one sentence."
           },
           "job": {
             "type": [
@@ -575,6 +697,25 @@
             "type": "integer",
             "minimum": 0,
             "description": "merge: quotes added to outcomes."
+          },
+          "new_solutions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/solution_id"
+            },
+            "description": "merge: IDs of the solutions added."
+          },
+          "new_solution_groups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "merge: keys of the solution groups added."
+          },
+          "solution_quotes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "merge: quotes added to solutions already in the KB."
           },
           "proposals": {
             "type": "array",
@@ -729,6 +870,18 @@
           "was_reason": {
             "type": "string",
             "description": "The unlinked_reason an interview's core job had before it was linked."
+          },
+          "was_group": {
+            "type": "string",
+            "description": "The group a solution was in before it moved."
+          },
+          "was_kind": {
+            "type": "string",
+            "description": "A solution's kind before it was corrected."
+          },
+          "was_why": {
+            "type": "string",
+            "description": "A solution group's reason before it was reworded."
           }
         }
       }
@@ -818,6 +971,57 @@
         },
         "history": {
           "$ref": "#/$defs/history"
+        }
+      }
+    },
+    "solution_id": {
+      "type": "string",
+      "pattern": "^S[0-9]+$",
+      "description": "A solution's ID, such as S3. Study-wide, never reused."
+    },
+    "group_key": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "description": "A solution group's short lowercase key, such as send-orders."
+    },
+    "solution_kind": {
+      "type": "string",
+      "enum": [
+        "product",
+        "everyday_tool",
+        "people",
+        "own_method"
+      ],
+      "description": "product: a product, app or service they sign up to. everyday_tool: a general tool bent to the job, such as a spreadsheet, paper or a phone. people: a person or firm who does it for them. own_method: a habit, rule of thumb or doing it in their head."
+    },
+    "solution_status": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stopped"
+      ],
+      "description": "current: they use it now. stopped: they used it for this step and stopped; the quote usually says why."
+    },
+    "solution_use": {
+      "type": "object",
+      "required": [
+        "step",
+        "status",
+        "evidence"
+      ],
+      "description": "One step a solution is used for, with the quotes that show it. One per step and status.",
+      "properties": {
+        "step": {
+          "$ref": "#/$defs/step_id"
+        },
+        "status": {
+          "$ref": "#/$defs/solution_status"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
         }
       }
     }

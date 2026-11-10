@@ -12,7 +12,9 @@ The people who check this KB are founders, product managers, domain experts and 
 | Core, related job or step | 10 | one verb, one object |
 | Desired outcome | 16 | 10 to 13 |
 | Emotional or social job | 12 | one feeling or one way of being seen |
+| Current solution or solution group name | 6 | what people call it, or the work the group competes for |
 | Proposal rationale | 30 | one sentence: what the evidence shows and how many interviews show it |
+| Solution group's `why` | 30 | one sentence: what the members share and what that tells the reader |
 
 The merge enforces these limits and blocks the batch until every new statement fits.
 
@@ -45,7 +47,7 @@ The person who carries out the core job, described in the market's own terms: ro
 
 Verb + object + contextual clarifier, at the level the person describes their work.
 
-- Name no solution: no app, spreadsheet or load board. The statement should have been true 20 years ago and still be true in 10.
+- Name no solution: no app, spreadsheet or load board. The statement should have been true 20 years ago and still be true in 10. Record the app or the spreadsheet as a current solution instead.
 - Hold no success metric: no "profitable", "fast", "efficient", "without stress". Those are desired outcomes.
 - One verb. "Plan and book" is two jobs.
 - Good: "Plan the sequence of loads for the coming week." Bad: "Find profitable loads quickly with an app."
@@ -54,7 +56,9 @@ Verb + object + contextual clarifier, at the level the person describes their wo
 
 A core job is reached by asking "why?" of each person's own core job until the jobs meet. It is neither as broad as "run a business" nor as narrow as one step. Most studies have one core job. A study whose people do different jobs has one per job; see "One job or several" below.
 
-Each core job has its own job map. Its steps sit on the eight universal ODI stages: define, locate, prepare, confirm, execute, monitor, modify, conclude. Each step is verb + object, with no tool and no measure. Aim for 12 to 20 steps in a mature map. Keep step numbers stable once published, because outcome IDs depend on them (outcome `A.6.3` = core job A, step 6, third outcome).
+Each core job has its own job map. Its steps sit on the eight universal ODI stages: define, locate, prepare, confirm, execute, monitor, modify, conclude. Each step is verb + object, with no tool and no measure. Aim for 12 to 20 steps in a mature map. In a first batch, number each job's steps in stage order. Keep step numbers stable once published, because outcome IDs depend on them (outcome `A.6.3` = core job A, step 6, third outcome); a step added later takes the next free number, wherever its stage is.
+
+A step may rest on a person linked to no core job. Their quotes count wherever they do a step, so the step stays; it shows as thin until people who do the job confirm it.
 
 ## One job or several
 
@@ -87,7 +91,7 @@ In a first batch there is no map yet to fit people into. So decide the core jobs
 
 The same test applies in later batches, against the core jobs the study already has.
 
-Link every person to the core job their own job rolls up to. A person who also does another core job links to it through that related job. A person whose job fits none is a finding: leave them unlinked and say why in `unlinked_reason`.
+Link every person to the core job their own job rolls up to. A person who also does another core job links to it through that related job. When someone does parts of two core jobs, their main job is the one they decide and own from start to end, by the same test as above; the other is a related job. A person whose job fits none is a finding: leave them unlinked and say why in `unlinked_reason`.
 
 Each step belongs to exactly one core job. If two jobs have a similar step, write it under each, in each group's own words. Do not share outcomes across jobs either: an outcome measures one job's step.
 
@@ -102,14 +106,58 @@ Form: **direction + metric + object of control + contextual clarifier.**
 - Good: "Minimize the time it takes to know your true cost per mile."
 - Bad: "Make it easier to find loads" has no metric. "Use a broker score" names a solution. "Minimize stress" is emotional, so it belongs in emotional jobs.
 - One outcome = one object of control. Before adding a new outcome, check the step's existing outcomes for the same object. New evidence for an existing outcome is worth more than a near-duplicate.
+- An outcome raised at several steps goes under the step where the person can act to prevent the failure. "Minimize the likelihood of running out of a dish mid-service" belongs to deciding how much to order, not to serving.
 - An outcome may come from a struggle ("I got stuck there for two days") or from mastery ("I know my cost per mile down to the penny"). Both are evidence that the outcome matters. Mastery also hints the person is well served.
 
 ## Related, emotional and social jobs
 
-- **Related job:** another functional job done alongside the core job ("Collect payment for delivered loads"). Same form as a core job.
+- **Related job:** another functional job done alongside the core job ("Collect payment for delivered loads"). Same form as a core job. A task that is only one step of a study's core job is not a related job: a cook who tells the chef what has run out does one step of ordering. Use the quote as evidence on that step instead.
 - **Emotional job:** how they want to feel or avoid feeling ("Avoid feeling that every booking is a gamble").
 - **Social job:** how they want others to see them ("Be seen as reliable by shippers").
 - An empty list is a finding. Never fill a type to make the record look complete.
+
+## Current solutions
+
+A current solution is what someone uses today to get a step done or to reach an outcome. It is the competition a new product has to beat, and a workaround shows a need that nothing serves well. Listen for it in every answer about how they do a step.
+
+**What counts.** Each solution has one of four kinds:
+
+- `product`: a product, app or service they buy or sign up to, such as the supplier's ordering app or the till system.
+- `everyday_tool`: a general tool bent to the job, such as a spreadsheet, a notebook, a whiteboard, a group chat or phone calls.
+- `people`: someone else who does it or gives them the answer, such as a bookkeeper, the head chef, the supplier's sales rep or the customer.
+- `own_method`: a habit, a rule of thumb or doing it in their head: "I always order ten percent extra for Fridays."
+
+**What does not count:**
+- A wish ("I'd love an app that…"). That points to an outcome, not a solution.
+- A tool the interviewer named, unless the person then says they use it.
+- A tool they only heard of or looked at, or a feature of their product they do not use. A product counts only for the steps they use it for.
+- A tool for a job outside the study's core jobs.
+
+**Stopped solutions.** When someone used a solution for a step and gave it up, record it on that step with `status: stopped`. Pick the quote that says why they stopped. That reason is often the most useful line in the interview. Something tried once and dropped counts. When they moved from one way to another, the old way is stopped and the new one is current; when they still use both, both are current.
+
+**Naming:**
+- Name it the way people do, in at most 6 words: "Supplier's ordering app", "Clipboard count sheet", "Head chef".
+- A product keeps its own name, even when the name is an abbreviation. Do not spell it out.
+- An own method is named by what they do, as a short noun phrase: "Ten percent extra on Fridays", "Gut feel for covers".
+- One solution per thing. When two people use the same product, it is one solution with quotes from both. Two products that do the same work are two solutions in one group.
+- Name a role, never a private person: "Head chef", not "Maria". A company's name is fine.
+- No brackets or slashes. "Paper or app" is two solutions.
+
+**Linking.** Give each solution one use per step it serves, under the step the quote shows it helps with. When the quote is about reaching an outcome, use that outcome's step. One solution may serve several steps, even in several core jobs.
+
+**Grouping.** Put each solution in exactly one group. A group gathers the solutions that compete for the same work: the options a person would weigh against each other for it. Name the group after that work, in at most 6 words. "Ways to" takes two of them, so keep the rest to four: "Ways to send the order". In `why`, say in one plain sentence of at most 30 words what the members share and what that tells the reader: "Each one gets the week's order to a supplier, and owners keep one channel per supplier."
+
+- Group by the work, not by vendor and not by kind. The kind is its own field, so one group may hold an app, a spreadsheet and a person.
+- A solution that serves several steps goes in the group where people weigh it against other solutions they named. When there is none yet, use the work most of its quotes describe.
+- A group of one is fine. It means no alternative has been heard yet.
+- Read the groups in `context` first. Reuse a group when the work is the same.
+
+| Before | After |
+|---|---|
+| Solution "Count stock every Monday" | That is a step. The solution is how they do it: "Clipboard count sheet" |
+| Solution "Maria, the head chef" | "Head chef" |
+| Solution "Spreadsheet/ordering app" | Two solutions: "Ordering spreadsheet" and "Supplier's ordering app" |
+| Group "Software tools", why "They are all apps." | Group "Ways to count stock", why "Each tells the owner what is left, and most owners trust paper over the app." |
 
 ## Evidence
 
@@ -117,6 +165,8 @@ Form: **direction + metric + object of control + contextual clarifier.**
 - Prefer 1 to 3 strong quotes over many weak ones. The strongest quote describes a specific past event.
 - Keep source tags honest. Interviewer notes are a paraphrase: use them, but tag them `interviewer_notes`.
 - Never put words in an interviewee's mouth. A question from the interviewer is not evidence.
+- A header or note line about the interview, written by someone else, is `interviewer_notes`. Quote it only when the person never says it in their own words.
+- A quote that names someone who was not interviewed puts that name in the map. Pick a span without the name when one still carries the point. If none does, keep it and tell the user.
 
 ## Proposed changes: when to raise one
 
@@ -130,6 +180,10 @@ Raise a proposal when:
 - **merge_outcomes:** two outcomes share an object of control; say which one to keep
 - **move_outcome:** an outcome sits under the wrong step
 - **new_segment:** a kind of executor that no existing segment describes
+- **merge_solutions:** two solutions are the same thing under two names; say which one to keep
+- **move_solution:** a solution sits in a group whose work it does not do
+- **reword_solution:** a solution has a name people would not recognise, or the wrong kind
+- **reword_solution_group:** a group's name or `why` no longer fits the solutions in it
 
 One interview rarely justifies changing the core job. Say how many interviews support the change.
 
@@ -141,3 +195,5 @@ One interview rarely justifies changing the core job. Say how many interviews su
 - Splitting a job because two people use different tools or work at different scale. That is a segment, not a new job.
 - Sorting a quote under the outcome that sounds closest instead of the one with the same object of control.
 - Swapping IDs: always copy step and outcome IDs from `context` output, never from memory, and keep the job letter (`A.6.3`, not `6.3`).
+- Adding a new solution that `context` already lists under another name. Cite it by its ID instead.
+- Recording a step as a solution, or a solution as a step. The step is what they do; the solution is what they do it with.

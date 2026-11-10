@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://productweaver.com/schemas/odi-patch/v2",
+  "$id": "https://productweaver.com/schemas/pw-patch/v2",
   "title": "ODI knowledge base patch",
   "description": "One YAML file describing what a batch of interview transcripts adds to an ODI knowledge base. kb_tool.py merge checks a patch against this schema before any other check. Every key is optional, but a patch needs at least one of them. Write every ID in quotes: interviews like \"01\", steps like \"A.6\", outcomes like \"A.6.3\". The prose version is patch-format.md. Made with Product Weaver · productweaver.com",
   "type": "object",
@@ -70,6 +70,91 @@
           "statement": {
             "type": "string",
             "minLength": 1
+          },
+          "evidence": {
+            "$ref": "#/$defs/evidence_list"
+          }
+        }
+      }
+    },
+    "solution_groups": {
+      "type": "array",
+      "description": "New groups of solutions that compete for the same work. A new solution or a move_solution proposal in this patch must put a solution in each one.",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "why"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/group_key"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "why": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Why these solutions belong together, in one sentence."
+          }
+        }
+      }
+    },
+    "new_solutions": {
+      "type": "array",
+      "description": "Solutions not in the KB yet: what people use today, or stopped using, to get a step done.",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "group",
+          "uses"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "$ref": "#/$defs/solution_kind"
+          },
+          "group": {
+            "$ref": "#/$defs/group_key"
+          },
+          "uses": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/solution_use"
+            }
+          }
+        }
+      }
+    },
+    "solution_evidence": {
+      "type": "array",
+      "description": "More quotes for a solution already in the KB, at a step it is used for.",
+      "items": {
+        "type": "object",
+        "required": [
+          "solution",
+          "step",
+          "evidence"
+        ],
+        "properties": {
+          "solution": {
+            "$ref": "#/$defs/solution_id"
+          },
+          "step": {
+            "$ref": "#/$defs/step_ref"
+          },
+          "status": {
+            "$ref": "#/$defs/solution_status",
+            "description": "current (the default) or stopped."
           },
           "evidence": {
             "$ref": "#/$defs/evidence_list"
@@ -387,6 +472,10 @@
             "confirm_core_job",
             "move_step",
             "relink_interview",
+            "merge_solutions",
+            "move_solution",
+            "reword_solution",
+            "reword_solution_group",
             "other"
           ]
         },
@@ -395,19 +484,34 @@
             "string",
             "integer"
           ],
-          "description": "Step ID in quotes for reword_step and move_step; outcome ID in quotes for reword_outcome, merge_outcomes and move_outcome; core job ID for reword_core_job and confirm_core_job; segment key for new_segment; interview ID in quotes for relink_interview. Leave out for new_step and new_core_job."
+          "description": "Step ID for reword_step and move_step; outcome ID for reword_outcome, merge_outcomes and move_outcome; core job ID for reword_core_job and confirm_core_job; segment key for new_segment; interview ID for relink_interview; solution ID for merge_solutions, move_solution and reword_solution; group key for reword_solution_group."
         },
         "stage": {
           "$ref": "#/$defs/stage"
         },
         "merge": {
-          "$ref": "#/$defs/outcome_id"
+          "type": "string",
+          "pattern": "^(([A-Z]{1,2}\\.)?[0-9]+\\.[0-9]+|S[0-9]+)$",
+          "description": "merge_outcomes: the outcome folded into target. merge_solutions: the solution folded into target."
         },
         "to_step": {
           "$ref": "#/$defs/step_ref"
         },
         "to_job": {
           "$ref": "#/$defs/job_id"
+        },
+        "to_group": {
+          "$ref": "#/$defs/group_key",
+          "description": "move_solution: the group the solution moves to."
+        },
+        "kind": {
+          "$ref": "#/$defs/solution_kind",
+          "description": "reword_solution: the solution's corrected kind."
+        },
+        "why": {
+          "type": "string",
+          "minLength": 1,
+          "description": "reword_solution_group: the group's new reason, one sentence."
         },
         "job": {
           "type": [
@@ -534,6 +638,54 @@
           "items": {
             "$ref": "#/$defs/own_evidence"
           }
+        }
+      }
+    },
+    "solution_id": {
+      "type": "string",
+      "pattern": "^S[0-9]+$",
+      "description": "A solution's ID, such as S3. Study-wide, never reused."
+    },
+    "group_key": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "description": "A solution group's short lowercase key, such as send-orders."
+    },
+    "solution_kind": {
+      "type": "string",
+      "enum": [
+        "product",
+        "everyday_tool",
+        "people",
+        "own_method"
+      ],
+      "description": "product: a product, app or service they sign up to. everyday_tool: a general tool bent to the job, such as a spreadsheet, paper or a phone. people: a person or firm who does it for them. own_method: a habit, rule of thumb or doing it in their head."
+    },
+    "solution_status": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stopped"
+      ],
+      "description": "current: they use it now. stopped: they used it for this step and stopped; the quote usually says why."
+    },
+    "solution_use": {
+      "type": "object",
+      "required": [
+        "step",
+        "evidence"
+      ],
+      "description": "A step the solution is used for, with the quotes that show it.",
+      "properties": {
+        "step": {
+          "$ref": "#/$defs/step_ref"
+        },
+        "status": {
+          "$ref": "#/$defs/solution_status",
+          "description": "current (the default) or stopped."
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence_list"
         }
       }
     }

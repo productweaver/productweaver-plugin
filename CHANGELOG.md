@@ -3,6 +3,61 @@
 Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning.
 
+## 0.3.0 — 2026-11-10
+
+Everything a study needs now lives in one folder, `.pw-kb/`, at the root of
+the workspace.
+
+- **The knowledge base is `.pw-kb/pw-kb.yaml`**, with its patches, backups,
+  log, review sheet and discovery map next to it. One workspace holds one
+  study. The tool refuses a knowledge base anywhere else.
+- Each merge copies the new transcripts into `.pw-kb/transcripts/`. Quotes are
+  checked against these copies, so a study keeps working when the original
+  files move. Your own transcripts are never changed. `kb_tool validate` no
+  longer takes `--transcripts`; `--structure-only` skips the quotes.
+- **Existing studies are moved once.** A study made by 0.2.0 or earlier lives in
+  `KB/odi-kb.yaml`. The tool refuses it and asks the assistant to run
+  `kb_tool migrate`, which copies the transcripts from `Interviews/`, moves the
+  knowledge base, patches, backups, logs, review sheet and map into `.pw-kb/`,
+  and keeps the old file as a backup. If a transcript is missing, or the
+  workspace already holds a study, it moves nothing and says why.
+- When `.pw-kb/` sits in a git repository, the assistant asks once whether to
+  share the study through git. If not, it adds a `.gitignore` to the folder.
+- No file or folder name says "odi" any more: the rules for writing statements
+  are `references/pw-rules.md`, and the schema IDs are `pw-kb/v2` and
+  `pw-patch/v2`.
+- **Current solutions.** The skill now collects what people use today to get
+  each step done: products, everyday tools such as spreadsheets, other people
+  and their own methods. Each one is linked to the steps it serves, with the
+  quotes that show it, and solutions people stopped using are kept with the
+  reason they gave. The assistant groups solutions by the work they compete
+  for and says why each group belongs together. The team can merge two
+  solutions, move one to another group or rename them, through the usual
+  decisions.
+- The discovery map counts the solutions in use, can show them next to their
+  steps, and has a Solutions view: each group with its reason, how often each
+  solution was mentioned and by whom, and what people stopped using. The
+  review sheet has a section for them too.
+- "Ask about these next" in the review sheet and "Ask next" in the map name
+  at most 5 steps per core job: the ones fewest people support. After a small
+  first batch every step used to be listed.
+- On phones, the map's People, Progress and Ask next tabs show again. They
+  were squeezed out below 860 pixels.
+- The merge refuses a patch where YAML split a value at a comma that was not
+  in quotes. Before, the value was cut short without a word, even a quote.
+- Clearer rules for the assistant. The report after a first batch is short
+  and leaves the details to the review sheet and the map. Core job A is the
+  job most people do as their main job, and a first map's steps are numbered
+  in stage order. Someone who does parts of two jobs has the one they own
+  from start to end as their main job. A task that is one step of a core job
+  is evidence on that step, not a related job. An outcome raised at several
+  steps goes where the person can prevent the failure. A transcript's header
+  line counts as interviewer notes. A quote that names someone who was not
+  interviewed is trimmed when it can be, and the user is told when it cannot.
+- `kb_tool` 0.5.0. The knowledge base schema stays at version 2: the new
+  `current_solutions` section is optional, and studies without it are
+  unchanged.
+
 ## 0.2.0 — 2026-11-10
 
 A study can now hold more than one core job.

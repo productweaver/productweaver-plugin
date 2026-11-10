@@ -7,30 +7,38 @@
 
 Part of the Product Weaver distill-kb skill · https://productweaver.com
 
+A study lives in one folder, .pw-kb/ at the root of the workspace: the KB .pw-kb/pw-kb.yaml, and next to it
+patches/, backups/, logs/, transcripts/ (a copy of every transcript the KB cites), review.md and discovery-map.html.
+
 Commands
-  init      <kb.yaml> --project NAME [--interviewer NAME]     start an empty KB
+  init      .pw-kb/pw-kb.yaml --project NAME [--interviewer NAME]
+                                                              start an empty KB
   context   <kb.yaml> [--json]                                compact view of the KB to map new evidence against
-  merge     <kb.yaml> <patch.yaml> --transcripts DIR [--transcripts DIR2] [--dry-run] [--json]
-                                                              check every quote and reference, then fold the patch in
+  merge     <kb.yaml> <patch.yaml> [--transcripts DIR ...] [--dry-run] [--json]
+                                                              check every quote and reference, fold the patch in and
+                                                              copy new transcripts into .pw-kb/transcripts/
   apply     <kb.yaml> <proposal-id> --decision approve|reject [--note TEXT]
                                                               act on a proposed structural change
   review    <kb.yaml> [--since DATE] [--out FILE]             write review.md, a plain sheet for human reviewers
   map       <kb.yaml> [--template FILE] [--out FILE]          write discovery-map.html, the interactive map, KB inside
-  validate  <kb.yaml> [--transcripts DIR] [--schema FILE] [--rehash]
+  validate  <kb.yaml> [--structure-only] [--schema FILE] [--rehash]
                                                               check the structure, then every quote and transcript hash
-  migrate   <kb.yaml>                                         bring an older KB up to the current schema version
+  migrate   <kb.yaml> [--to .pw-kb/pw-kb.yaml] [--transcripts DIR ...]
+                                                              bring an older KB up to the current schema version, and
+                                                              move a study made by an earlier version into .pw-kb/
 
 Run it with no setup:   uv run --locked kb_tool.py <command> ...      (uv installs PyYAML in its cache the first time)
 Or install PyYAML once: python3 -m pip install pyyaml==6.0.3
 .docx transcripts need python-docx==1.2.0, .pdf transcripts need pypdf==6.21.4.
 
-Every run, including a failed one or a dry run, appends one JSON line to logs/kb_tool.jsonl next to the KB:
+Every run, including a failed one or a dry run, appends one JSON line to .pw-kb/logs/kb_tool.jsonl:
 what was asked, how it ended, error and warning codes, counts, versions. Never quotes, names or file names.
 Set KB_TOOL_LOG=0 to switch the log off and KB_TOOL_AGENT=<assistant> to name the assistant that is running.
 """
 from __future__ import annotations
 
 import argparse
+import contextlib
 import copy
 import datetime as dt
 import difflib
@@ -57,7 +65,7 @@ try:
 except ImportError:  # pragma: no cover - depends on the machine
     _jsonschema = None
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 SCHEMA_VERSION = 2
 
 BRAND = "Product Weaver"
@@ -69,16 +77,28 @@ SOURCES = ("transcript", "quoted_in_notes", "interviewer_notes")
 STAGES = ["define", "locate", "prepare", "confirm", "execute", "monitor", "modify", "conclude"]
 PROPOSAL_TYPES = ["new_step", "reword_step", "reword_outcome", "reword_core_job",
                   "merge_outcomes", "move_outcome", "new_segment", "new_core_job", "confirm_core_job",
-                  "move_step", "relink_interview", "other"]
-PATCH_SECTIONS = ("interviews", "bootstrap", "step_evidence", "outcome_evidence", "new_outcomes", "proposed_changes")
+                  "move_step", "relink_interview", "merge_solutions", "move_solution", "reword_solution",
+                  "reword_solution_group", "other"]
+PATCH_SECTIONS = ("interviews", "bootstrap", "step_evidence", "outcome_evidence", "new_outcomes",
+                  "solution_groups", "new_solutions", "solution_evidence", "proposed_changes")
+SOLUTION_KINDS = ["product", "everyday_tool", "people", "own_method"]
+SOLUTION_STATUS = ["current", "stopped"]
+KIND_LABELS = {"product": "product or app", "everyday_tool": "everyday tool", "people": "other people",
+               "own_method": "own method"}
 PATCH_KEYS = (*PATCH_SECTIONS, "provenance")  # every top-level key a patch may carry
 PROVENANCE_KEYS = ("assistant", "model", "started", "transcripts_read", "notes")
 LOG_FOLDER, LOG_FILE = "logs", "kb_tool.jsonl"
+KB_FOLDER, KB_FILE, COPIES = ".pw-kb", "pw-kb.yaml", "transcripts"  # <workspace root>/.pw-kb/pw-kb.yaml
+KB_HOME = f"{KB_FOLDER}/{KB_FILE}"
+OLD_TRANSCRIPTS = "Interviews"  # where earlier versions kept a study's transcripts: <study>/Interviews/
+MOVED_ON_MIGRATE = ("patches", "backups", LOG_FOLDER, "review.md", "discovery-map.html")
 DIRECTION = re.compile(r"^(Minimize|Maximize|Increase|Reduce) ")
 JOB_ID = re.compile(r"^[A-Z]{1,2}$")
 STEP_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+$")
 OUTCOME_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+\.[0-9]+$")
 BARE_OUTCOME_ID = re.compile(r"^[0-9]+\.[0-9]+$")  # schema 1, before IDs carried the core job's letter
+SOLUTION_ID = re.compile(r"^S[0-9]+$")
+GROUP_KEY = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 TRANSCRIPT_EXTS = (".md", ".markdown", ".txt", ".docx", ".pdf")
 KEEP_BACKUPS = 20
 THIN_STEP = 3
@@ -150,6 +170,7 @@ def kb_summary(path: str) -> Json | None:
             "thin_steps": len([s for s in steps if s.get("coverage", 0) < THIN_STEP]),
             "outcomes": len([o for o in outcomes if not o.get("merged_into")]),
             "pending_proposals": len([p for p in proposals if p.get("status") == "pending"]),
+            "solutions": len(live_solutions(kb)), "solution_groups": len(groups_of(kb)),
             "stale": [k for k in DERIVED if isinstance(kb.get(k), dict) and kb[k].get("stale")]}
 
 
@@ -218,7 +239,7 @@ class Run:
         for key, value in sorted(vars(args).items()):
             if key in hidden or value in (None, False):
                 continue
-            public[key] = self.relative(value) if key in ("patch", "out", "template", "schema") else value
+            public[key] = self.relative(value) if key in ("patch", "out", "template", "schema", "to") else value
         roots = getattr(args, "transcripts", None) or []
         if roots:  # a root that is a single file would name an interviewee; log folders only
             public["transcripts"] = [self.relative(r) if os.path.isdir(r) else "<file>" for r in roots]
@@ -235,9 +256,16 @@ class Run:
                 "errors": self.error_codes, "warnings": self.warning_codes}
         return {**head, **{k: v for k, v in self.facts.items() if k != "written"}, **tail}
 
+    def moved(self, kb_path: str) -> None:
+        """The KB now lives at kb_path (migrate moved it): the line goes to its new logs/ folder."""
+        self.kb_path = kb_path
+        self.folder = os.path.dirname(os.path.abspath(kb_path))
+
     def write(self, args: argparse.Namespace, code: int) -> None:
-        """Append the line. A log that cannot be written must never fail the command itself."""
+        """Append the line, only inside a .pw-kb folder. A log that cannot be written never fails the command."""
         if os.environ.get("KB_TOOL_LOG", "").strip() in ("0", "off", "false") or not os.path.isdir(self.folder):
+            return
+        if os.path.basename(self.folder) != KB_FOLDER:  # e.g. a refused run on a study made by an earlier version
             return
         try:
             folder = os.path.join(self.folder, LOG_FOLDER)
@@ -279,7 +307,7 @@ def save_yaml(data: Json, path: str) -> None:
     os.replace(tmp, path)
 
 
-KB_ORDER = ["meta", "core_jobs", "clusters", "interviews", "job_map", "desired_outcomes",
+KB_ORDER = ["meta", "core_jobs", "clusters", "interviews", "job_map", "desired_outcomes", "current_solutions",
             "proposed_changes", "changelog"]
 
 
@@ -294,8 +322,9 @@ def save_kb(kb: Json, path: str) -> None:
     save_yaml(kb, path)
 
 
-def backup(kb_path: str) -> str:
-    """Copy the KB into backups/ next to it. Names carry microseconds, so two writes never collide.
+def backup(kb_path: str, source: str | None = None) -> str:
+    """Copy the KB (or `source`, the file it is about to replace) into backups/ next to it, named after the KB.
+    Names carry microseconds, so two writes never collide.
 
     Only the newest KEEP_BACKUPS copies are kept."""
     folder = os.path.join(os.path.dirname(os.path.abspath(kb_path)), "backups")
@@ -307,7 +336,7 @@ def backup(kb_path: str) -> str:
     while os.path.exists(target):
         target = os.path.join(folder, f"{stem}.{stamp}-{counter}{ext}")
         counter += 1
-    shutil.copy2(kb_path, target)
+    shutil.copy2(source or kb_path, target)
     pattern = re.compile(rf"^{re.escape(stem)}\.\d{{8}}-\d{{6}}-\d{{6}}(-\d+)?{re.escape(ext)}$")
     kept = sorted(name for name in os.listdir(folder) if pattern.match(name))
     for name in kept[:-KEEP_BACKUPS]:
@@ -324,6 +353,44 @@ def skill_file(folder: str, name: str, given: str | None = None) -> str | None:
         if os.path.isfile(candidate):
             return candidate
     return None
+
+
+# ---------- where a study lives ----------
+def at_home(kb_path: str) -> bool:
+    """True when the path is <somewhere>/.pw-kb/pw-kb.yaml, the only place a study lives."""
+    absolute = os.path.abspath(kb_path)
+    return os.path.basename(absolute) == KB_FILE and os.path.basename(os.path.dirname(absolute)) == KB_FOLDER
+
+
+def check_home(kb_path: str) -> None:
+    """Refuse a KB anywhere but .pw-kb/pw-kb.yaml. One made by an earlier version is moved by migrate."""
+    if at_home(kb_path):
+        return
+    if os.path.isfile(kb_path):
+        raise KbError(f"{kb_path} is not where a study lives: the KB is {KB_HOME} at the root of the workspace. "
+                      f"If it was made by an earlier version of the skill, run `kb_tool.py migrate {kb_path}` from "
+                      "the workspace root to move the study there", code="kb_location")
+    raise KbError(f"the KB is {KB_HOME} at the root of the workspace, not {kb_path}", code="kb_location")
+
+
+def copies_folder(kb_path: str) -> str:
+    """.pw-kb/transcripts/: the study's own copy of every transcript the KB cites."""
+    return os.path.join(os.path.dirname(os.path.abspath(kb_path)), COPIES)
+
+
+def git_note(kb_path: str) -> str | None:
+    """A line for the user when .pw-kb/ sits in a git repository with no .gitignore of its own, else None."""
+    folder = os.path.dirname(os.path.abspath(kb_path))
+    if os.path.exists(os.path.join(folder, ".gitignore")):
+        return None
+    current = folder
+    while not os.path.exists(os.path.join(current, ".git")):
+        parent = os.path.dirname(current)
+        if parent == current:
+            return None
+        current = parent
+    return (f"git: {KB_FOLDER}/ is inside a git repository and has no .gitignore. It holds interviewees' names, "
+            "quotes and transcripts, so it is committed only if the user wants to share it through git")
 
 
 # ---------- text ----------
@@ -397,36 +464,53 @@ class Transcript:
     sha256: str  # hash of the raw text, as read from the file
 
 
+def _transcript_files(root: str) -> list[str] | None:
+    """Every transcript file under a folder, or the root itself when it is one file. None when it does not exist."""
+    if os.path.isdir(root):
+        paths = sorted(glob.glob(os.path.join(glob.escape(root), "**", "*"), recursive=True))
+    elif os.path.isfile(root):
+        paths = [root]
+    else:
+        return None
+    return [p for p in paths if os.path.isfile(p) and os.path.splitext(p)[1].lower() in TRANSCRIPT_EXTS]
+
+
 class Transcripts:
-    """Finds transcript files under the given folders and reads each one the first time it is asked for.
+    """Finds transcript files and reads each one the first time it is asked for.
 
-    Files are keyed by base name, as interview records store them. A referenced name that exists in two
-    places is refused, because the tool could not tell which one the evidence came from."""
+    The study's own copies (`own`, .pw-kb/transcripts/) come first: a name found there is always read from there.
+    Other names are looked up under the --transcripts roots. Files are keyed by base name, as interview records
+    store them. A name that exists in two of those roots is refused, because the tool could not tell which one
+    the evidence came from."""
 
-    def __init__(self, roots: list[str]) -> None:
+    def __init__(self, roots: list[str], own: str | None = None) -> None:
+        self.own: dict[str, str] = {}
         self.index: dict[str, list[str]] = {}
         self.cache: dict[str, Transcript | None] = {}
         self.warnings: list[str] = []
+        for path in (_transcript_files(own) or []) if own else []:
+            self.own.setdefault(os.path.basename(path), path)
         for root in roots:
-            if os.path.isdir(root):
-                paths = sorted(glob.glob(os.path.join(glob.escape(root), "**", "*"), recursive=True))
-            elif os.path.isfile(root):
-                paths = [root]
-            else:
+            paths = _transcript_files(root)
+            if paths is None:
                 self.warnings.append(f"--transcripts {root}: no such file or folder")
                 continue
             for path in paths:
-                if os.path.isfile(path) and os.path.splitext(path)[1].lower() in TRANSCRIPT_EXTS:
-                    self.index.setdefault(os.path.basename(path), []).append(path)
+                self.index.setdefault(os.path.basename(path), []).append(path)
 
     def has(self, name: str) -> bool:
-        return os.path.basename(name) in self.index
+        base = os.path.basename(name)
+        return base in self.own or base in self.index
+
+    def is_copy(self, transcript: Transcript) -> bool:
+        """True when the transcript was read from the study's own copies."""
+        return self.own.get(os.path.basename(transcript.path)) == transcript.path
 
     def get(self, name: str) -> Transcript | None:
         base = os.path.basename(name)
         if base in self.cache:
             return self.cache[base]
-        paths = self.index.get(base, [])
+        paths = [self.own[base]] if base in self.own else self.index.get(base, [])
         if not paths:
             self.cache[base] = None
             return None
@@ -443,9 +527,9 @@ class Transcripts:
         return self.cache[base]
 
 
-def transcripts_for(roots: list[str], report: Report) -> Transcripts:
-    """Index the transcript roots; a root that does not exist becomes a coded warning."""
-    transcripts = Transcripts(roots)
+def transcripts_for(roots: list[str], report: Report, own: str | None = None) -> Transcripts:
+    """Index the study's copies and the transcript roots; a root that does not exist becomes a coded warning."""
+    transcripts = Transcripts(roots, own)
     for warning in transcripts.warnings:
         report.warn(warning, code="transcripts_root_missing")
     return transcripts
@@ -487,6 +571,7 @@ def check_version(kb: Json, path: str) -> int:
 
 
 def load_kb(path: str) -> Json:
+    check_home(path)
     kb = ensure(load_yaml(path), path)
     version = check_version(kb, path)
     if version < SCHEMA_VERSION:
@@ -652,6 +737,7 @@ def recount(kb: Json) -> None:
         outcome["interviews"], outcome["interview_count"] = ids, len(ids)
         outcome["quote_count"] = len(outcome.get("evidence", []))
     _recount_jobs(kb)
+    _recount_solutions(kb, names)
     kb["meta"]["interview_count"] = len(kb["interviews"])
     dates = sorted(str(record["date"]) for record in kb["interviews"] if record.get("date"))
     if dates:
@@ -676,6 +762,140 @@ def stale_layers(kb: Json) -> list[str]:
     return [key for key in DERIVED if isinstance(kb.get(key), dict) and kb[key].get("stale")]
 
 
+# ---------- current solutions ----------
+# What people use today to get a step done. The section is optional and created by the first merge that adds a
+# solution, so a KB without solutions stays exactly as it was. Readers are lenient about its shape, because
+# recount runs before the structure check reports what is wrong.
+def solutions_of(kb: Json) -> list[Json]:
+    section = kb.get("current_solutions")
+    items = section.get("solutions") if isinstance(section, dict) else None
+    return [s for s in items if isinstance(s, dict)] if isinstance(items, list) else []
+
+
+def live_solutions(kb: Json) -> list[Json]:
+    return [s for s in solutions_of(kb) if not s.get("merged_into")]
+
+
+def groups_of(kb: Json) -> dict[str, Json]:
+    section = kb.get("current_solutions")
+    groups = section.get("groups") if isinstance(section, dict) else None
+    return {str(k): v for k, v in groups.items() if isinstance(v, dict)} if isinstance(groups, dict) else {}
+
+
+def solution_section(kb: Json) -> Json:
+    """The current_solutions section, created when the first solution or group arrives."""
+    section = kb.setdefault("current_solutions", {})
+    section.setdefault("groups", {})
+    section.setdefault("solutions", [])
+    return section
+
+
+def solutions_by_id(kb: Json) -> dict[str, Json]:
+    return {str(s.get("id")): s for s in solutions_of(kb)}
+
+
+def next_solution_id(kb: Json) -> str:
+    numbers = [int(str(s["id"])[1:]) for s in solutions_of(kb) if SOLUTION_ID.match(str(s.get("id", "")))]
+    return f"S{max(numbers, default=0) + 1}"
+
+
+def uses_of(solution: Json) -> list[Json]:
+    uses = solution.get("uses")
+    return [u for u in uses if isinstance(u, dict)] if isinstance(uses, list) else []
+
+
+def use_status(use: Json) -> str:
+    return str(use.get("status") or "current")
+
+
+def _step_order(step: Any) -> tuple[int, int]:
+    return step_sort_key(str(step)) if STEP_ID.match(str(step)) else (10 ** 6, 0)
+
+
+def add_use(solution: Json, step: str, status: str, evidence: list[Json]) -> int:
+    """Add quotes to the solution's use at a step, with that status, creating the use if needed. Returns how many
+    quotes were new."""
+    use = next((u for u in uses_of(solution) if str(u.get("step")) == step and use_status(u) == status), None)
+    if use is None:
+        use = {"step": step, "status": status, "evidence": []}
+        solution.setdefault("uses", []).append(use)
+    return add_evidence(use, evidence)
+
+
+def folded_uses(solution: Json) -> list[Json]:
+    """The solution's uses with any two for the same step and status folded into one, in step order."""
+    folded: dict[tuple[str, str], Json] = {}
+    for use in uses_of(solution):
+        key = (str(use.get("step")), use_status(use))
+        if key not in folded:
+            folded[key] = {"step": key[0], "status": key[1], "evidence": []}
+        add_evidence(folded[key], [e for e in use.get("evidence") or [] if isinstance(e, dict)])
+    return sorted(folded.values(), key=lambda u: (_step_order(u["step"]), u["status"] != "current"))
+
+
+def solution_steps(solution: Json) -> list[str]:
+    return sorted({str(u.get("step")) for u in uses_of(solution)}, key=_step_order)
+
+
+def known_names(obj: Json) -> set[str]:
+    """A solution's or group's name and every earlier name in its history, normalized for comparison."""
+    earlier = [h for h in obj.get("history") or [] if isinstance(h, dict) and h.get("was")]
+    return {norm(str(obj.get("name", ""))).lower()} | {norm(str(h["was"])).lower() for h in earlier}
+
+
+def _known_whys(group: Json) -> set[str]:
+    earlier = [h for h in group.get("history") or [] if isinstance(h, dict) and h.get("was_why")]
+    return {norm(str(group.get("why", "")))} | {norm(str(h["was_why"])) for h in earlier}
+
+
+def _recount_solutions(kb: Json, names: dict[str, str]) -> None:
+    """Who uses each solution now, who stopped, how many different quotes mention it, and each group's members."""
+    solutions = solutions_of(kb)
+    for solution in solutions:
+        current: set[str] = set()
+        stopped: set[str] = set()
+        quotes: set[tuple[str, str]] = set()
+        for use in uses_of(solution):
+            for item in [e for e in use.get("evidence") or [] if isinstance(e, dict)]:
+                item["name"] = names.get(str(item.get("interview")), item.get("name", ""))
+                quotes.add(evidence_key(item))
+                (current if use_status(use) == "current" else stopped).add(str(item.get("interview")))
+        solution["interviews"], solution["stopped_by"] = sorted(current), sorted(stopped - current)
+        solution["quote_count"] = len(quotes)
+    for key, group in groups_of(kb).items():
+        group["solutions"] = [str(s.get("id")) for s in solutions if s.get("group") == key and not s.get("merged_into")]
+
+
+def _solution_problems(kb: Json, steps: dict[str, Json]) -> list[str]:
+    """Cross-references of the current_solutions section that the schema cannot express."""
+    solutions, groups, by_id = solutions_of(kb), groups_of(kb), solutions_by_id(kb)
+    problems = [f"solution id {dup} is used more than once"
+                for dup in _duplicates([str(s.get("id")) for s in solutions])]
+    for solution in solutions:
+        sid, target = solution.get("id"), solution.get("merged_into")
+        if str(solution.get("group")) not in groups:
+            problems.append(f"solution {sid}: group {solution.get('group')} does not exist")
+        if target and (str(target) not in by_id or str(target) == str(sid)):
+            problems.append(f"solution {sid}: merged_into {target} does not exist")
+        if target and uses_of(solution):
+            problems.append(f"solution {sid} was merged into {target} but still has uses; move them to {target}")
+        for use in uses_of(solution):
+            if str(use.get("step")) not in steps:
+                problems.append(f"solution {sid}: step {use.get('step')} does not exist")
+        pairs = [f"{u.get('step')} ({use_status(u)})" for u in uses_of(solution)]
+        problems += [f"solution {sid}: two uses for step {dup}; fold them into one" for dup in _duplicates(pairs)]
+    return problems
+
+
+def _rename_use_refs(kb: Json, renamed: dict[str, str]) -> None:
+    """Point solution uses at a step's new ID after the step moved."""
+    for solution in solutions_of(kb):
+        if any(str(u.get("step")) in renamed for u in uses_of(solution)):
+            for use in uses_of(solution):
+                use["step"] = renamed.get(str(use.get("step")), use.get("step"))
+            solution["uses"] = folded_uses(solution)
+
+
 # ---------- schema ----------
 _SCHEMA_ANNOTATIONS = {"$schema", "$id", "$comment", "title", "description", "examples", "default", "$defs"}
 _SCHEMA_KEYWORDS = {"$ref", "type", "enum", "required", "properties", "items", "pattern",
@@ -687,8 +907,8 @@ _TYPE_NAMES = {dict: "mapping", list: "list", str: "string", bool: "boolean", in
 def load_schema(name: str, given: str | None = None) -> Json:
     path = skill_file("references", name, given)
     if not path:
-        raise KbError(f"{name} not found: keep it next to kb_tool.py or run the script from the skill folder",
-                      code="skill_file_missing")
+        raise KbError(f"{name} not found: keep it next to kb_tool.py, or run the kb_tool.py that sits in the skill's "
+                      "scripts/ folder", code="skill_file_missing")
     with open(path, encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -878,7 +1098,7 @@ def structure_problems(kb: Json, schema_path: str | None = None) -> list[str]:
             problems.append(f"outcome {outcome['id']}: merged_into {target} does not exist")
     iv_ids = [str(r["id"]) for r in kb["interviews"]]
     problems += [f"interview id {dup} is used more than once" for dup in _duplicates(iv_ids)]
-    return problems + _link_problems(kb, jobs)
+    return problems + _link_problems(kb, jobs) + _solution_problems(kb, steps)
 
 
 # ---------- clarity ----------
@@ -891,7 +1111,8 @@ class Style:
     """Writing rules the merge enforces. A study can override any of them in meta.style."""
 
     limits: dict[str, int] = field(default_factory=lambda: {
-        "executor": 16, "job": 10, "step": 10, "outcome": 16, "feeling": 12, "rationale": 30})
+        "executor": 16, "job": 10, "step": 10, "outcome": 16, "feeling": 12, "rationale": 30,
+        "solution": 6, "group": 6})
     banned: list[str] = field(default_factory=lambda: list(BANNED_NAMES))
     idioms: list[str] = field(default_factory=lambda: ["bread and butter", "in and out"])
     acronyms: list[str] = field(default_factory=lambda: ["OTR", "US", "UK", "EU"])
@@ -934,7 +1155,8 @@ def clarity(text: str, kind: str, label: str, style: Style, report: Report) -> N
     if kind in ("job", "step") and re.search(r"\b(and|or)\b", statement) \
             and not any(idiom in statement for idiom in style.idioms):
         report.warn(f"clarity: {label} may hold two jobs ('and'/'or'): '{statement}'", code="clarity_two_jobs")
-    acronyms = [w for w in re.findall(r"\b[A-Z]{2,}\b", statement) if w not in style.acronyms]
+    found = re.findall(r"\b[A-Z]{2,}\b", statement) if kind != "solution" else []  # product names keep their letters
+    acronyms = [w for w in found if w not in style.acronyms]
     if acronyms:
         report.warn(f"clarity: {label} uses {', '.join(acronyms)}; spell out unless every reviewer knows it",
                     code="clarity_acronym")
@@ -981,12 +1203,27 @@ def _is_int(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-class _PatchReader:
-    """Reads YAML values the way the patch writer meant them. Remembers the interview IDs it had to pad."""
+def schema_names(node: Any, names: set[str] | None = None) -> set[str]:
+    """Every property name a JSON Schema defines, at any depth."""
+    names = set() if names is None else names
+    if isinstance(node, dict):
+        for key, value in (node.get("properties") or {}).items():
+            names.add(key)
+            schema_names(value, names)
+        for value in [node.get("items"), node.get("additionalProperties"), *(node.get("$defs") or {}).values()]:
+            schema_names(value, names)
+    return names
 
-    def __init__(self, width: int) -> None:
+
+class _PatchReader:
+    """Reads YAML values the way the patch writer meant them. Remembers the interview IDs it had to pad, and the keys
+    with no value that the patch format does not have: what YAML makes of an unquoted comma in `{a: x, y}`."""
+
+    def __init__(self, width: int, known: set[str] | None = None) -> None:
         self.width = width
         self.fixed: set[str] = set()
+        self.known = known or set()
+        self.split: list[str] = []
 
     def pad(self, value: Any) -> Any:
         if not _is_int(value):
@@ -1002,6 +1239,8 @@ class _PatchReader:
         if not isinstance(node, dict):
             return
         for key, value in list(node.items()):
+            if value is None and str(key) not in self.known:
+                self.split.append(str(key))
             if isinstance(value, (dt.date, dt.datetime)):
                 node[key] = value.isoformat()
             elif key == "interview":
@@ -1021,11 +1260,17 @@ def coerce_patch(patch: Any, width: int, report: Report) -> Json:
     if not isinstance(patch, dict):
         raise KbError(f"the patch must be a YAML mapping with keys such as {', '.join(PATCH_SECTIONS)}",
                       code="patch_shape")
-    reader = _PatchReader(width)
+    reader = _PatchReader(width, schema_names(load_schema("patch-schema.json")) | set(PATCH_KEYS))
     reader.walk(patch)
     for proposal in patch.get("proposed_changes") or []:
         if isinstance(proposal, dict) and proposal.get("type") == "relink_interview":
             proposal["target"] = reader.pad(proposal.get("target"))
+    if reader.split:
+        names = ", ".join(f"'{short(key, 40)}'" for key in reader.split[:5])
+        report.error(f"patch: {names} has no value and is not a field of the patch format. YAML does this when a "
+                     'value with a comma is not in quotes: {covers: Pick lanes, regions} becomes covers "Pick lanes" '
+                     'plus a key "regions". Put quotes around every value that holds a comma',
+                     code="yaml_split")
     if reader.fixed:
         report.warn(f"interview IDs were not quoted and were read as {sorted(reader.fixed)}; write IDs in quotes, "
                     'like "01"', code="ids_unquoted")
@@ -1116,9 +1361,18 @@ def resolve_job_refs(kb: Json, patch: Json, report: Report) -> None:
             refs.job(proposal, "job")
         if kind in ("reword_core_job", "confirm_core_job"):
             refs.job(proposal, "target")
+    _resolve_solution_refs(refs, patch)
     if refs.read:
         report.warn(f"IDs without a job letter were read as job {refs.only}: {', '.join(refs.read[:8])}; "
                     f'write the letter, like "{refs.only}.6" and "{refs.only}.6.3"', code="ref_legacy")
+
+
+def _resolve_solution_refs(refs: JobRefs, patch: Json) -> None:
+    for index, item in enumerate(patch.get("solution_evidence", [])):
+        item["step"] = refs.step(item["step"], f"solution_evidence[{index}]")
+    for index, item in enumerate(patch.get("new_solutions", [])):
+        for number, use in enumerate(item.get("uses", [])):
+            use["step"] = refs.step(use["step"], f"new_solutions[{index}].uses[{number}]")
 
 
 @dataclass
@@ -1129,6 +1383,7 @@ class MergePlan:
     keymap: dict[str, str] = field(default_factory=dict)  # patch key or KB id -> KB id
     skipped: dict[str, str] = field(default_factory=dict)  # patch key -> why it was skipped
     texts: dict[str, str | None] = field(default_factory=dict)  # KB id -> normalized transcript
+    copies: list[str] = field(default_factory=list)  # new transcripts to copy into .pw-kb/transcripts/
     bootstrap: Json | None = None
     dropped: int = 0
 
@@ -1185,7 +1440,8 @@ def resolve_interviews(kb: Json, patch: Json, transcripts: Transcripts, report: 
                          code="key_is_id")
             continue
         if not transcripts.has(name):
-            report.error(f"interview {key}: file '{name}' not found under --transcripts", code="transcript_missing")
+            report.error(f"interview {key}: file '{name}' not found in {KB_FOLDER}/{COPIES}/ or under --transcripts",
+                         code="transcript_missing")
             continue
         transcript = transcripts.get(name)
         if name in by_file:
@@ -1200,9 +1456,12 @@ def resolve_interviews(kb: Json, patch: Json, transcripts: Transcripts, report: 
         plan.texts[new_id] = transcript.text if transcript else None
         record = {"id": new_id}
         record.update({k: v for k, v in interview.items() if k != "key"})
+        record["file"] = f"{COPIES}/{name}"  # the study's own copy, made when the merge is written
         record["sha256"] = transcript.sha256 if transcript else ""
         record["added"] = today()
         plan.new_interviews.append(record)
+        if transcript and not transcripts.is_copy(transcript):
+            plan.copies.append(transcript.path)
     _drop_skipped_evidence(patch, plan, report)
     return plan
 
@@ -1213,25 +1472,33 @@ def _live(evidence: Any, skipped: dict[str, str]) -> Any:
     return [e for e in evidence if not (isinstance(e, dict) and str(e.get("interview")) in skipped)]
 
 
+def _evidence_holders(item: Json) -> list[Json]:
+    """The item itself, a new core job's steps and a new solution's uses: everything in a patch item that can
+    hold evidence."""
+    return [item] + [h for key in ("steps", "uses") for h in item.get(key) or [] if isinstance(h, dict)]
+
+
 def _keep_item(item: Json, skipped: dict[str, str]) -> bool:
     """Trim what came from skipped interviews out of a patch item. False when nothing of it is left."""
     cited = 0
-    for holder in [item] + [s for s in item.get("steps") or [] if isinstance(s, dict)]:
+    for holder in _evidence_holders(item):
         evidence = holder.get("evidence")
         if isinstance(evidence, list) and evidence:
             cited += len(evidence)
             holder["evidence"] = _live(evidence, skipped)
+    if isinstance(item.get("uses"), list):  # a use whose every quote came from a skipped interview is gone
+        item["uses"] = [u for u in item["uses"] if not isinstance(u, dict) or u.get("evidence")]
     named = item.get("interviews")
     if isinstance(named, list) and named:
         cited += len(named)
         item["interviews"] = [ref for ref in named if str(ref) not in skipped]
-    left = len(_live(item.get("evidence"), skipped) or []) + len(item.get("interviews") or []) \
-        + sum(len(s.get("evidence") or []) for s in item.get("steps") or [] if isinstance(s, dict))
+    left = len(item.get("interviews") or []) + sum(len(h.get("evidence") or []) for h in _evidence_holders(item))
     return not cited or left > 0
 
 
 def _drop_skipped_evidence(patch: Json, plan: MergePlan, report: Report) -> None:
-    for section in ("step_evidence", "outcome_evidence", "new_outcomes", "proposed_changes"):
+    for section in ("step_evidence", "outcome_evidence", "new_outcomes", "new_solutions", "solution_evidence",
+                    "proposed_changes"):
         kept = [item for item in patch.get(section, []) if _keep_item(item, plan.skipped)]
         plan.dropped += len(patch.get(section, [])) - len(kept)
         if section in patch:
@@ -1239,6 +1506,36 @@ def _drop_skipped_evidence(patch: Json, plan: MergePlan, report: Report) -> None
     if plan.dropped:
         report.warn(f"dropped {plan.dropped} patch item(s) whose evidence comes only from skipped interviews",
                     code="evidence_dropped")
+
+
+def groups_wanted(patch: Json) -> set[str]:
+    """The groups the patch's new solutions and move_solution proposals name."""
+    named = {str(item.get("group")) for item in patch.get("new_solutions", []) if isinstance(item, dict)}
+    return named | {str(p.get("to_group")) for p in patch.get("proposed_changes", [])
+                    if isinstance(p, dict) and p.get("type") == "move_solution"}
+
+
+def resolve_solution_groups(kb: Json, patch: Json, wanted: set[str], report: Report) -> None:
+    """Drop new groups the KB already holds, so a batch can be re-run, and new groups whose only solutions came from
+    skipped interviews. A new group that nothing in the patch puts a solution into is refused.
+
+    `wanted` is groups_wanted() read before evidence from skipped interviews was dropped."""
+    groups = groups_of(kb)
+    used = groups_wanted(patch)
+    kept = []
+    for item in patch.get("solution_groups", []):
+        key, known = str(item["key"]), groups.get(str(item["key"]))
+        if known and norm(str(item["name"])).lower() in known_names(known) \
+                and norm(str(item["why"])) in _known_whys(known):
+            report.warn(f"solution group '{key}' is already in the KB; ignored", code="solution_group_repeated")
+        elif key in used or key not in wanted:  # wanted but unused: its solutions came only from skipped interviews
+            kept.append(item)
+    if "solution_groups" in patch:
+        patch["solution_groups"] = kept
+    for item in kept:
+        if str(item["key"]) not in used:
+            report.error(f"solution group '{item['key']}' gets no solution in this patch; put a new solution in it, "
+                         "propose move_solution into it, or leave the group out", code="solution_group_unused")
 
 
 def resolve_provenance(patch: Json, plan: MergePlan, report: Report) -> Json | None:
@@ -1282,9 +1579,10 @@ def make_lookup(kb: Json, plan: MergePlan, transcripts: Transcripts, report: Rep
             if changed and kb_id not in drift_warned:
                 drift_warned.add(kb_id)
                 report.warn(f"transcript for interview {kb_id} ({record.get('file')}) changed since it was added; "
-                            "run validate --transcripts to re-check its quotes", code="transcript_changed")
+                            "run validate to re-check its quotes", code="transcript_changed")
         if plan.texts[kb_id] is None:
-            return None, f"transcript for interview {kb_id} ({by_id[kb_id].get('file')}) not found under --transcripts"
+            return None, (f"transcript for interview {kb_id} ({by_id[kb_id].get('file')}) not found in "
+                          f"{KB_FOLDER}/{COPIES}/ or under --transcripts")
         return plan.texts[kb_id], None
 
     return lookup
@@ -1389,15 +1687,106 @@ def check_new_outcomes(patch: Json, ctx: Checks) -> None:
         ctx.checker.check(item["evidence"], label, ctx.report)
 
 
+def solution_name_index(kb: Json, skip: Any = None) -> dict[str, str]:
+    """Every solution name in the KB, current and earlier, mapped to what to do instead of adding it again."""
+    index: dict[str, str] = {}
+    own = str(skip.get("id")) if isinstance(skip, dict) else None
+    for solution in sorted(solutions_of(kb), key=lambda s: not s.get("merged_into")):  # live ones win
+        if solution is skip or (own and str(solution.get("merged_into")) == own):  # its own names stay free to it
+            continue
+        hint = (f"was merged into {solution['merged_into']}; cite that one in solution_evidence"
+                if solution.get("merged_into") else f"is already solution {solution.get('id')}; "
+                "send it as solution_evidence")
+        index.update({name: hint for name in known_names(solution)})
+    return index
+
+
+def check_solution_groups(patch: Json, ctx: Checks) -> None:
+    groups = groups_of(ctx.kb)
+    names = {name: key for key, group in groups.items() for name in known_names(group)}
+    for item in patch.get("solution_groups", []):
+        key, label = str(item["key"]), f"solution group '{item['key']}'"
+        if key in groups:
+            ctx.report.error(f"{label} is already in the KB; use it as it is, or propose reword_solution_group to "
+                             "change its name or why", code="solution_group_duplicate")
+        elif key in names.values():
+            ctx.report.error(f"{label}: the key is used twice in this patch", code="solution_group_duplicate")
+        name = norm(str(item["name"])).lower()
+        if name in names and names[name] != key:
+            ctx.report.error(f"{label}: the name '{item['name']}' is already group '{names[name]}'; put the solutions "
+                             "there", code="solution_group_duplicate")
+        names[name] = key
+        clarity(str(item["name"]), "group", f"{label} name", ctx.style, ctx.report)
+        clarity(str(item["why"]), "rationale", f"{label} why", ctx.style, ctx.report)
+
+
+def _check_use(use: Json, label: str, ctx: Checks) -> None:
+    step = str(use["step"])
+    if step not in ctx.steps:
+        ctx.report.error(f"{label}: step {step} does not exist", code="step_missing")
+    ctx.checker.check(use["evidence"], f"{label} at step {step}", ctx.report)
+
+
+def check_new_solutions(patch: Json, ctx: Checks) -> None:
+    groups = set(groups_of(ctx.kb)) | {str(g["key"]) for g in patch.get("solution_groups", [])}
+    seen = solution_name_index(ctx.kb)
+    for item in patch.get("new_solutions", []):
+        name = str(item["name"])
+        label = f"new solution '{short(name, 40)}'"
+        clarity(name, "solution", label, ctx.style, ctx.report)
+        if norm(name).lower() in seen:
+            ctx.report.error(f"{label} {seen[norm(name).lower()]}", code="solution_duplicate")
+        seen[norm(name).lower()] = "repeats another new solution in this patch; give it one entry with several uses"
+        if str(item["group"]) not in groups:
+            ctx.report.error(f"{label}: group '{item['group']}' does not exist; use a group from context or add it "
+                             "under solution_groups", code="solution_group_missing")
+        for use in item["uses"]:
+            _check_use(use, label, ctx)
+
+
+def check_solution_evidence(patch: Json, ctx: Checks) -> None:
+    solutions = solutions_by_id(ctx.kb)
+    for item in patch.get("solution_evidence", []):
+        sid = str(item["solution"])
+        solution = solutions.get(sid)
+        if not solution:
+            ctx.report.error(f"solution_evidence: solution {sid} does not exist", code="solution_missing")
+        elif solution.get("merged_into"):
+            ctx.report.error(f"solution {sid} was merged into {solution['merged_into']}; cite that one",
+                             code="solution_merged")
+        _check_use(item, f"solution {sid}", ctx)
+
+
 class ProposalRefs:
     """Resolves the things a proposal points at. Each miss becomes one readable problem."""
 
     def __init__(self, kb: Json, steps: dict[str, Json], outcomes: dict[str, Json],
-                 interviews: set[str] | None = None, jobs: set[str] | None = None) -> None:
+                 interviews: set[str] | None = None, jobs: set[str] | None = None, *,
+                 groups: set[str] | None = None) -> None:
         self.kb, self.steps, self.outcomes = kb, steps, outcomes
         self.jobs = jobs if jobs is not None else set(jobs_by_id(kb))
         self.interviews = interviews if interviews is not None else {str(r["id"]) for r in kb["interviews"]}
+        self.groups = groups if groups is not None else set(groups_of(kb))
         self.problems: list[str] = []
+
+    def solution(self, value: Any, what: str) -> Json | None:
+        key = str(value) if value is not None else ""
+        if not SOLUTION_ID.match(key):
+            self.problems.append(f"{what} must be a solution ID such as \"S3\", got {value!r}")
+            return None
+        solution = solutions_by_id(self.kb).get(key)
+        if not solution:
+            self.problems.append(f"{what}: solution {key} does not exist")
+        elif solution.get("merged_into"):
+            self.problems.append(f"{what}: solution {key} was merged into {solution['merged_into']}; use that one")
+            return None
+        return solution
+
+    def group(self, value: Any, what: str) -> str | None:
+        if str(value) not in self.groups:
+            self.problems.append(f"{what}: solution group '{value}' does not exist")
+            return None
+        return str(value)
 
     def outcome(self, value: Any, what: str) -> Json | None:
         key = str(value) if value is not None else ""
@@ -1517,6 +1906,34 @@ def _refs_relink_interview(refs: ProposalRefs, proposal: Json) -> None:
         refs.problems.append(f"relink_interview: interview {target} has no related job '{short(str(related), 60)}'")
 
 
+def _refs_merge_solutions(refs: ProposalRefs, proposal: Json) -> None:
+    keep, drop = refs.solution(proposal.get("target"), "target"), refs.solution(proposal.get("merge"), "merge")
+    if keep and drop and keep is drop:
+        refs.problems.append("merge_solutions: target and merge are the same solution")
+
+
+def _refs_move_solution(refs: ProposalRefs, proposal: Json) -> None:
+    solution, group = refs.solution(proposal.get("target"), "target"), refs.group(proposal.get("to_group"), "to_group")
+    if solution and group and str(solution.get("group")) == group:
+        refs.problems.append(f"move_solution: solution {solution['id']} is already in group '{group}'")
+
+
+def _refs_reword_solution(refs: ProposalRefs, proposal: Json) -> None:
+    solution = refs.solution(proposal.get("target"), "target")
+    taken = solution_name_index(refs.kb, skip=solution).get(norm(str(proposal.get("proposal", ""))).lower())
+    if solution and taken:
+        refs.problems.append(f"reword_solution: the name '{proposal.get('proposal')}' {taken}")
+
+
+def _refs_reword_solution_group(refs: ProposalRefs, proposal: Json) -> None:
+    group = refs.group(proposal.get("target"), "target")
+    name = norm(str(proposal.get("proposal", ""))).lower()
+    others = [key for key, other in groups_of(refs.kb).items() if key != group and name in known_names(other)]
+    if group and others:
+        refs.problems.append(f"reword_solution_group: the name '{proposal.get('proposal')}' is already group "
+                             f"'{others[0]}'")
+
+
 PROPOSAL_CHECKS: dict[str, Callable[[ProposalRefs, Json], None]] = {
     "new_step": _refs_new_step,
     "reword_step": _refs_reword_step,
@@ -1529,6 +1946,10 @@ PROPOSAL_CHECKS: dict[str, Callable[[ProposalRefs, Json], None]] = {
     "confirm_core_job": _refs_confirm_core_job,
     "move_step": _refs_move_step,
     "relink_interview": _refs_relink_interview,
+    "merge_solutions": _refs_merge_solutions,
+    "move_solution": _refs_move_solution,
+    "reword_solution": _refs_reword_solution,
+    "reword_solution_group": _refs_reword_solution_group,
 }
 
 
@@ -1543,14 +1964,18 @@ def proposal_problems(refs: ProposalRefs, proposal: Json) -> list[str]:
 
 def check_proposals(patch: Json, ctx: Checks) -> None:
     kinds = {"new_step": "step", "reword_step": "step", "reword_core_job": "job", "reword_outcome": "outcome",
-             "new_core_job": "job", "confirm_core_job": "job"}
+             "new_core_job": "job", "confirm_core_job": "job", "reword_solution": "solution",
+             "reword_solution_group": "group"}
     limit = ctx.style.limits.get("rationale", 30)
-    refs = ProposalRefs(ctx.kb, ctx.steps, ctx.outcomes, ctx.interviews, ctx.jobs)
+    groups = set(groups_of(ctx.kb)) | {str(g["key"]) for g in patch.get("solution_groups", [])}
+    refs = ProposalRefs(ctx.kb, ctx.steps, ctx.outcomes, ctx.interviews, ctx.jobs, groups=groups)
     for index, proposal in enumerate(patch.get("proposed_changes", [])):
         label = f"proposal {index + 1} ({proposal.get('type')})"
         kind = kinds.get(str(proposal.get("type")))
         if kind:
             clarity(proposal["proposal"], kind, label, ctx.style, ctx.report)
+        if proposal.get("why"):
+            clarity(str(proposal["why"]), "rationale", f"{label} why", ctx.style, ctx.report)
         if len(str(proposal.get("rationale", "")).split()) > limit:
             ctx.report.error(f"clarity: {label} rationale is over {limit} words; say why in one plain sentence",
                              code="rationale_length")
@@ -1584,6 +2009,9 @@ def check_patch(kb: Json, patch: Json, plan: MergePlan, transcripts: Transcripts
     check_step_evidence(patch, ctx)
     check_outcome_evidence(patch, ctx)
     check_new_outcomes(patch, ctx)
+    check_solution_groups(patch, ctx)
+    check_new_solutions(patch, ctx)
+    check_solution_evidence(patch, ctx)
     check_proposals(patch, ctx)
 
 
@@ -1614,7 +2042,43 @@ def has_new_evidence(kb: Json, patch: Json, plan: MergePlan) -> bool:
         have = {evidence_key(e) for e in (target or {}).get("evidence", [])}
         if any(evidence_key(e) not in have for e in remap(evidence, plan.keymap)):
             return True
+    return has_new_solution_evidence(kb, patch, plan)
+
+
+def has_new_solution_evidence(kb: Json, patch: Json, plan: MergePlan) -> bool:
+    solutions = solutions_by_id(kb)
+    for item in patch.get("solution_evidence", []):
+        status = str(item.get("status") or "current")
+        use = next((u for u in uses_of(solutions.get(str(item["solution"])) or {})
+                    if str(u.get("step")) == str(item["step"]) and use_status(u) == status), {})
+        have = {evidence_key(e) for e in use.get("evidence", [])}
+        if any(evidence_key(e) not in have for e in remap(item["evidence"], plan.keymap)):
+            return True
     return False
+
+
+def _apply_solutions(kb: Json, patch: Json, plan: MergePlan) -> Json:
+    """Add the patch's new groups, new solutions and new uses. Returns what changed, for the changelog."""
+    changes: Json = {"new_solutions": [], "new_solution_groups": [], "solution_quotes": 0}
+    if not any(patch.get(key) for key in ("solution_groups", "new_solutions", "solution_evidence")):
+        return changes
+    section = solution_section(kb)
+    for item in patch.get("solution_groups", []):
+        section["groups"][str(item["key"])] = {"name": item["name"], "why": item["why"], "added": today()}
+        changes["new_solution_groups"].append(str(item["key"]))
+    solutions = solutions_by_id(kb)
+    for item in patch.get("solution_evidence", []):
+        status = str(item.get("status") or "current")
+        solution = solutions[str(item["solution"])]
+        changes["solution_quotes"] += add_use(solution, str(item["step"]), status, remap(item["evidence"], plan.keymap))
+    for item in patch.get("new_solutions", []):
+        record = {"id": next_solution_id(kb), "name": item["name"], "kind": item["kind"],
+                  "group": str(item["group"]), "added": today(), "uses": []}
+        section["solutions"].append(record)
+        for use in item["uses"]:
+            add_use(record, str(use["step"]), str(use.get("status") or "current"), remap(use["evidence"], plan.keymap))
+        changes["new_solutions"].append(record["id"])
+    return changes
 
 
 def job_support(kb: Json, job: str) -> str:
@@ -1658,7 +2122,7 @@ def apply_patch(kb: Json, patch: Json, plan: MergePlan, stamp: Json) -> Json | N
     `stamp` is what the changelog entry records about the run itself: patch name, ts, run_id and provenance."""
     fresh = has_new_evidence(kb, patch, plan)
     anything = (plan.new_interviews or plan.bootstrap or fresh or patch.get("new_outcomes")
-                or patch.get("proposed_changes"))
+                or patch.get("new_solutions") or patch.get("proposed_changes"))
     if not anything:
         return None
     log: list[str] = []
@@ -1684,17 +2148,25 @@ def apply_patch(kb: Json, patch: Json, plan: MergePlan, stamp: Json) -> Json | N
     proposal_ids = []
     filed = [confirmation(kb, str(job["id"]), "Set up from the first batch.") for job in kb["core_jobs"]] \
         if plan.bootstrap else []
+    solved = _apply_solutions(kb, patch, plan)
     for proposal in filed + [remap_proposal(p, plan.keymap) for p in patch.get("proposed_changes", [])]:
         proposal_ids.append(file_proposal(kb, proposal))
     log += [f"{step_quotes} step quotes", f"{outcome_quotes} outcome quotes",
-            f"new outcomes {', '.join(new_outcome_ids) or 'none'}", f"proposals {', '.join(proposal_ids) or 'none'}"]
+            f"new outcomes {', '.join(new_outcome_ids) or 'none'}"]
+    if "current_solutions" in kb:
+        log += [f"new solutions {', '.join(solved['new_solutions']) or 'none'}",
+                f"{solved['solution_quotes']} solution quotes"]
+    log.append(f"proposals {', '.join(proposal_ids) or 'none'}")
     recount(kb)
-    if added_ids or new_outcome_ids:
+    if added_ids or new_outcome_ids or solved["new_solutions"]:
         mark_stale(kb, f"interviews {', '.join(added_ids) or '-'} and outcomes "
-                       f"{', '.join(new_outcome_ids) or '-'} added")
+                       f"{', '.join(new_outcome_ids) or '-'} added"
+                       + (f"; solutions {', '.join(solved['new_solutions'])}" if solved["new_solutions"] else ""))
     entry: Json = {"date": today(), "action": "merge", **stamp, "summary": "; ".join(log),
                    "added_interviews": added_ids, "new_outcomes": new_outcome_ids, "step_quotes": step_quotes,
                    "outcome_quotes": outcome_quotes, "proposals": proposal_ids}
+    if "current_solutions" in kb:
+        entry.update(solved)
     if plan.bootstrap:
         entry["bootstrap"] = True
     kb["changelog"].append(entry)
@@ -1725,7 +2197,11 @@ class MergeOutput:
                          "outcomes_added": len(changes.get("new_outcomes") or []),
                          "step_quotes": changes.get("step_quotes", 0),
                          "outcome_quotes": changes.get("outcome_quotes", 0),
-                         "proposals_filed": len(changes.get("proposals") or [])},
+                         "proposals_filed": len(changes.get("proposals") or []),
+                         "transcripts_copied": len(self.result.get("transcripts_copied") or []),
+                         "solutions_added": len(changes.get("new_solutions") or []),
+                         "solution_groups_added": len(changes.get("new_solution_groups") or []),
+                         "solution_quotes": changes.get("solution_quotes", 0)},
                  provenance=provenance or None)
 
     def finish(self, code: int) -> int:
@@ -1742,17 +2218,30 @@ class MergeOutput:
         return code
 
 
-def _merge_verdict(out: MergeOutput, entry: Json, candidate: Json) -> None:
+def copy_transcripts(kb_path: str, sources: list[str]) -> None:
+    """Copy new transcripts into .pw-kb/transcripts/, so the study keeps every transcript its quotes come from."""
+    folder = copies_folder(kb_path)
+    os.makedirs(folder, exist_ok=True)
+    for source in sources:
+        shutil.copy2(source, os.path.join(folder, os.path.basename(source)))
+
+
+def _merge_verdict(out: MergeOutput, entry: Json, candidate: Json, copies: list[str]) -> None:
     out.result.update({"ok": True, "changes": entry, "thin_steps": [step_key(s) for s in thin_steps(candidate)],
-                       "stale": stale_layers(candidate)})
+                       "stale": stale_layers(candidate),
+                       "transcripts_copied": [os.path.basename(path) for path in copies]})
+    copied = f"{len(copies)} new transcript(s) into {KB_FOLDER}/{COPIES}/"
     if out.args.dry_run:
         out.verdict += ["dry run OK: every quote matches, every reference resolves and the KB structure stays valid",
-                        f"would merge: {entry['summary']}"]
+                        f"would merge: {entry['summary']}"] + ([f"would copy {copied}"] if copies else [])
         return
+    copy_transcripts(out.args.kb, copies)  # before the KB is written, so it never cites a missing copy
     out.result["backup"] = backup(out.args.kb)
     save_kb(candidate, out.args.kb)
     out.result["written"] = True
     out.verdict += [f"merged: {entry['summary']}", f"backup: {out.result['backup']}"]
+    if copies:
+        out.verdict.append(f"copied {copied}")
     if out.result["thin_steps"]:
         numbers = ", ".join(str(n) for n in out.result["thin_steps"])
         out.verdict.append(f"thin steps (<{THIN_STEP} interviews): {numbers}")
@@ -1772,8 +2261,10 @@ def cmd_merge(args: argparse.Namespace) -> int:
         resolve_job_refs(kb, patch, report)
     if report.errors:
         return out.finish(1)
-    transcripts = transcripts_for(args.transcripts, report)
+    transcripts = transcripts_for(args.transcripts or [], report, copies_folder(args.kb))
+    wanted = groups_wanted(patch)
     plan = resolve_interviews(kb, patch, transcripts, report)
+    resolve_solution_groups(kb, patch, wanted, report)
     provenance = resolve_provenance(patch, plan, report)
     out.result["new_interviews"] = {key: kb_id for key, kb_id in plan.keymap.items() if key != kb_id}
     out.result["skipped"] = plan.skipped
@@ -1797,7 +2288,7 @@ def cmd_merge(args: argparse.Namespace) -> int:
         report.error(f"the merge would break the KB structure: {problem}", code="structure")
     if report.errors:
         return out.finish(1)
-    _merge_verdict(out, entry, candidate)
+    _merge_verdict(out, entry, candidate, plan.copies)
     return out.finish(0)
 
 
@@ -1854,10 +2345,12 @@ REF_FIELDS = ("target", "merge", "to_step")
 
 
 def rename_refs(kb: Json, renamed: dict[str, str]) -> None:
-    """Point every reference to a renamed step or outcome at its new ID: merged_into and pending proposals."""
+    """Point every reference to a renamed step or outcome at its new ID: merged_into, solution uses and pending
+    proposals."""
     for outcome in kb["desired_outcomes"]["outcomes"]:
         if outcome.get("merged_into") in renamed:
             outcome["merged_into"] = renamed[outcome["merged_into"]]
+    _rename_use_refs(kb, renamed)
     for proposal in kb["proposed_changes"]:
         if proposal.get("status") == "pending":
             for key in REF_FIELDS:
@@ -1960,6 +2453,45 @@ def _apply_relink_interview(kb: Json, proposal: Json) -> str:
     return f"linked {what} to core job {job}" if job else f"unlinked {what}"
 
 
+def _apply_merge_solutions(kb: Json, proposal: Json) -> str:
+    solutions = solutions_by_id(kb)
+    keep, drop = solutions[str(proposal["target"])], solutions[str(proposal["merge"])]
+    for use in uses_of(drop):
+        evidence = [e for e in use.get("evidence") or [] if isinstance(e, dict)]
+        add_use(keep, str(use.get("step")), use_status(use), evidence)
+    keep["uses"] = folded_uses(keep)
+    drop["uses"], drop["merged_into"] = [], keep["id"]
+    for other in solutions_of(kb):  # anything that pointed at the folded one now points at keep
+        if other.get("merged_into") == drop["id"] and other is not drop:
+            other["merged_into"] = keep["id"]
+    return f"merged solution {drop['id']} into {keep['id']}"
+
+
+def _apply_move_solution(kb: Json, proposal: Json) -> str:
+    solution = solutions_by_id(kb)[str(proposal["target"])]
+    _history(solution, was_group=solution.get("group"))
+    solution["group"] = str(proposal["to_group"])
+    return f"moved solution {solution['id']} to group {proposal['to_group']}"
+
+
+def _apply_rename_solution(kb: Json, proposal: Json) -> str:
+    """Rename a solution, and fix its kind if the proposal says so; or rename a group and update its why."""
+    if proposal["type"] == "reword_solution":
+        target, what, extra = solutions_by_id(kb)[str(proposal["target"])], "solution", "kind"
+    else:
+        target, what, extra = groups_of(kb)[str(proposal["target"])], "solution group", "why"
+    entry: Json = {}
+    if norm(str(proposal["proposal"])) != norm(str(target.get("name", ""))):
+        entry["was"] = target.get("name", "")
+    if proposal.get(extra) and proposal[extra] != target.get(extra):
+        entry[f"was_{extra}"] = target.get(extra, "")
+        target[extra] = proposal[extra]
+    if entry:
+        _history(target, **entry)
+    target["name"] = proposal["proposal"]
+    return f"changed {what} {proposal['target']}"
+
+
 APPLY_HANDLERS: dict[str, Callable[[Json, Json], str]] = {
     "new_step": _apply_new_step,
     "reword_step": _apply_reword,
@@ -1972,6 +2504,10 @@ APPLY_HANDLERS: dict[str, Callable[[Json, Json], str]] = {
     "confirm_core_job": _apply_confirm_core_job,
     "move_step": _apply_move_step,
     "relink_interview": _apply_relink_interview,
+    "merge_solutions": _apply_merge_solutions,
+    "move_solution": _apply_move_solution,
+    "reword_solution": _apply_rename_solution,
+    "reword_solution_group": _apply_rename_solution,
 }
 
 
@@ -2015,6 +2551,9 @@ def cmd_apply(args: argparse.Namespace) -> int:
 
 # ---------- init, context ----------
 def cmd_init(args: argparse.Namespace) -> int:
+    if not at_home(args.kb):
+        raise KbError(f"a study lives in {KB_HOME} at the root of the workspace: run `kb_tool.py init {KB_HOME}` "
+                      f"from there, not init {args.kb}", code="kb_location")
     if os.path.exists(args.kb):
         raise KbError(f"{args.kb} exists; refusing to overwrite", code="kb_exists")
     kb = ensure({"meta": {"project": args.project, "method": "Outcome-Driven Innovation (Ulwick)",
@@ -2025,7 +2564,9 @@ def cmd_init(args: argparse.Namespace) -> int:
     os.makedirs(folder, exist_ok=True)
     save_kb(kb, args.kb)
     args.run.note(written=True)
-    print(f"created {args.kb}")
+    note = git_note(args.kb)
+    args.run.note(git=bool(note))
+    print(f"created {args.kb}" + (f"\n{note}" if note else ""))
     return 0
 
 
@@ -2066,8 +2607,19 @@ def context_data(kb: Json) -> Json:
             "pending_proposals": [{"id": p["id"], "type": p["type"], "target": p.get("target") or p.get("job") or "",
                                    "proposal": p.get("proposal", "")}
                                   for p in kb["proposed_changes"] if p.get("status") == "pending"],
+            "current_solutions": solutions_data(kb),
             "stale": stale_layers(kb), "schema_version": kb["meta"].get("schema_version"),
             "tool_version": __version__}
+
+
+def solutions_data(kb: Json) -> Json:
+    """The groups and the live solutions, with the steps each is used for: what a new batch is matched against."""
+    groups = [{"key": key, "name": group.get("name", ""), "why": group.get("why", ""),
+               "solutions": group.get("solutions", [])} for key, group in groups_of(kb).items()]
+    solutions = [{"id": str(s.get("id")), "name": s.get("name", ""), "kind": s.get("kind", ""),
+                  "group": s.get("group", ""), "steps": solution_steps(s), "interviews": s.get("interviews", []),
+                  "stopped_by": s.get("stopped_by", [])} for s in live_solutions(kb)]
+    return {"groups": groups, "solutions": solutions}
 
 
 def _person_line(person: Json) -> str:
@@ -2077,11 +2629,7 @@ def _person_line(person: Json) -> str:
         (f"; also {', '.join(also)}" if also else "")
 
 
-def cmd_context(args: argparse.Namespace) -> int:
-    data = context_data(load_kb(args.kb))
-    if args.json:
-        print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
-        return 0
+def _print_jobs(data: Json) -> None:
     print(f"PROJECT {data['project']}  interviews={data['interview_count']}  core jobs={len(data['core_jobs'])}")
     if not data["core_jobs"]:
         print("CORE JOB: (none yet: bootstrap)")
@@ -2095,6 +2643,28 @@ def cmd_context(args: argparse.Namespace) -> int:
             print(f"STEP {step['id']} [{step['stage']}] {step['statement']}  (interviews {step['coverage']})")
             for outcome in step["outcomes"]:
                 print(f"   {outcome['id']:>7}  {outcome['statement']}  (iv {outcome['interview_count']})")
+
+
+def _print_solutions(data: Json) -> None:
+    if not (data["groups"] or data["solutions"]):
+        return
+    print("\nCURRENT SOLUTIONS (cite an ID in solution_evidence; add only what is not here to new_solutions)")
+    for group in data["groups"]:
+        print(f"GROUP {group['key']}: {group['name']}. Why: {group['why']}")
+        for solution in [s for s in data["solutions"] if s["group"] == group["key"]]:
+            stopped = f", stopped {len(solution['stopped_by'])}" if solution["stopped_by"] else ""
+            mark = "  [stopped]" if not solution["interviews"] else ""
+            print(f"  {solution['id']} [{solution['kind']}] {solution['name']}  steps {', '.join(solution['steps'])}"
+                  f"  (people {len(solution['interviews'])}{stopped}){mark}")
+
+
+def cmd_context(args: argparse.Namespace) -> int:
+    data = context_data(load_kb(args.kb))
+    if args.json:
+        print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
+        return 0
+    _print_jobs(data)
+    _print_solutions(data["current_solutions"])
     if data["segments"]:
         print("\nSEGMENTS: " + "; ".join(f"{k}={v}" for k, v in data["segments"].items()))
     if data["people"]:
@@ -2123,13 +2693,20 @@ def describe_proposal(proposal: Json) -> str:
             "move_step": f"Move step {proposal.get('target')} to core job {proposal.get('to_job')}",
             "relink_interview": f"Link interview {proposal.get('target')} to "
                                 + (f"core job {proposal['job']}" if proposal.get("job") else "no core job"),
+            "merge_solutions": f"Merge solution {proposal.get('merge')} into {proposal.get('target')}",
+            "move_solution": f"Move solution {proposal.get('target')} to group {proposal.get('to_group')}",
+            "reword_solution": f"Rename solution {proposal.get('target')}",
+            "reword_solution_group": f"Rename solution group {proposal.get('target')}",
             }.get(str(proposal.get("type")), "Change")
 
 
 def _review_head(kb: Json, live_outcomes: list[Json]) -> list[str]:
+    in_use = [s for s in live_solutions(kb) if s.get("interviews")]
+    solutions = f" · {len(in_use)} solutions in use" if "current_solutions" in kb else ""
     lines = [f"# {kb['meta'].get('project', 'ODI study')}: review sheet", "",
              f"{len(kb['interviews'])} interviews · {len(kb['core_jobs'])} core jobs · "
-             f"{len(kb['job_map']['steps'])} job steps · {len(live_outcomes)} outcomes · updated {today()}", ""]
+             f"{len(kb['job_map']['steps'])} job steps · {len(live_outcomes)} outcomes{solutions} · updated {today()}",
+             ""]
     if not kb["core_jobs"]:
         return lines + ["**Core job:** not set yet", ""]
     for job in kb["core_jobs"]:
@@ -2149,9 +2726,22 @@ def _review_decisions(kb: Json) -> list[str]:
     return lines + ["", "Reply approve or reject for each, by ID.", ""]
 
 
+def _new_solution_lines(kb: Json, since: str) -> list[str]:
+    groups = groups_of(kb)
+    lines = [f"- New solution group **{group.get('name', '')}:** {group.get('why', '')}"
+             for group in groups.values() if since and str(group.get("added", "")) >= since]
+    for solution in live_solutions(kb):
+        if since and str(solution.get("added", "")) >= since:
+            group = groups.get(str(solution.get("group")), {}).get("name", solution.get("group"))
+            lines.append(f"- New solution **{solution['id']} {solution.get('name', '')}** "
+                         f"({KIND_LABELS.get(str(solution.get('kind')), solution.get('kind'))}), in *{group}*")
+    return lines
+
+
 def _review_new(kb: Json, since: str, new_outcomes: set[str]) -> list[str]:
     new_interviews = [i for i in kb["interviews"] if since and str(i.get("added", "")) >= since]
-    if not (new_interviews or new_outcomes):
+    solution_lines = _new_solution_lines(kb, since)
+    if not (new_interviews or new_outcomes or solution_lines):
         return []
     lines = [f"## New since {since}", ""]
     for record in new_interviews:
@@ -2161,7 +2751,7 @@ def _review_new(kb: Json, since: str, new_outcomes: set[str]) -> list[str]:
     for outcome in kb["desired_outcomes"]["outcomes"]:
         if outcome["id"] in new_outcomes:
             lines.append(f"- New outcome **{outcome['id']}:** {outcome['statement']}")
-    return lines + [""]
+    return lines + solution_lines + [""]
 
 
 def _review_map(kb: Json, live_outcomes: list[Json], new_outcomes: set[str]) -> list[str]:
@@ -2189,6 +2779,40 @@ def _review_map(kb: Json, live_outcomes: list[Json], new_outcomes: set[str]) -> 
     return lines
 
 
+def _solution_line(solution: Json, steps: dict[str, Json], names: dict[str, str]) -> str:
+    used = ", ".join(f"{steps[s]['statement']} ({s})" if s in steps else s for s in solution_steps(solution))
+    people = ", ".join(names.get(i, i) for i in solution.get("interviews", []))
+    stopped = ", ".join(names.get(i, i) for i in solution.get("stopped_by", []))
+    kind = KIND_LABELS.get(str(solution.get("kind")), str(solution.get("kind")))
+    return (f"- **{solution['id']} {solution.get('name', '')}** ({kind}) [{len(solution.get('interviews', []))}] "
+            f"{people or 'nobody now'} · {plural(solution.get('quote_count', 0), 'mention')} · used for: {used}"
+            + (f" · stopped: {stopped}" if stopped else ""))
+
+
+def plural(count: int, word: str) -> str:
+    return f"{count} {word}{'' if count == 1 else 's'}"
+
+
+def _review_solutions(kb: Json) -> list[str]:
+    solutions = live_solutions(kb)
+    if not solutions:
+        return []
+    steps, names = steps_by_id(kb), {str(r["id"]): str(r.get("name", "")) for r in kb["interviews"]}
+    lines = ["## Current solutions", "", "What people use today to get a step done, grouped by the work they compete "
+             "for. Numbers in brackets show how many people use each one now.", ""]
+    for key, group in groups_of(kb).items():
+        members = sorted((s for s in solutions if s.get("group") == key and s.get("interviews")),
+                         key=lambda s: (-len(s.get("interviews", [])), -s.get("quote_count", 0)))
+        if members:
+            lines += [f"### {group.get('name', key)}", "", f"*Why grouped:* {group.get('why', '')}", ""]
+            lines += [_solution_line(s, steps, names) for s in members] + [""]
+    gone = [s for s in solutions if not s.get("interviews")]
+    if gone:
+        lines += ["### Stopped using", "", "Nobody interviewed uses these any more. The quotes say why.", ""]
+        lines += [_solution_line(s, steps, names) for s in gone] + [""]
+    return lines
+
+
 def _review_people(kb: Json) -> list[str]:
     jobs = jobs_by_id(kb)
     named = [r for r in kb["interviews"] if main_job(r) or related_links(r)] if len(jobs) > 1 else []
@@ -2212,12 +2836,31 @@ def _review_people(kb: Json) -> list[str]:
     return lines
 
 
+ASK_NEXT = 5  # steps per core job that "ask about these next" names
+
+
+def ask_next(kb: Json, job: str) -> tuple[list[Json], int]:
+    """The core job's thin steps that fewest people support, at most ASK_NEXT of them, and how many thin ones are left
+    out. After a small first batch every step is thin, so the list has to choose."""
+    thin = sorted((s for s in thin_steps(kb) if s.get("job") == job),
+                  key=lambda s: (s.get("coverage", 0), step_sort_key(step_key(s))))
+    return thin[:ASK_NEXT], max(len(thin) - ASK_NEXT, 0)
+
+
 def _review_tail(kb: Json) -> list[str]:
     lines = []
-    thin = [f"{step_key(s)} {s['statement']}" for s in sorted(thin_steps(kb), key=lambda s: step_sort_key(step_key(s)))]
-    if thin:
-        lines += ["## Ask about these next", "", f"Fewer than {THIN_STEP} interviews support these steps:", ""]
-        lines += [f"- {t}" for t in thin] + [""]
+    picks = [(job, *ask_next(kb, str(job["id"]))) for job in kb["core_jobs"]]
+    if any(steps for _, steps, _ in picks):
+        lines += ["## Ask about these next", "", f"The steps that fewest interviews support (fewer than {THIN_STEP}), "
+                  f"at most {ASK_NEXT} per core job:", ""]
+    for job, steps, rest in picks:
+        if steps and len(kb["core_jobs"]) > 1:
+            lines.append(f"**{job['statement']} ({job['id']})**")
+        lines += [f"- {step_key(s)} {s['statement']} [{s.get('coverage', 0)}]" for s in steps]
+        if rest:
+            lines.append(f"- *{plural(rest, 'more step')} with fewer than {THIN_STEP}*")
+        if steps:
+            lines.append("")
     stale = [k.replace("_", " ") for k in stale_layers(kb)]
     if stale:
         lines += [f"*Out of date until rebuilt: {', '.join(stale)}.*", ""]
@@ -2230,7 +2873,8 @@ def review_lines(kb: Json, since: str) -> list[str]:
     live_outcomes = [o for o in kb["desired_outcomes"]["outcomes"] if not o.get("merged_into")]
     new_outcomes = {o["id"] for o in kb["desired_outcomes"]["outcomes"] if since and str(o.get("added", "")) >= since}
     return (_review_head(kb, live_outcomes) + _review_decisions(kb) + _review_new(kb, since, new_outcomes)
-            + _review_map(kb, live_outcomes, new_outcomes) + _review_people(kb) + _review_tail(kb))
+            + _review_map(kb, live_outcomes, new_outcomes) + _review_solutions(kb) + _review_people(kb)
+            + _review_tail(kb))
 
 
 def cmd_review(args: argparse.Namespace) -> int:
@@ -2247,8 +2891,8 @@ def cmd_review(args: argparse.Namespace) -> int:
 
 
 # ---------- map ----------
-MAP_KEYS = ["meta", "core_jobs", "job_map", "desired_outcomes", "interviews", "clusters", "proposed_changes",
-            "changelog"]
+MAP_KEYS = ["meta", "core_jobs", "job_map", "desired_outcomes", "current_solutions", "interviews", "clusters",
+            "proposed_changes", "changelog"]
 MAP_START, MAP_END = "/* @kb-data:start */", "/* @kb-data:end */"
 MAP_SCHEMA = f"/* @kb-schema:{SCHEMA_VERSION} */"  # the template can draw a KB of this schema version
 
@@ -2276,9 +2920,9 @@ def cmd_map(args: argparse.Namespace) -> int:
     payload = payload.replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
     template_path = skill_file("assets", "discovery-map-template.html", args.template)
     if not template_path:
-        raise KbError("map template not found: put discovery-map-template.html next to kb_tool.py, run the script from "
-                      "the skill folder, or pass --template (a discovery-map.html made earlier also works)",
-                      code="skill_file_missing")
+        raise KbError("map template not found: put discovery-map-template.html next to kb_tool.py, run the kb_tool.py "
+                      "that sits in the skill's scripts/ folder, or pass --template (a discovery-map.html made earlier "
+                      "also works)", code="skill_file_missing")
     with open(template_path, encoding="utf-8") as handle:
         template = handle.read()
     if MAP_SCHEMA not in template:
@@ -2304,7 +2948,7 @@ def _transcript_texts(kb: Json, transcripts: Transcripts,
         transcript = transcripts.get(str(record.get("file", "")))
         texts[kb_id] = transcript.text if transcript else None
         if transcript is None:
-            report.error(f"interview {kb_id}: file {record.get('file')} not found under --transcripts",
+            report.error(f"interview {kb_id}: file {record.get('file')} not found in {KB_FOLDER}/{COPIES}/",
                          code="transcript_missing")
         elif record.get("sha256") and transcript.sha256 != record["sha256"]:
             drifted[kb_id] = transcript.sha256
@@ -2342,6 +2986,13 @@ def _check_shared_quotes(kb: Json, checker: QuoteChecker, report: Report) -> Non
                 checker.check(step["evidence"], f"proposal {proposal.get('id')} steps[{index}]", report)
 
 
+def _check_solution_quotes(kb: Json, checker: QuoteChecker, report: Report) -> None:
+    for solution in solutions_of(kb):
+        for use in uses_of(solution):
+            if use.get("evidence"):
+                checker.check(use["evidence"], f"solution {solution.get('id')} at step {use.get('step')}", report)
+
+
 def check_stored_quotes(kb: Json, transcripts: Transcripts, report: Report) -> dict[str, str]:
     """Re-check every quote in the KB against its transcript. Returns the transcripts whose content changed."""
     texts, drifted = _transcript_texts(kb, transcripts, report)
@@ -2356,6 +3007,7 @@ def check_stored_quotes(kb: Json, transcripts: Transcripts, report: Report) -> d
     checker = QuoteChecker(lookup)
     _check_own_quotes(kb, texts, checker, report)
     _check_shared_quotes(kb, checker, report)
+    _check_solution_quotes(kb, checker, report)
     return drifted
 
 
@@ -2383,10 +3035,10 @@ def cmd_validate(args: argparse.Namespace) -> int:
             print(f"  - {problem}")
         return 1
     print("structure: matches kb-schema.json and every reference resolves")
-    if not args.transcripts:
+    if args.structure_only:
         return 0
     report = Report()
-    transcripts = transcripts_for(args.transcripts, report)
+    transcripts = transcripts_for([], report, copies_folder(args.kb))
     drifted = check_stored_quotes(kb, transcripts, report)
     quotes = sum(len(o.get("evidence", [])) for o in kb["desired_outcomes"]["outcomes"])
     print(f"{len(kb['interviews'])} interviews, {len(kb['job_map']['steps'])} steps, "
@@ -2398,7 +3050,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
             continue
         report.error(f"transcript for interview {kb_id} changed since it was added"
                      + ("; fix the quotes above first" if report.errors else
-                        "; if the change is intended, run validate --transcripts ... --rehash to accept it"),
+                        "; if the change is intended, run validate --rehash to accept it"),
                      code="transcript_changed")
     args.run.add_report(report)
     args.run.note(outcome_quotes=quotes, drifted=len(drifted), rehash=bool(args.rehash))
@@ -2469,18 +3121,127 @@ def _migrate_1(kb: Json) -> str:
 MIGRATIONS: dict[int, Callable[[Json], str]] = {1: _migrate_1}  # from version -> upgrade to version + 1
 
 
+def _upgrade(kb: Json, version: int) -> list[str]:
+    """Run the schema migrations from `version` up to the current one. Returns one note per step."""
+    notes = []
+    while version < SCHEMA_VERSION:
+        notes.append(MIGRATIONS[version](kb))
+        version += 1
+        kb["meta"]["schema_version"] = version
+    return notes
+
+
+def _old_transcripts(kb: Json, kb_path: str, roots: list[str], report: Report) -> list[str]:
+    """Find the transcript of every interview of a study made by an earlier version, and point its record at
+    the copy the move will make. Returns the paths to copy. Without roots, looks in <study>/Interviews/."""
+    study = os.path.dirname(os.path.dirname(os.path.abspath(kb_path)))
+    transcripts = transcripts_for(roots or [os.path.join(study, OLD_TRANSCRIPTS)], report)
+    found = []
+    for record in kb["interviews"]:
+        transcript = transcripts.get(str(record.get("file", "")))
+        if transcript is None:
+            report.error(f"interview {record.get('id')}: transcript {record.get('file')} not found; pass the folder "
+                         "that holds it with --transcripts", code="transcript_missing")
+            continue
+        if record.get("sha256") and transcript.sha256 != record["sha256"]:
+            report.warn(f"transcript for interview {record.get('id')} changed since it was added; run validate "
+                        "after the move to re-check its quotes", code="transcript_changed")
+        record.setdefault("sha256", transcript.sha256)
+        record["file"] = f"{COPIES}/{os.path.basename(transcript.path)}"
+        found.append(transcript.path)
+    return found
+
+
+def _clashes(old_folder: str, new_folder: str, sources: list[str]) -> list[str]:
+    """What the move would overwrite in .pw-kb/: a file or folder of the same name, or a different transcript."""
+    found = [name for name in MOVED_ON_MIGRATE
+             if os.path.exists(os.path.join(old_folder, name)) and os.path.exists(os.path.join(new_folder, name))]
+    for source in sources:
+        target = os.path.join(new_folder, COPIES, os.path.basename(source))
+        if os.path.exists(target) and file_sha256(target) != file_sha256(source):
+            found.append(f"{COPIES}/{os.path.basename(source)}")
+    return found
+
+
+def _move_study(old: str, new: str, kb: Json, sources: list[str]) -> str:
+    """Copy the transcripts into .pw-kb/, move the study's files there, write the KB and remove the old one.
+
+    Backups keep their time stamps and take the new KB's name. Returns the backup of the old KB file."""
+    old_folder, new_folder = os.path.dirname(os.path.abspath(old)), os.path.dirname(os.path.abspath(new))
+    os.makedirs(new_folder, exist_ok=True)
+    copy_transcripts(new, sources)
+    for name in MOVED_ON_MIGRATE:
+        if os.path.exists(os.path.join(old_folder, name)):
+            shutil.move(os.path.join(old_folder, name), os.path.join(new_folder, name))
+    old_stem, new_stem = (os.path.splitext(os.path.basename(p))[0] for p in (old, new))
+    backups = os.path.join(new_folder, "backups")
+    for name in sorted(os.listdir(backups)) if os.path.isdir(backups) and old_stem != new_stem else []:
+        if name.startswith(f"{old_stem}."):
+            os.replace(os.path.join(backups, name), os.path.join(backups, new_stem + name[len(old_stem):]))
+    made = backup(new, source=old)
+    save_kb(kb, new)
+    os.remove(old)
+    with contextlib.suppress(OSError):
+        os.rmdir(old_folder)  # only when nothing else is left in it
+    return made
+
+
+def _migrate_move(args: argparse.Namespace) -> int:
+    """Move a study made by an earlier version (the KB in <study>/KB/, transcripts in <study>/Interviews/) into
+    .pw-kb/pw-kb.yaml."""
+    new = args.to or KB_HOME
+    if not at_home(new):
+        raise KbError(f"--to must be {KB_HOME} at the root of the workspace, not {new}", code="kb_location")
+    if os.path.exists(new):
+        raise KbError(f"{new} already holds a study, and a workspace holds one study. Nothing moved. Open the old "
+                      "study in a workspace of its own, or move the other one out first", code="kb_exists")
+    kb = ensure(load_yaml(args.kb), args.kb)
+    version = check_version(kb, args.kb)
+    args.run.note(schema_from=version, moved=True)
+    report = Report()
+    sources = _old_transcripts(kb, args.kb, args.transcripts or [], report)
+    for clash in _clashes(os.path.dirname(os.path.abspath(args.kb)), os.path.dirname(os.path.abspath(new)), sources):
+        report.error(f"{KB_FOLDER}/{clash} exists already and would be overwritten; move it out of the way first",
+                     code="move_conflict")
+    args.run.add_report(report)
+    lines = [f"WARN {warning}" for warning in report.warnings]
+    if report.errors:
+        print("\n".join(lines + [f"{len(report.errors)} problem(s); nothing moved:"]
+                        + [f"  - {e}" for e in report.errors]))
+        return 1
+    notes = _upgrade(kb, version)
+    summary = f"moved the study into {KB_FOLDER}/ and copied its {len(sources)} transcript(s) there"
+    if notes:
+        summary += f"; migrated from schema version {version} to {SCHEMA_VERSION}: " + "; ".join(notes)
+    kb["changelog"].append(changelog_entry(args.run, "migrate", summary=summary))
+    problems = structure_problems(kb)
+    if problems:
+        raise KbError("the migrated KB would break the KB structure; nothing moved. Fix these first:\n  - "
+                      + "\n  - ".join(problems), code="structure")
+    old_folder = os.path.dirname(os.path.abspath(args.kb))
+    made = _move_study(args.kb, new, kb, sources)
+    args.run.moved(new)
+    args.run.note(written=True, backup=args.run.relative(made), transcripts_copied=len(sources))
+    left = sorted(n for n in os.listdir(old_folder) if not n.startswith(".")) if os.path.isdir(old_folder) else []
+    lines.append(f"{summary}. The KB is now {new}; the old file is in {KB_FOLDER}/backups/")
+    if left:
+        lines.append(f"left in {old_folder}: {', '.join(left)}")
+    note = git_note(new)
+    args.run.note(git=bool(note))
+    print("\n".join(lines + ([note] if note else [])))
+    return 0
+
+
 def cmd_migrate(args: argparse.Namespace) -> int:
+    if not at_home(args.kb):
+        return _migrate_move(args)
     kb = ensure(load_yaml(args.kb), args.kb)
     version = check_version(kb, args.kb)
     args.run.note(schema_from=version)
     if version == SCHEMA_VERSION:
         print(f"nothing to do: {args.kb} already uses schema version {SCHEMA_VERSION}")
         return 0
-    start, notes = version, []
-    while version < SCHEMA_VERSION:
-        notes.append(MIGRATIONS[version](kb))
-        version += 1
-        kb["meta"]["schema_version"] = version
+    start, notes = version, _upgrade(kb, version)
     summary = f"migrated from schema version {start} to {SCHEMA_VERSION}: " + "; ".join(notes)
     kb["changelog"].append(changelog_entry(args.run, "migrate", summary=summary))
     problems = structure_problems(kb)
@@ -2513,7 +3274,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--json", action="store_true", help="print the same information as JSON")
     sp = command("merge", cmd_merge, "check a patch and fold it into the KB")
     sp.add_argument("patch", help="path to the patch YAML file")
-    sp.add_argument("--transcripts", required=True, action="append", help="folder or file; repeat for several")
+    sp.add_argument("--transcripts", action="append",
+                    help="folder or file with new transcripts; repeat for several. "
+                         f"{KB_FOLDER}/{COPIES}/ is always read first")
     sp.add_argument("--dry-run", action="store_true", help="run every check, write nothing")
     sp.add_argument("--json", action="store_true", help="print the result as one JSON object")
     sp = command("apply", cmd_apply, "decide on a proposed change")
@@ -2526,13 +3289,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp = command("map", cmd_map, "write discovery-map.html")
     sp.add_argument("--template")
     sp.add_argument("--out")
-    sp = command("validate", cmd_validate, "check the KB's structure, then its quotes")
-    sp.add_argument("--transcripts", action="append",
-                    help="folder or file; repeat for several; omit to check structure only")
+    sp = command("validate", cmd_validate, f"check the KB's structure, then its quotes against {KB_FOLDER}/{COPIES}/")
+    sp.add_argument("--structure-only", action="store_true", help="check the structure, not the quotes")
     sp.add_argument("--schema", help="path to kb-schema.json, if it is not next to the script")
     sp.add_argument("--rehash", action="store_true",
                     help="accept transcripts whose content changed since they were added")
-    command("migrate", cmd_migrate, "bring an older KB up to the current schema version")
+    sp = command("migrate", cmd_migrate, f"bring an older KB up to date and move it into {KB_FOLDER}/")
+    sp.add_argument("--to", help=f"where to move a study made by an earlier version; default {KB_HOME}")
+    sp.add_argument("--transcripts", action="append",
+                    help=f"folder or file with that study's transcripts; default <study>/{OLD_TRANSCRIPTS}")
     return parser
 
 

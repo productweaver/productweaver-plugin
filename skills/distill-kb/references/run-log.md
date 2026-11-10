@@ -1,6 +1,6 @@
 # The run log
 
-`kb_tool.py` appends one JSON line to `KB/logs/kb_tool.jsonl`, next to the KB, every time it runs. Successful runs, refused merges, dry runs and crashes all get a line. The log answers three questions the KB alone cannot: what was tried and failed, how long things take, and which assistant did what. Read it with any JSONL tool.
+`kb_tool.py` appends one JSON line to `.pw-kb/logs/kb_tool.jsonl`, next to the KB, every time it runs. Successful runs, refused merges, dry runs and crashes all get a line. The log answers three questions the KB alone cannot: what was tried and failed, how long things take, and which assistant did what. Read it with any JSONL tool.
 
 Set `KB_TOOL_LOG=0` to switch the log off. It is append-only and small: a line is under 1 KB, so a thousand runs are under 1 MB.
 
@@ -25,7 +25,7 @@ Every line has these fields. The order is stable, so lines are easy to compare.
 | `python`, `os` | Python version and platform |
 | `agent` | The assistant running the tool: `KB_TOOL_AGENT` if set, else `claude-code` or `gemini-cli` when their environment marker is present, else the terminal program, else null |
 | `kb_sha256_before`, `kb_sha256_after` | Hash of the KB file before and after. Equal means nothing changed; a change between two runs means a hand edit |
-| `kb` | Size of the KB after the run: `interviews`, `core_jobs`, `unlinked_interviews` (linked to no core job), `steps`, `thin_steps`, `outcomes` (live ones), `pending_proposals` and the `stale` derived layers |
+| `kb` | Size of the KB after the run: `interviews`, `core_jobs`, `unlinked_interviews` (linked to no core job), `steps`, `thin_steps`, `outcomes` (live ones), `pending_proposals`, `solutions` (live ones), `solution_groups` and the `stale` derived layers |
 | `errors`, `warnings` | Codes with counts, such as `{"quote_not_found": 3}`. See Codes below |
 
 Commands add their own fields:
@@ -35,13 +35,15 @@ Commands add their own fields:
 | `dry_run`, `nothing_new` | merge | Whether it was a dry run, and whether the patch had nothing new |
 | `patch_sha256` | merge | Hash of the patch file, so retries of the same patch can be counted |
 | `bootstrap` | merge | True when the merge created the core job and job map |
-| `counts` | merge | `interviews_added`, `interviews_skipped`, `outcomes_added`, `step_quotes`, `outcome_quotes`, `proposals_filed` |
+| `counts` | merge | `interviews_added`, `interviews_skipped`, `outcomes_added`, `step_quotes`, `outcome_quotes`, `proposals_filed`, `transcripts_copied` (new transcripts copied into `.pw-kb/transcripts/`), `solutions_added`, `solution_groups_added`, `solution_quotes` (quotes added to solutions already in the KB) |
 | `provenance` | merge | The patch's provenance block without `notes`: `assistant`, `model`, `started`, `transcripts_read` as KB IDs |
 | `backup` | merge, apply, validate, migrate | The backup made before the write, relative to the KB folder |
 | `proposal`, `proposal_type`, `decision` | apply | What was decided on and how. Logged even when the apply is refused |
 | `out`, `since` | review, map | The file written; for review, the date new items are counted from |
 | `structure_problems`, `outcome_quotes`, `drifted`, `rehash` | validate | Structure problems found, outcome quotes in the KB, transcripts whose content changed, whether `--rehash` was given |
 | `schema_from` | migrate | The schema version the KB had before |
+| `moved`, `transcripts_copied` | migrate | True when migrate moved a study made by an earlier version into `.pw-kb/`, and how many transcripts it copied there |
+| `git` | init, migrate | True when `.pw-kb/` sits in a git repository and has no `.gitignore` of its own |
 | `exception` | any | The exception class when the tool crashed |
 
 ## Codes
@@ -53,6 +55,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | Code | Meaning |
 |---|---|
 | `patch_format` | The patch does not match `patch-schema.json` |
+| `yaml_split` | A key with no value that the patch format does not have: YAML split a value with a comma that was not in quotes |
 | `quote_not_found` | A quote is not in its transcript word for word |
 | `quote_empty` | A quote is empty |
 | `evidence_missing` | An item that needs evidence has none |
@@ -69,14 +72,20 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `ref_ambiguous` | A step or outcome ID has no job letter, and the KB has more than one core job |
 | `key_duplicate` | A new interview key is used twice in the patch |
 | `key_is_id` | A new interview key is already an interview ID in the KB |
-| `transcript_missing` | A transcript file named in the patch or the KB is not under `--transcripts` |
+| `transcript_missing` | A transcript file named in the patch or the KB is neither in `.pw-kb/transcripts/` nor under `--transcripts`. Also stops `validate` and `migrate` |
 | `step_duplicate` | A bootstrap uses a step number twice in one core job |
 | `step_missing` | A step named in the patch does not exist |
 | `outcome_missing` | An outcome named in the patch does not exist |
 | `outcome_merged` | An outcome named in the patch was merged into another |
 | `outcome_direction` | A new outcome does not start with Minimize, Maximize, Increase or Reduce |
 | `outcome_duplicate` | A new outcome repeats an existing one or another new one |
-| `proposal_ref` | A proposal points at a step, outcome, core job, interview or segment that does not fit |
+| `solution_missing` | `solution_evidence` names a solution that does not exist |
+| `solution_merged` | `solution_evidence` names a solution that was merged into another |
+| `solution_duplicate` | A new solution has the name, or an earlier name, of a solution in the KB or of another new one |
+| `solution_group_missing` | A new solution names a group that is neither in the KB nor in `solution_groups` |
+| `solution_group_duplicate` | A new group's key or name is already used |
+| `solution_group_unused` | Nothing in the patch puts a solution in a new group: no new solution and no `move_solution` |
+| `proposal_ref` | A proposal points at a step, outcome, core job, interview, segment, solution or solution group that does not fit |
 | `structure` | The KB that would result, or the KB as it stands, breaks `kb-schema.json` or its cross-references |
 
 ### Warnings
@@ -94,8 +103,9 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `transcripts_root_missing` | A `--transcripts` folder or file does not exist |
 | `segment_unknown` | A new interview names a segment the KB does not have |
 | `clarity_two_jobs` | A job or step statement may hold two jobs |
-| `clarity_acronym` | A statement uses an abbreviation not on the study's list |
+| `clarity_acronym` | A statement uses an abbreviation not on the study's list. Solution names are not checked, because product names keep their letters |
 | `provenance_ref` | `provenance.transcripts_read` names something that is not an interview ID or a patch key |
+| `solution_group_repeated` | A new solution group is already in the KB with the same name and reason; ignored |
 
 ### Errors that stop a command
 
@@ -104,7 +114,9 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `file_missing` | The KB or the patch file does not exist |
 | `yaml_invalid` | The KB or the patch is not valid YAML |
 | `kb_shape` | The KB is not a YAML mapping |
-| `kb_exists` | `init` refused to overwrite an existing KB |
+| `kb_exists` | `init` refused to overwrite an existing KB, or `migrate` found a study in `.pw-kb/` already |
+| `kb_location` | The KB is not `.pw-kb/pw-kb.yaml`. A study made by an earlier version is moved there with `migrate` |
+| `move_conflict` | `migrate` would overwrite a file in `.pw-kb/`; nothing was moved |
 | `patch_empty` | The patch file is empty |
 | `patch_shape` | The patch is not a YAML mapping |
 | `schema_version` | The KB's schema version is not a number or is newer than the tool knows |

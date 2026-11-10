@@ -6,11 +6,14 @@ A patch is one YAML file describing what a batch of transcripts adds. `kb_tool.p
 
 Write every ID in quotes. Copy step and outcome IDs from `context` output, never from memory.
 
+Put quotes around every value that holds a comma, above all inside `{…}`. Unquoted, YAML splits `{covers: Pick lanes, regions}` into `covers: Pick lanes` and a key `regions`, and a quote with a comma loses its end. The merge refuses a patch with such a key (`yaml_split`).
+
 - A **new** interview gets a short `key` you choose (`n1`, `n2`). Cite it by that key anywhere in the patch. The merge assigns the real ID. A key must not look like an existing ID.
 - An **existing** interview is cited by its KB `id`: `"07"`. Unquoted, YAML reads `07` as the number 7; the merge then reads it as `"07"` and warns.
 - A **core job** is cited by its letter: `"A"`, `"B"`.
 - A **step** is cited by its core job's letter and its number in that job: `"A.6"`.
 - An **outcome** is cited by its step's ID and its number under that step: `"A.6.3"`.
+- A **solution** is cited by its ID: `"S3"`. A **solution group** is cited by its key: `send-orders`.
 - Every evidence item is `{interview, source, quote}`. Inside an interview's own record, items are `{source, quote}`, because the interview is implied.
 
 `source` is one of `transcript`, `quoted_in_notes` or `interviewer_notes`.
@@ -32,7 +35,7 @@ provenance:            # optional: who extracted this batch and how; copied into
 interviews:            # new interviews only
   - key: n1
     name: Amy Richardson
-    file: interview-19-amy-richardson.md   # file name inside a --transcripts folder
+    file: interview-19-amy-richardson.md   # file name, in .pw-kb/transcripts/ or a --transcripts folder
     date: 2026-03-05
     format: Transcript                     # Transcript | Notes | Transcript + notes
     cluster: seq                           # an existing segment key, or omit
@@ -71,6 +74,30 @@ new_outcomes:          # only when no existing outcome has the same object of co
     evidence:
       - {interview: n1, source: transcript, quote: "..."}
 
+solution_groups:       # new groups only; see "Current solutions" below
+  - key: send-orders
+    name: Ways to send the order
+    why: Each one gets the week's order to a supplier, and owners keep one per supplier.
+
+new_solutions:         # only when no solution in `context` is the same thing
+  - name: Supplier's ordering app
+    kind: product                          # product | everyday_tool | people | own_method
+    group: send-orders                     # a group key from `context`, or one from solution_groups above
+    uses:
+      - step: "A.4"
+        evidence:
+          - {interview: n1, source: transcript, quote: "..."}
+      - step: "A.5"
+        status: stopped                    # current (the default) or stopped
+        evidence:
+          - {interview: n1, source: transcript, quote: "..."}
+
+solution_evidence:     # more quotes for a solution already in the KB (ID from `context`)
+  - solution: "S3"
+    step: "A.4"
+    evidence:
+      - {interview: n1, source: transcript, quote: "..."}
+
 proposed_changes:      # structural changes; stored as pending for the user to decide
   - type: new_step
     job: "A"
@@ -81,19 +108,32 @@ proposed_changes:      # structural changes; stored as pending for the user to d
       - {interview: n1, source: transcript, quote: "..."}
 
 bootstrap:             # ONLY for a KB that has no core job yet
-  core_jobs:           # one entry per core job, IDs "A", "B", "C"… in order
+  core_jobs:           # one entry per core job, IDs "A", "B", "C"… in order; A is the job most people have
+                      # as their main job, and each job's steps are numbered in stage order
     - id: "A"
       statement: Order ingredients for the coming week
       job_executor: The person who decides what a restaurant orders from suppliers
       steps:
-        - {n: 1, stage: define, statement: Estimate how many covers the week will bring, covers: "..."}
-        - {n: 2, stage: locate, statement: ...}
+        - {n: 1, stage: define, statement: "Estimate how many covers the week will bring", covers: "Bookings, events and weather"}
+        - {n: 2, stage: locate, statement: "..."}
     - id: "B"
       statement: ...
       steps: [...]
 ```
 
 A bootstrap's core jobs and steps exist for the rest of the same patch: its new interviews may link to `"A"` and `"B"`, and its `step_evidence` and `new_outcomes` may cite `"A.2"` or `"B.1"`. Bootstrap steps carry no quotes of their own; put the quotes in `step_evidence`. Steps with no quote yet are allowed and show up as thin steps to ask about next.
+
+## Current solutions
+
+A current solution is what someone uses today to get a step done: a product, an everyday tool, another person or their own method. How to spot, name and group them is in `pw-rules.md`, "Current solutions".
+
+- **A solution already in the KB** is cited by its ID in `solution_evidence`: `"S3"`. Run `context` first; its CURRENT SOLUTIONS block lists every group and solution with its steps.
+- **A new solution** goes in `new_solutions`, with its `kind`, its `group` and one use per step it serves. The merge gives it the next free ID. A name that matches a solution in the KB, now or in its history, is refused: send the quotes as `solution_evidence` instead.
+- **A new group** goes in `solution_groups`, with a `key` you choose, a `name` and a `why`. Something in the same patch must put a solution in it: a new solution, or a `move_solution` proposal. A group repeated exactly from an earlier merge is ignored, so a batch can be re-run.
+- **A use** names a step, never an outcome. When the quote shows the tool helps reach an outcome, use that outcome's step.
+- **`status: stopped`** marks a solution the person used for that step and gave up. Pick the quote that says why. Leave `status` out for what they use now.
+
+Solution quotes do not count as evidence for the step. When the passage also shows the person doing the step, add it to `step_evidence` too.
 
 ## Linking interviews to core jobs
 
@@ -120,6 +160,10 @@ Every proposal has `type`, `proposal` (the new wording, or the change in one lin
 | `new_core_job` | `job_executor`, `steps`, `interviews` | A core job the study has no place for. `proposal` is its statement. `steps` is a list of `{stage, statement, covers, evidence}`. `interviews` lists, by key or ID, the people whose own core job rolls up to it |
 | `move_step` | `target: "<step id>"`, `to_job: "<job id>"` | A step under the wrong core job. Optional `stage`. Its outcomes move with it |
 | `relink_interview` | `target: "<interview id>"`, `job: "<job id>"` or `job: null` | Change an existing interview's main link. With `related_job: <statement>`, change the link of that related job instead. Removing a main link stores `rationale` as the interview's `unlinked_reason` |
+| `merge_solutions` | `target: "<id to keep>"`, `merge: "<id to fold in>"` | Two solutions that are the same thing under two names. The folded one's quotes move to `target` |
+| `move_solution` | `target: "<solution id>"`, `to_group: <group key>` | A solution in the wrong group. The group may be one this patch adds |
+| `reword_solution` | `target: "<solution id>"` | A better name for a solution. `proposal` is the new name. Optional `kind` corrects its kind |
+| `reword_solution_group` | `target: <group key>` | A better name for a group. `proposal` is the new name. Optional `why` gives the group's new reason |
 | `other` | nothing | Anything else. Applied by hand after approval |
 
 A `new_core_job` gets the next free letter when approved, and its steps are numbered from 1. It carries no outcomes, because an outcome ID needs its step to exist. After approval, write a short follow-up patch for the linked interviews: they are already in the KB, so cite them by ID, and add outcomes and step evidence for the new job.
@@ -148,8 +192,8 @@ proposed_changes:
 
 1. Checks the patch against `patch-schema.json`, reads dates and unquoted interview IDs the way they were meant, and gives IDs without a job letter the letter of the only core job (or refuses them when there are several).
 2. Skips interviews whose file name or content hash is already in the KB, and drops patch items whose evidence comes only from them.
-3. Checks every quote against its transcript, every step, outcome, interview, core job link and proposal target, every statement's clarity, outcome wording (it must start with a direction verb) and exact duplicates of existing outcome statements under the same core job.
+3. Checks every quote against its transcript, every step, outcome, interview, core job link, solution, solution group and proposal target, every statement's clarity, outcome wording (it must start with a direction verb), exact duplicates of existing outcome statements under the same core job and solution names already in the KB.
 4. Builds the new KB in memory and checks it against `kb-schema.json`.
-5. On success: copies the current KB to `KB/backups/`, adds interviews with new IDs, appends evidence without duplicates, numbers new outcomes (next free `<step>.<k>`), files proposals as `P<n>` with status `pending` (after a bootstrap, first one `confirm_core_job` per core job), recounts coverage and who is linked to which core job, marks derived layers stale and writes a changelog entry with what was added, the time, the `run_id` and the provenance. Every run, successful or not, also gets one line in `KB/logs/kb_tool.jsonl`.
+5. On success: copies each new transcript into `.pw-kb/transcripts/` and the current KB to `.pw-kb/backups/`, adds interviews with new IDs, appends evidence without duplicates, numbers new outcomes (next free `<step>.<k>`) and new solutions (next free `S<n>`), files proposals as `P<n>` with status `pending` (after a bootstrap, first one `confirm_core_job` per core job), recounts coverage and who is linked to which core job, marks derived layers stale and writes a changelog entry with what was added, the time, the `run_id` and the provenance. Every run, successful or not, also gets one line in `KB/logs/kb_tool.jsonl`.
 
 `--dry-run` runs steps 1 to 4 and reports the same verdict the real merge would. `--json` prints the result as one JSON object. Running the same patch twice changes nothing.
