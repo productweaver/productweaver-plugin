@@ -66,6 +66,18 @@ h1 .goal{color:var(--accent)}
 .flow{align-self:center;color:var(--muted);font-size:1.1rem}
 .chip.check{border-color:transparent;background:var(--ev1)}
 .chip.check span{color:var(--ink)}
+.jobs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.jobs[hidden]{display:none}
+.jobs .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:var(--muted);margin-right:4px}
+.jobbtn{display:flex;gap:8px;align-items:center;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 14px 4px 5px;font-size:.86rem;text-align:left;max-width:360px}
+.jobbtn:hover{border-color:var(--accent)}
+.jobbtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.jobbtn span{line-height:1.25}
+.jobbtn small{display:block;color:var(--muted);font-size:.76rem;font-variant-numeric:tabular-nums}
+.jl{display:inline-grid;place-items:center;flex:none;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:.74rem;font-weight:800}
+.jl.also{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.jl.none{background:transparent;color:var(--muted);border:1px dashed var(--muted);font-weight:600}
+.person .jobsline{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:3px;font-size:.74rem;color:var(--muted)}
 
 main{flex:1;display:grid;grid-template-columns:290px minmax(0,1fr);min-height:0;position:relative}
 @media (max-width:860px){main{grid-template-columns:1fr;grid-template-rows:auto 70vh}}
@@ -205,6 +217,7 @@ blockquote.para{border-left-color:var(--amber)}
       <input type="file" id="file" accept=".yaml,.yml,.json" hidden>
     </div>
   </div>
+  <div class="jobs" id="jobs" role="group" aria-label="Core jobs in this study" hidden></div>
   <div class="strip" id="strip" aria-label="From conversations to insights"></div>
 </header>
 
@@ -4122,6 +4135,7 @@ blockquote.para{border-left-color:var(--amber)}
 })));
 </script>
 <script>
+/* @kb-schema:2 */ /* draws KBs of schema 2, with one or more core jobs, and still reads schema 1 files */
 /* @kb-data:start */
 const SAMPLE = {"meta":{"project":"Open a KB file to begin"}};
 /* @kb-data:end */
@@ -4162,36 +4176,67 @@ const plural = (n,w,p) => `${n} ${n===1?w:(p||w+"s")}`;
 let M = null;
 function build(raw){
   if(!raw || typeof raw!=="object") throw new Error("The file is empty or not YAML.");
-  const ivs = (raw.interviews||[]).map(i=>({
-    id:String(i.id), name:i.name||("Interview "+i.id), date:i.date?String(i.date):"", format:i.format||"",
-    tags:i.tags||[], file:i.file||"", note:i.analyst_note||"",
-    who:(i.job_executor||{}).statement||"", whoEv:(i.job_executor||{}).evidence||[],
-    goal:(i.core_functional_job||{}).statement||"", goalEv:(i.core_functional_job||{}).evidence||[],
-    related:i.related_jobs||[], emotional:i.emotional_jobs||[], social:i.social_jobs||[]
-  }));
-  const ivById = Object.fromEntries(ivs.map(i=>[i.id,i]));
   const jm = raw.job_map||{};
-  const steps = (jm.steps||[]).map(s=>({id:"s"+s.n, n:+s.n, stage:String(s.stage||"").toLowerCase(), text:s.statement||"", covers:s.covers||"",
-    ev:(s.evidence||[]).map(e=>({...e, interview:String(e.interview)}))}));
-  const outs = ((raw.desired_outcomes||{}).outcomes||[]).filter(o=>!o.merged_into).map(o=>({id:"o"+o.id, oid:String(o.id), step:+o.step,
+  // schema 1 files had one market_core_job and IDs without a job letter: read them as core job A
+  const v1 = !Array.isArray(raw.core_jobs), mcj = raw.market_core_job||{};
+  const jobsRaw = !v1 ? raw.core_jobs : ((mcj.statement||jm.core_job||(jm.steps||[]).length) ?
+    [{id:"A", statement:mcj.statement||jm.core_job||"", status:mcj.status||jm.status||"", job_executor:mcj.job_executor||""}] : []);
+  const stepKey = s => v1 ? "A."+(+s.n) : `${s.job}.${+s.n}`;
+  const outKey = o => v1 && /^\d+\.\d+$/.test(String(o.id)) ? "A."+o.id : String(o.id);
+  const outStep = o => v1 ? "A."+(+o.step) : String(o.step);
+  const ivs = (raw.interviews||[]).map(i=>{
+    const cj = i.core_functional_job||{}, main = v1 ? (jobsRaw.length?"A":null) : (cj.job||null);
+    return {
+      id:String(i.id), name:i.name||("Interview "+i.id), date:i.date?String(i.date):"", format:i.format||"",
+      tags:i.tags||[], file:i.file||"", note:i.analyst_note||"",
+      who:(i.job_executor||{}).statement||"", whoEv:(i.job_executor||{}).evidence||[],
+      goal:cj.statement||"", goalEv:cj.evidence||[], main, whyNone:main?"":(cj.unlinked_reason||""),
+      also:[...new Set((i.related_jobs||[]).map(j=>j&&j.job).filter(j=>j && j!==main))],
+      related:i.related_jobs||[], emotional:i.emotional_jobs||[], social:i.social_jobs||[]
+    };
+  });
+  const ivById = Object.fromEntries(ivs.map(i=>[i.id,i]));
+  const steps = (jm.steps||[]).map(s=>{ const key=stepKey(s); return {id:"s"+key, key, job:key.split(".")[0], n:+s.n,
+    stage:String(s.stage||"").toLowerCase(), text:s.statement||"", covers:s.covers||"",
+    ev:(s.evidence||[]).map(e=>({...e, interview:String(e.interview)}))}; });
+  const outs = ((raw.desired_outcomes||{}).outcomes||[]).filter(o=>!o.merged_into).map(o=>({id:"o"+outKey(o), oid:outKey(o), step:outStep(o),
     text:o.statement||"", plain:plainOutcome(o.statement||""), ev:(o.evidence||[]).map(e=>({...e, interview:String(e.interview)})), added:o.added||""}));
   const people = arr => [...new Set(arr.map(e=>e.interview))];
-  steps.forEach(s=>{ s.people=people(s.ev); s.outs=outs.filter(o=>o.step===s.n); s.allPeople=[...new Set([...s.people,...s.outs.flatMap(o=>people(o.ev))])]; });
-  outs.forEach(o=>{ o.people=people(o.ev); });
-  const mcj = raw.market_core_job||{};
+  outs.forEach(o=>{ o.people=people(o.ev); o.job=o.step.split(".")[0]; });
+  steps.forEach(s=>{ s.people=people(s.ev); s.outs=outs.filter(o=>o.step===s.key); s.allPeople=[...new Set([...s.people,...s.outs.flatMap(o=>o.people)])]; });
+  const jobs = jobsRaw.map(j=>{ const id=String(j.id); return {id, statement:j.statement||"", status:j.status||"", executor:j.job_executor||"",
+    main:ivs.filter(i=>i.main===id).map(i=>i.id), also:ivs.filter(i=>i.main!==id && i.also.includes(id)).map(i=>i.id),
+    steps:steps.filter(s=>s.job===id), outs:outs.filter(o=>o.job===id)}; });
   const quotes = steps.reduce((a,s)=>a+s.ev.length,0)+outs.reduce((a,o)=>a+o.ev.length,0)
     + ivs.reduce((a,i)=>a+i.whoEv.length+i.goalEv.length+[...i.related,...i.emotional,...i.social].reduce((b,j)=>b+(j.evidence||[]).length,0),0);
-  // per-person contribution
+  // per-person contribution, across every core job
   ivs.forEach(i=>{
     i.steps = steps.filter(s=>s.people.includes(i.id)).map(s=>s.id);
     i.outs = outs.filter(o=>o.people.includes(i.id)).map(o=>o.id);
     i.quoteCount = steps.reduce((a,s)=>a+s.ev.filter(e=>e.interview===i.id).length,0)+outs.reduce((a,o)=>a+o.ev.filter(e=>e.interview===i.id).length,0);
+    i.touched = [...new Set([...steps.filter(s=>s.people.includes(i.id)).map(s=>s.job), ...outs.filter(o=>o.people.includes(i.id)).map(o=>o.job)])];
   });
   return {raw, project:(raw.meta||{}).project||"Discovery study", caveat:(raw.meta||{}).caveat||"",
-    goal:mcj.statement||jm.core_job||"", goalStatus:mcj.status||jm.status||"", executor:mcj.job_executor||"",
-    ivs, ivById, steps, outs, quotes,
+    jobs, jobById:Object.fromEntries(jobs.map(j=>[j.id,j])), job:null, goal:"", goalStatus:"", executor:"",
+    ivs, ivById, allSteps:steps, allOuts:outs, steps, outs, quotes,
     proposals:(raw.proposed_changes||[]).filter(p=>p.status==="pending"),
     changelog:raw.changelog||[], segments:raw.clusters||{}};
+}
+/* The map shows one core job at a time. M.steps and M.outs are the chosen job's. */
+function chooseJob(id){
+  const j = M.jobById[id] || M.jobs[0] || null;
+  M.job = j ? j.id : null;
+  M.steps = j ? j.steps : M.allSteps; M.outs = j ? j.outs : M.allOuts;
+  M.goal = j ? j.statement : ""; M.goalStatus = j ? j.status : ""; M.executor = j ? j.executor : "";
+}
+const many = () => M.jobs.length>1;
+const doers = n => n===1 ? "1 person does it" : `${n} people do it`;
+const jobName = id => M.jobById[id] ? `${M.jobById[id].statement} (${id})` : id;
+function setJob(id, keep){
+  if(id===M.job) return;
+  chooseJob(id); expanded=new Set(); selected=null;
+  if(!keep){ personHL=null; closeDrawer(); }
+  renderHeader(); renderJobs(); renderPeople(); renderNext(); updatePill(); render(); fit(true);
 }
 
 /* ---------- header, strip, sidebar ---------- */
@@ -4201,13 +4246,14 @@ function renderHeader(){
   const dates = M.ivs.map(i=>i.date).filter(Boolean).sort();
   document.getElementById("subtitle").textContent =
     `Built from ${plural(M.ivs.length,"customer conversation")}` + (dates.length?` held ${fmtDate(dates[0])} to ${fmtDate(dates[dates.length-1])}`:"") +
-    (M.goalStatus==="proposed"?". The main goal is still a proposal for the team to confirm.":".");
+    (many()?`. They revealed ${M.jobs.length} core jobs; the map shows one at a time`:"") +
+    (M.goalStatus==="proposed"?`. ${many()?"This core job":"The main goal"} is still a proposal for the team to confirm.`:".");
   const thin = M.steps.filter(s=>s.allPeople.length<3).length;
   const chips = [
     [M.ivs.length,"conversations","Real customers interviewed. Each one is a transcript or interview notes."],
     [M.quotes,"exact quotes","Sentences copied word for word from those conversations. A script checks every one against its transcript."],
-    [M.steps.length,"steps in their job","What customers actually do, in order, to get their goal done."],
-    [M.outs.length,"measures of success","How customers judge whether a step went well, in their own terms."]
+    [M.steps.length,"steps in their job","What customers actually do, in order, to get their goal done."+(many()?" Counted for the core job shown.":"")],
+    [M.outs.length,"measures of success","How customers judge whether a step went well, in their own terms."+(many()?" Counted for the core job shown.":"")]
   ];
   document.getElementById("strip").innerHTML = chips.map((c,i)=>`<div class="chip" tabindex="0" data-tip="${esc(c[2])}"><b>${c[0]}</b><span>${c[1]}</span></div>${i<chips.length-1?'<span class="flow" aria-hidden="true">→</span>':""}`).join("")
     + `<span class="flow" aria-hidden="true"></span><div class="chip check" tabindex="0" data-tip="Every insight on this map points back to the quotes behind it. Click any box to read them."><b>✓</b><span>every insight<br>traced to a quote</span></div>`
@@ -4218,16 +4264,30 @@ function renderHeader(){
     el.addEventListener("focus",e=>showTip(e,`<div>${esc(el.dataset.tip)}</div>`)); el.addEventListener("blur",hideTip);
   });
 }
+function renderJobs(){
+  const box = document.getElementById("jobs");
+  box.hidden = !many();
+  if(!many()){ box.innerHTML=""; return; }
+  box.innerHTML = `<span class="lbl">Core jobs</span>` + M.jobs.map(j=>`<button class="jobbtn" type="button" data-job="${esc(j.id)}" aria-pressed="${j.id===M.job}">
+    <span class="jl">${esc(j.id)}</span><span>${esc(j.statement)}<small>${doers(j.main.length)}${j.also.length?` · ${j.also.length} also`:""}${j.status==="proposed"?" · proposed":""}</small></span></button>`).join("");
+  box.querySelectorAll("[data-job]").forEach(b=>b.addEventListener("click",()=>setJob(b.dataset.job)));
+}
+function jobBadges(i){
+  if(!many() && i.main) return "";
+  const main = i.main ? `<span class="jl" title="${esc("Main job: "+jobName(i.main))}">${esc(i.main)}</span>` : `<span class="jl none" title="Linked to no core job">none</span>`;
+  return `<span class="jobsline">${main}${i.also.map(j=>`<span class="jl also" title="${esc("Also: "+jobName(j))}">${esc(j)}</span>`).join("")}</span>`;
+}
 function fmtDate(d){ const t=new Date(d+"T12:00:00"); return isNaN(t)?d:t.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
 
 function renderPeople(){
   const p = document.getElementById("pane-people");
-  p.innerHTML = `<p class="hint">Pick a person to light up everything their conversation added to the map.</p>` +
+  p.innerHTML = `<p class="hint">Pick a person to light up everything their conversation added to the map.${many()?" The map switches to their main core job.":""}</p>` +
     M.ivs.map(i=>`<button class="person" type="button" data-iv="${esc(i.id)}" aria-pressed="false">
       <span class="nm">${esc(i.name)}<small>${plural(i.quoteCount,"quote")}</small></span>
-      <span class="role">${esc(i.who||"")}</span></button>`).join("");
+      <span class="role">${esc(i.who||"")}</span>${jobBadges(i)}</button>`).join("");
   p.querySelectorAll(".person").forEach(b=>b.addEventListener("click",()=>{
     const on = b.getAttribute("aria-pressed")!=="true";
+    if(on) jobFor(b.dataset.iv);
     setPerson(on?b.dataset.iv:null);
     if(on){ openPerson(b.dataset.iv); fitHits(); }
   }));
@@ -4236,12 +4296,12 @@ function renderProgress(){
   const p = document.getElementById("pane-progress");
   const order = [...M.ivs].sort((a,b)=>(a.date||"").localeCompare(b.date||"")||a.id.localeCompare(b.id,undefined,{numeric:true}));
   const seen = new Set(); const series=[];
-  order.forEach((iv,k)=>{ M.outs.forEach(o=>{ if(o.people.includes(iv.id)) seen.add(o.id); }); series.push({k:k+1,n:seen.size,name:iv.name}); });
+  order.forEach((iv,k)=>{ M.allOuts.forEach(o=>{ if(o.people.includes(iv.id)) seen.add(o.id); }); series.push({k:k+1,n:seen.size,name:iv.name}); });
   const last = order.slice(-5).map(i=>i.id); const before = new Set();
-  order.slice(0,-5).forEach(iv=>M.outs.forEach(o=>{ if(o.people.includes(iv.id)) before.add(o.id); }));
-  const touched = M.outs.filter(o=>o.people.some(x=>last.includes(x)));
+  order.slice(0,-5).forEach(iv=>M.allOuts.forEach(o=>{ if(o.people.includes(iv.id)) before.add(o.id); }));
+  const touched = M.allOuts.filter(o=>o.people.some(x=>last.includes(x)));
   const fresh = touched.filter(o=>!before.has(o.id)).length, firmed = touched.length-fresh;
-  const W=250,H=150,ml=30,mb=24,mt=10,mr=8, N=series.length||1, Y=Math.max(1,M.outs.length);
+  const W=250,H=150,ml=30,mb=24,mt=10,mr=8, N=series.length||1, Y=Math.max(1,M.allOuts.length);
   const x=k=>ml+(k-1)/(Math.max(1,N-1))*(W-ml-mr), y=v=>H-mb-(v/Y)*(H-mb-mt);
   const path = series.map((s,i)=>`${i?"L":"M"}${x(s.k).toFixed(1)},${y(s.n).toFixed(1)}`).join(" ");
   const area = series.length?`${path} L${x(series[series.length-1].k)},${y(0)} L${x(1)},${y(0)} Z`:"";
@@ -4274,7 +4334,7 @@ function humanLog(c){
     // structured changelog entries, written by kb_tool.py 0.2 and later
     const iv=c.added_interviews||[], no=(c.new_outcomes||[]).length, q=c.outcome_quotes||0;
     const parts=[];
-    if(c.bootstrap) parts.push("Main goal and steps drafted.");
+    if(c.bootstrap) parts.push(/core jobs/.test(c.summary||"")?"Core jobs and steps drafted.":"Main goal and steps drafted.");
     if(iv.length) parts.push(`Added ${plural(iv.length,"conversation")} (${iv.join(", ")}).`);
     if(no) parts.push(`${plural(no,"new measure")} of success.`);
     if(q) parts.push(`${plural(q,"new quote")} on measures of success.`);
@@ -4290,14 +4350,17 @@ function renderNext(){
   const p = document.getElementById("pane-next");
   const thinSteps = M.steps.filter(s=>s.allPeople.length<3).sort((a,b)=>a.allPeople.length-b.allPeople.length);
   const lone = M.outs.filter(o=>o.people.length===1);
-  p.innerHTML = `<p class="hint">These parts of the map rest on only a few voices. A couple more conversations would show if they hold up. Click one to find it on the map.</p>
+  const unlinked = M.ivs.filter(i=>!i.main);
+  p.innerHTML = `<p class="hint">These parts of the map rest on only a few voices. A couple more conversations would show if they hold up. Click one to find it on the map.${many()?` Shown for ${esc(jobName(M.job))}.`:""}</p>
     <div class="sect">Steps with fewer than 3 voices</div>
     ${thinSteps.length?thinSteps.map(s=>`<button class="gap" type="button" data-go="${s.id}">${esc(s.text)}<small>${plural(s.allPeople.length,"person","people")} so far</small></button>`).join(""):`<p class="hint">None. Every step has at least 3 voices.</p>`}
     <div class="sect">Measures heard from one person only</div>
     ${lone.length?`<p class="hint">${plural(lone.length,"measure")} of success. A good question to test in the next conversation is whether others feel the same.</p>`+lone.slice(0,8).map(o=>`<button class="gap" type="button" data-go="${o.id}">${esc(o.plain)}<small>${esc(M.ivById[o.people[0]]?.name||"")}</small></button>`).join(""):`<p class="hint">None.</p>`}
-    ${M.proposals.length?`<div class="sect">Open questions for the team</div>`+M.proposals.map(x=>`<div class="gap"><b>${esc(x.proposal)}</b><small>${esc(x.rationale||"")}</small></div>`).join(""):""}
+    ${unlinked.length&&M.jobs.length?`<div class="sect">People linked to no core job</div><p class="hint">Their own job fits none of the core jobs. Their quotes still count where they do a step.</p>`+unlinked.map(i=>`<button class="gap" type="button" data-person="${esc(i.id)}">${esc(i.name)}<small>${esc(i.whyNone||i.note||i.goal)}</small></button>`).join(""):""}
+    ${M.proposals.length?`<div class="sect">Open questions for the team</div>`+M.proposals.map(x=>`<div class="gap"><b>${x.type==="confirm_core_job"?"Confirm the core job: ":""}${esc(x.proposal)}</b><small>${esc(x.rationale||"")}</small></div>`).join(""):""}
     ${M.caveat?`<div class="sect">Caveat</div><div class="gap">${esc(M.caveat)}</div>`:""}`;
   p.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>focusNode(b.dataset.go)));
+  p.querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>{ setPerson(b.dataset.person); openPerson(b.dataset.person); fitHits(); }));
 }
 
 /* ---------- map ---------- */
@@ -4325,7 +4388,8 @@ function makeTree(){
 }
 function measure(n){
   const w=WID[n.type]; n.w=w; const chars=Math.floor((w-36)/7.1);
-  if(n.type==="root"){ n.lines=wrap(M.goal||"Main goal not set yet",Math.floor((w-28)/7.6)); n.meta=`The main goal · ${plural(M.ivs.length,"conversation")}`; }
+  if(n.type==="root"){ n.lines=wrap(M.goal||"Main goal not set yet",Math.floor((w-28)/7.6));
+    n.meta = many() ? `Core job ${M.job} · ${doers(M.jobById[M.job].main.length)}` : `The main goal · ${plural(M.ivs.length,"conversation")}`; }
   else if(n.type==="stage"){ n.lines=[n.name]; n.meta=`${plural(n.kids.length,"step")}`; }
   else if(n.type==="step"){ const s=n.ref; n.lines=wrap(s.text,chars); n.meta=`${plural(s.allPeople.length,"person","people")} · ${plural(s.outs.length,"measure")}`; }
   else { const o=n.ref; n.lines=wrap(o.plain,chars); n.meta=`${plural(o.people.length,"person","people")} · ${plural(o.ev.length,"quote")}`; }
@@ -4422,7 +4486,7 @@ function ensureVisible(id){
   applyView();
 }
 function tipFor(n){
-  if(n.type==="root") return `<div class="tk">The main goal</div><div class="tt">${esc(M.goal)}</div><div class="tm">What these customers are trying to get done, in their words. Everything else on the map hangs off it.</div><div class="tc">Click for who does it</div>`;
+  if(n.type==="root") return `<div class="tk">${many()?`Core job ${esc(M.job)}`:"The main goal"}</div><div class="tt">${esc(M.goal)}</div><div class="tm">What these customers are trying to get done, in their words. Everything else on the map hangs off it.</div><div class="tc">Click for who does it</div>`;
   if(n.type==="stage") return `<div class="tk">Stage · ${esc(n.key)}</div><div class="tt">${esc(n.name)}</div><div class="tm">${esc(n.desc)}</div>`;
   if(n.type==="step"){ const s=n.ref; return `<div class="tk">A step in their job</div><div class="tt">${esc(s.text)}</div>
     <div class="tm">${plural(s.allPeople.length,"person","people")} talked about this step. Click to see ${plural(s.outs.length,"measure")} of how they judge it, with their exact words.</div>
@@ -4460,6 +4524,8 @@ document.getElementById("bFit").onclick=()=>fit(false);
 document.getElementById("bExpand").onclick=()=>{ M.steps.forEach(s=>{ if(s.outs.length) expanded.add(s.id); }); render(); fit(true); };
 document.getElementById("bCollapse").onclick=()=>{ expanded.clear(); render(); fit(true); };
 function focusNode(id){
+  const target = M.allOuts.find(x=>x.id===id) || M.allSteps.find(x=>x.id===id);
+  if(target && M.job && target.job!==M.job) setJob(target.job, true);
   if(id.startsWith("o")){ const o=M.outs.find(x=>x.id===id); if(o) expanded.add("s"+o.step); }
   selected=id; render(); const n=flat.find(f=>f.id===id); if(!n) return;
   const r=svg.getBoundingClientRect(); if(view.k<.8) view.k=.9;
@@ -4468,6 +4534,12 @@ function focusNode(id){
 }
 
 /* ---------- highlights ---------- */
+function jobFor(id){
+  // show the person's main core job, or, without one, a job their quotes are on
+  const i=M.ivById[id]; if(!i || !many()) return;
+  const want = i.main || (i.touched.includes(M.job) ? M.job : i.touched[0]);
+  if(want && want!==M.job) setJob(want, true);
+}
 function setPerson(id){
   personHL=id;
   document.querySelectorAll(".person").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.iv===id)));
@@ -4492,7 +4564,8 @@ function closeDrawer(){ drawer.classList.remove("open"); document.getElementById
 document.getElementById("dClose").onclick=closeDrawer;
 function setDrawer(kind,title,body){ document.getElementById("dKind").textContent=kind; document.getElementById("dTitle").textContent=title; document.getElementById("dBody").innerHTML=body; drawer.classList.add("open"); document.getElementById("stage").classList.add("has-drawer");
   document.getElementById("dBody").querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>focusNode(b.dataset.go)));
-  document.getElementById("dBody").querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>{ setPerson(b.dataset.person); openPerson(b.dataset.person); fitHits(); }));
+  document.getElementById("dBody").querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>{ jobFor(b.dataset.person); setPerson(b.dataset.person); openPerson(b.dataset.person); fitHits(); }));
+  document.getElementById("dBody").querySelectorAll("[data-job]").forEach(b=>b.addEventListener("click",()=>setJob(b.dataset.job, true)));
 }
 function meter(n){ const t=Math.max(1,M.ivs.length); return `<div class="meter"><span><b>${plural(n,"person","people")}</b> of ${t}</span><span class="bar"><i style="width:${Math.round(100*n/t)}%"></i></span></div>`; }
 function quotesHTML(ev){
@@ -4504,11 +4577,14 @@ function quotesHTML(ev){
 function dots(n){ let h=""; for(let i=0;i<5;i++) h+=`<i class="${i<Math.min(5,n)?"on":""}"></i>`; return `<span class="dots" aria-label="${plural(n,"person","people")}">${h}</span>`; }
 function openDetails(n){
   if(n.type==="root"){
-    setDrawer("The main goal",M.goal||"Not set yet",`
+    const job=M.jobById[M.job];
+    const linked = job ? M.ivs.filter(i=>i.main===job.id || i.also.includes(job.id)) : M.ivs;
+    setDrawer(many()?`Core job ${M.job}`:"The main goal",M.goal||"Not set yet",`
       <div class="explain">This is what the customers are trying to get done, written in plain words and without naming any product. Every step and measure on the map serves this goal.</div>
+      ${many()?`<div class="explain">These conversations revealed ${M.jobs.length} core jobs, each with its own steps and measures. Switch between them with the buttons under the title.</div>`:""}
       ${M.executor?`<div><div class="sect">Who does it</div><p>${esc(M.executor)}</p></div>`:""}
       ${M.goalStatus==="proposed"?`<div class="flag">This goal is still a proposal. The team should confirm it reads true for the people interviewed.</div>`:""}
-      <div><div class="sect">How each person describes their own goal</div><div class="feel">${M.ivs.map(i=>`<div><b>${esc(i.name)}:</b> ${esc(i.goal)}</div>`).join("")}</div></div>`);
+      <div><div class="sect">How each person describes their own goal</div><div class="feel">${linked.map(i=>`<div><b>${esc(i.name)}:</b> ${esc(i.goal)}${job&&i.main!==job.id?` <small>(also does this job)</small>`:""}</div>`).join("")||`<p class="hint">No one is linked to it yet.</p>`}</div></div>`);
     return;
   }
   if(n.type==="stage"){
@@ -4525,7 +4601,7 @@ function openDetails(n){
       <div><div class="sect">What people said while describing it</div>${quotesHTML(s.ev)}</div>`);
     return;
   }
-  const o=n.ref, step=M.steps.find(s=>s.n===o.step);
+  const o=n.ref, step=M.allSteps.find(s=>s.key===o.step);
   setDrawer("A measure of success",o.plain,`
     ${meter(o.people.length)}
     <div class="explain">Customers use this to judge whether <b>${esc(step?.text||"this step")}</b> went well. The fewer problems here, the better the step goes for them.</div>
@@ -4540,6 +4616,7 @@ function openPerson(id){
     <div class="tags">${i.date?`<span class="tag">${esc(fmtDate(i.date))}</span>`:""}${i.format?`<span class="tag">${esc(i.format)}</span>`:""}${i.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>
     <div><div class="sect">Who they are</div><p style="margin:0">${esc(i.who)}</p></div>
     <div><div class="sect">What they are trying to get done</div><p style="margin:0"><b>${esc(i.goal)}</b></p>${i.goalEv[0]?`<blockquote style="margin-top:6px">“${esc(i.goalEv[0].quote)}”<span class="src">${esc((SRC[i.goalEv[0].source]||[""])[0])}</span></blockquote>`:""}</div>
+    ${M.jobs.length&&(many()||!i.main)?`<div><div class="sect">Core jobs</div><div class="olist">${i.main?`<button class="oitem" type="button" data-job="${esc(i.main)}"><span><b>Main:</b> ${esc(jobName(i.main))}</span></button>`:`<div class="flag">Their own job fits none of the core jobs in this study.${i.whyNone?" "+esc(i.whyNone):""}</div>`}${i.also.map(j=>`<button class="oitem" type="button" data-job="${esc(j)}"><span><b>Also:</b> ${esc(jobName(j))}</span></button>`).join("")}</div></div>`:""}
     ${i.note?`<div class="flag">${esc(i.note)}</div>`:""}
     ${list(i.emotional,"How they want to feel")}
     ${list(i.social,"How they want to be seen")}
@@ -4569,6 +4646,7 @@ document.getElementById("btnRead").onclick=()=>openModal(`
   <p>The map shows what customers are trying to get done and how they judge whether it went well. It reads left to right.</p>
   <dl class="gloss">
     <dt>The main goal</dt><dd>The blue box. What these customers are trying to get done, with no product named.</dd>
+    ${many()?`<dt>Core jobs</dt><dd>These people do ${M.jobs.length} different jobs, so the study has ${M.jobs.length} main goals, A, B and so on. Each has its own map. Pick one with the buttons under the title.</dd>`:""}
     <dt>Stages</dt><dd>The light blue labels: Plan, Gather, Set up, Check, Do it, Watch, Adjust, Wrap up. Almost any job moves through these.</dd>
     <dt>Steps</dt><dd>What customers actually do inside each stage.</dd>
     <dt>Measures of success</dt><dd>Open a step with + to see them. Each one is a way customers judge that step, such as "less time to find a load". They are written so a survey can later ask how much each one matters.</dd>
@@ -4599,8 +4677,8 @@ addEventListener("dragover",e=>e.preventDefault());
 addEventListener("drop",e=>{ e.preventDefault(); dragDepth=0; dropEl.hidden=true; const f=e.dataTransfer.files[0]; if(f) readFile(f); });
 
 function load(raw){
-  M=build(raw); expanded=new Set(); selected=null; personHL=null; searchHL=null; closeDrawer();
-  renderHeader(); renderPeople(); renderProgress(); renderNext(); updatePill();
+  M=build(raw); chooseJob(null); expanded=new Set(); selected=null; personHL=null; searchHL=null; closeDrawer();
+  renderHeader(); renderJobs(); renderPeople(); renderProgress(); renderNext(); updatePill();
   render(); requestAnimationFrame(()=>fit(true));
 }
 addEventListener("resize",()=>{ clearTimeout(window._rt); window._rt=setTimeout(()=>fit(true),150); });

@@ -8,7 +8,9 @@ Outcome-Driven Innovation (ODI) knowledge base: the jobs your customers are
 trying to get done, the steps of each job, and the outcomes they measure
 success by, each backed by verbatim quotes. Every quote is checked against its
 transcript before it goes in, so the knowledge base never holds paraphrased
-evidence. It grows with every batch of interviews.
+evidence. It grows with every batch of interviews. When the people you
+interviewed do different jobs, it finds each core job and keeps track of who
+does which.
 
 ## Install
 
@@ -54,6 +56,7 @@ Ask your assistant in plain words, for example:
 - "Process this week's discovery interviews in the Interviews folder."
 - "Start an ODI knowledge base for the Acme study from these transcripts."
 - "Add these three calls to the knowledge base and show me what changed."
+- "Do these interviews show more than one core job?"
 
 The assistant reads the transcripts, proposes what to add, and merges it into
 the knowledge base. It then writes a review sheet with decisions waiting for

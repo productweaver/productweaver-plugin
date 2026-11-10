@@ -50,11 +50,48 @@ Verb + object + contextual clarifier, at the level the person describes their wo
 - One verb. "Plan and book" is two jobs.
 - Good: "Plan the sequence of loads for the coming week." Bad: "Find profitable loads quickly with an app."
 
-## Market core job and job map
+## Core jobs and job maps
 
-There is one market-level core job for the whole KB, reached by asking "why?" of each person's job until they meet. It is neither as broad as "run a business" nor as narrow as one step.
+A core job is reached by asking "why?" of each person's own core job until the jobs meet. It is neither as broad as "run a business" nor as narrow as one step. Most studies have one core job. A study whose people do different jobs has one per job; see "One job or several" below.
 
-Job steps sit on the eight universal ODI stages: define, locate, prepare, confirm, execute, monitor, modify, conclude. Each step is verb + object, with no tool and no measure. Aim for 12 to 20 steps in a mature map. Keep step numbers stable once published, because outcome IDs depend on them (outcome `6.3` = step 6, third outcome).
+Each core job has its own job map. Its steps sit on the eight universal ODI stages: define, locate, prepare, confirm, execute, monitor, modify, conclude. Each step is verb + object, with no tool and no measure. Aim for 12 to 20 steps in a mature map. Keep step numbers stable once published, because outcome IDs depend on them (outcome `A.6.3` = core job A, step 6, third outcome).
+
+## One job or several
+
+Start from each person's own core job. Ask "why?" of it until it meets the others.
+
+- **They meet at a level that is still a job:** the people share one core job. "Order produce for the weekend" and "Order meat and dry goods each Monday" meet at "Order ingredients for the coming week".
+- **They only meet at "run a business" or "make money":** the people do different jobs. Each gets its own core job. "Order ingredients for the coming week" and "Staff each shift with enough cooks" only meet at "run a restaurant", which is too broad to map.
+
+Signs of a separate core job:
+- a different executor role, such as the owner who orders and the kitchen manager who builds the rota
+- a different end goal or unit of decision: a week of orders versus a week of shifts
+- steps that would barely overlap if you wrote both maps
+- one group's core job is another group's related job
+
+Not reasons to split:
+- different tools, size, region or setup: that is a segment of one job's executors
+- different measures of success: those are outcomes of the same job
+- one person doing a step differently: that is evidence on the step
+
+### The odd one out
+
+In a first batch there is no map yet to fit people into. So decide the core jobs before you link anyone:
+
+1. Write each person's own core job from their transcript alone.
+2. Group the jobs that meet when you ask "why?". Each group is a core job.
+3. Then settle each person left over. Ask who decides when their job starts, what counts as done, and who owns the result.
+   - **They decide and own a whole job that no group covers:** it is a core job of its own, even if only they do it. Its confirmation will say it rests on one interview, and the team decides whether to keep it.
+   - **Someone else decides, and they carry out part of a group's job:** they are not that job's executor. Leave them unlinked, give the reason in `unlinked_reason`, and use their quotes as evidence on the steps they do. A line cook who preps what the chef orders, but times his own prep list, is one.
+   - **Their job is outside what the user is studying:** leave them unlinked, say so in `unlinked_reason`, and ask the user whether to widen the study. Do not add a core job the user did not set out to study. A supplier's sales rep in a study of restaurant owners is one.
+
+The same test applies in later batches, against the core jobs the study already has.
+
+Link every person to the core job their own job rolls up to. A person who also does another core job links to it through that related job. A person whose job fits none is a finding: leave them unlinked and say why in `unlinked_reason`.
+
+Each step belongs to exactly one core job. If two jobs have a similar step, write it under each, in each group's own words. Do not share outcomes across jobs either: an outcome measures one job's step.
+
+Say how many interviews support each core job: in a `new_core_job` rationale and in your report to the user. After a bootstrap, the merge writes the count into each job's confirmation. One interview can raise a `new_core_job`, but its rationale must say it rests on one interview, so the team can decide to wait for more.
 
 ## Desired outcomes
 
@@ -86,7 +123,10 @@ Form: **direction + metric + object of control + contextual clarifier.**
 Raise a proposal when:
 - **new_step:** the person does something the map has no step for, and it is a stage of getting the core job done, not a separate job
 - **reword_step / reword_outcome:** new evidence shows the current wording misses what people actually do or measure
-- **reword_core_job:** several executors' jobs no longer fit under the core job
+- **reword_core_job:** several executors' jobs no longer fit under the core job's wording, but still share it
+- **new_core_job:** a person's own job fits none of the core jobs, and asking "why?" only meets them at "run a business". List the people it covers and draft its first steps
+- **move_step:** a step serves another core job than the one it sits under
+- **relink_interview:** an earlier interview is linked to the wrong core job, or to none when one now fits
 - **merge_outcomes:** two outcomes share an object of control; say which one to keep
 - **move_outcome:** an outcome sits under the wrong step
 - **new_segment:** a kind of executor that no existing segment describes
@@ -97,5 +137,7 @@ One interview rarely justifies changing the core job. Say how many interviews su
 
 - Treating load search as the job when the person describes planning a week. Listen for the unit of decision.
 - Giving people executor status for a job someone else does for them.
+- Forcing two groups under one core job so broad it no longer guides a map ("run a restaurant"). Split it instead.
+- Splitting a job because two people use different tools or work at different scale. That is a segment, not a new job.
 - Sorting a quote under the outcome that sounds closest instead of the one with the same object of control.
-- Swapping IDs: always copy outcome IDs from `context` output, never from memory.
+- Swapping IDs: always copy step and outcome IDs from `context` output, never from memory, and keep the job letter (`A.6.3`, not `6.3`).

@@ -25,7 +25,7 @@ Every line has these fields. The order is stable, so lines are easy to compare.
 | `python`, `os` | Python version and platform |
 | `agent` | The assistant running the tool: `KB_TOOL_AGENT` if set, else `claude-code` or `gemini-cli` when their environment marker is present, else the terminal program, else null |
 | `kb_sha256_before`, `kb_sha256_after` | Hash of the KB file before and after. Equal means nothing changed; a change between two runs means a hand edit |
-| `kb` | Size of the KB after the run: `interviews`, `steps`, `thin_steps`, `outcomes` (live ones), `pending_proposals` and the `stale` derived layers |
+| `kb` | Size of the KB after the run: `interviews`, `core_jobs`, `unlinked_interviews` (linked to no core job), `steps`, `thin_steps`, `outcomes` (live ones), `pending_proposals` and the `stale` derived layers |
 | `errors`, `warnings` | Codes with counts, such as `{"quote_not_found": 3}`. See Codes below |
 
 Commands add their own fields:
@@ -64,16 +64,19 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `clarity_etc` | A statement ends a list with etc. |
 | `rationale_length` | A proposal's rationale is over the word limit |
 | `bootstrap_conflict` | A bootstrap was given but the KB already has a core job or job map |
+| `job_order` | A bootstrap's core job IDs are not A, B, C… in order |
+| `job_missing` | An interview's core job or related job links to a core job that does not exist |
+| `ref_ambiguous` | A step or outcome ID has no job letter, and the KB has more than one core job |
 | `key_duplicate` | A new interview key is used twice in the patch |
 | `key_is_id` | A new interview key is already an interview ID in the KB |
 | `transcript_missing` | A transcript file named in the patch or the KB is not under `--transcripts` |
-| `step_duplicate` | A bootstrap uses a step number twice |
+| `step_duplicate` | A bootstrap uses a step number twice in one core job |
 | `step_missing` | A step named in the patch does not exist |
 | `outcome_missing` | An outcome named in the patch does not exist |
 | `outcome_merged` | An outcome named in the patch was merged into another |
 | `outcome_direction` | A new outcome does not start with Minimize, Maximize, Increase or Reduce |
 | `outcome_duplicate` | A new outcome repeats an existing one or another new one |
-| `proposal_ref` | A proposal points at a step, outcome or segment that does not fit |
+| `proposal_ref` | A proposal points at a step, outcome, core job, interview or segment that does not fit |
 | `structure` | The KB that would result, or the KB as it stands, breaks `kb-schema.json` or its cross-references |
 
 ### Warnings
@@ -82,6 +85,8 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 |---|---|
 | `ids_unquoted` | Interview IDs were not quoted and were read as zero-padded strings |
 | `unknown_key` | A top-level key the patch format does not have was ignored |
+| `ref_legacy` | A step or outcome ID without a job letter, or the older bootstrap form, was read as core job A in a KB with one core job |
+| `job_unlinked` | A new interview is linked to no core job, has no `unlinked_reason` saying why, and is not listed in a `new_core_job` proposal |
 | `bootstrap_repeated` | The bootstrap was already applied; ignored |
 | `interview_skipped` | An interview is already in the KB, by file name or content hash |
 | `evidence_dropped` | Patch items whose evidence came only from skipped interviews were dropped |
@@ -107,6 +112,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `schema_unsupported` | A JSON Schema uses a keyword the built-in checker does not support |
 | `skill_file_missing` | A schema or the map template that ships with the skill was not found |
 | `template_invalid` | The map template has no place to put the KB |
+| `template_old` | The map template is older than the KB schema and cannot draw several core jobs |
 | `style_invalid` | `meta.style` is not shaped as documented |
 | `transcript_duplicate` | A transcript file name exists under two `--transcripts` roots |
 | `transcript_unreadable` | A transcript could not be read |

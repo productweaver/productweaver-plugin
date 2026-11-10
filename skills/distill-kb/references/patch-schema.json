@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://productweaver.com/schemas/odi-patch/v1",
+  "$id": "https://productweaver.com/schemas/odi-patch/v2",
   "title": "ODI knowledge base patch",
-  "description": "One YAML file describing what a batch of interview transcripts adds to an ODI knowledge base. kb_tool.py merge checks a patch against this schema before any other check. Every key is optional, but a patch needs at least one of them. Write interview and outcome IDs in quotes, like \"01\" and \"6.3\". The prose version is patch-format.md. Made with Product Weaver · productweaver.com",
+  "description": "One YAML file describing what a batch of interview transcripts adds to an ODI knowledge base. kb_tool.py merge checks a patch against this schema before any other check. Every key is optional, but a patch needs at least one of them. Write every ID in quotes: interviews like \"01\", steps like \"A.6\", outcomes like \"A.6.3\". The prose version is patch-format.md. Made with Product Weaver · productweaver.com",
   "type": "object",
   "properties": {
     "interviews": {
@@ -26,8 +26,7 @@
         ],
         "properties": {
           "step": {
-            "type": "integer",
-            "minimum": 1
+            "$ref": "#/$defs/step_ref"
           },
           "evidence": {
             "$ref": "#/$defs/evidence_list"
@@ -66,8 +65,7 @@
         ],
         "properties": {
           "step": {
-            "type": "integer",
-            "minimum": 1
+            "$ref": "#/$defs/step_ref"
           },
           "statement": {
             "type": "string",
@@ -96,10 +94,24 @@
       "minLength": 1,
       "description": "A KB interview ID in quotes (\"07\") or a key declared under interviews in this patch (n1)."
     },
+    "job_id": {
+      "type": "string",
+      "pattern": "^[A-Z]{1,2}$",
+      "description": "A core job's ID, such as \"A\"."
+    },
+    "step_ref": {
+      "type": [
+        "string",
+        "integer"
+      ],
+      "pattern": "^[A-Z]{1,2}\\.[0-9]+$",
+      "minimum": 1,
+      "description": "A step ID in quotes, such as \"A.6\": the core job's letter, then the step's number in that job. A bare number is read as job A only while the KB has one core job."
+    },
     "outcome_id": {
       "type": "string",
-      "pattern": "^[0-9]+\\.[0-9]+$",
-      "description": "An outcome ID in quotes, such as \"6.3\"."
+      "pattern": "^([A-Z]{1,2}\\.)?[0-9]+\\.[0-9]+$",
+      "description": "An outcome ID in quotes, such as \"A.6.3\". Without the job letter it is read as job A only while the KB has one core job."
     },
     "stage": {
       "type": "string",
@@ -227,12 +239,12 @@
           "$ref": "#/$defs/own_statement"
         },
         "core_functional_job": {
-          "$ref": "#/$defs/own_statement"
+          "$ref": "#/$defs/own_job"
         },
         "related_jobs": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/own_statement"
+            "$ref": "#/$defs/own_job"
           }
         },
         "emotional_jobs": {
@@ -254,12 +266,60 @@
     },
     "bootstrap": {
       "type": "object",
-      "description": "Only for a KB that has no core job yet.",
-      "required": [
-        "market_core_job",
-        "steps"
-      ],
+      "description": "Only for a KB that has no core job yet. One entry per core job, IDs A, B, C… in order. The older form, market_core_job with steps, is read as core job A.",
       "properties": {
+        "core_jobs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "statement",
+              "steps"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/job_id"
+              },
+              "statement": {
+                "type": "string",
+                "minLength": 1
+              },
+              "job_executor": {
+                "type": "string"
+              },
+              "steps": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "n",
+                    "stage",
+                    "statement"
+                  ],
+                  "properties": {
+                    "n": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "stage": {
+                      "$ref": "#/$defs/stage"
+                    },
+                    "statement": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "covers": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "market_core_job": {
           "type": "object",
           "required": [
@@ -323,6 +383,10 @@
             "merge_outcomes",
             "move_outcome",
             "new_segment",
+            "new_core_job",
+            "confirm_core_job",
+            "move_step",
+            "relink_interview",
             "other"
           ]
         },
@@ -331,7 +395,7 @@
             "string",
             "integer"
           ],
-          "description": "Step number for reword_step, outcome ID in quotes for reword_outcome, merge_outcomes and move_outcome, segment key for new_segment. Leave out or empty for new_step and reword_core_job."
+          "description": "Step ID in quotes for reword_step and move_step; outcome ID in quotes for reword_outcome, merge_outcomes and move_outcome; core job ID for reword_core_job and confirm_core_job; segment key for new_segment; interview ID in quotes for relink_interview. Leave out for new_step and new_core_job."
         },
         "stage": {
           "$ref": "#/$defs/stage"
@@ -340,8 +404,62 @@
           "$ref": "#/$defs/outcome_id"
         },
         "to_step": {
-          "type": "integer",
-          "minimum": 1
+          "$ref": "#/$defs/step_ref"
+        },
+        "to_job": {
+          "$ref": "#/$defs/job_id"
+        },
+        "job": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-Z]{1,2}$",
+          "description": "new_step: the core job the step joins. relink_interview: the core job to link to, or null to remove the link."
+        },
+        "job_executor": {
+          "type": "string",
+          "description": "new_core_job: who carries out the new job."
+        },
+        "steps": {
+          "type": "array",
+          "description": "new_core_job: the new job's first steps. They are numbered from 1 when it is approved.",
+          "items": {
+            "type": "object",
+            "required": [
+              "stage",
+              "statement"
+            ],
+            "properties": {
+              "stage": {
+                "$ref": "#/$defs/stage"
+              },
+              "statement": {
+                "type": "string",
+                "minLength": 1
+              },
+              "covers": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/evidence"
+                }
+              }
+            }
+          }
+        },
+        "interviews": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interview_ref"
+          },
+          "description": "new_core_job: interviews whose own core job is linked to the new job when it is approved."
+        },
+        "related_job": {
+          "type": "string",
+          "description": "relink_interview: the statement of the related job to link. Leave out to change the main link."
         },
         "covers": {
           "type": "string"
@@ -388,6 +506,34 @@
         "notes": {
           "type": "string",
           "description": "Anything a later reader should know about how this batch was extracted."
+        }
+      }
+    },
+    "own_job": {
+      "type": "object",
+      "description": "An interview's own core job or related job. job links it to a core job of the KB or of the bootstrap.",
+      "required": [
+        "statement",
+        "evidence"
+      ],
+      "properties": {
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "job": {
+          "$ref": "#/$defs/job_id"
+        },
+        "unlinked_reason": {
+          "type": "string",
+          "description": "Core functional job only: why it rolls up to none of the study's core jobs. Leave out when job is set."
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/own_evidence"
+          }
         }
       }
     }

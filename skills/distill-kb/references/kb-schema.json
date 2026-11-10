@@ -1,11 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://productweaver.com/schemas/odi-kb/v1",
+  "$id": "https://productweaver.com/schemas/odi-kb/v2",
   "title": "ODI knowledge base",
   "description": "One YAML file holding an Outcome-Driven Innovation study built from interview transcripts. Made with Product Weaver · productweaver.com. Extra fields are allowed so older and derived layers keep loading; the fields below are the contract.",
   "type": "object",
   "required": [
     "meta",
+    "core_jobs",
     "interviews",
     "job_map",
     "desired_outcomes"
@@ -88,28 +89,55 @@
         }
       }
     },
-    "market_core_job": {
-      "type": "object",
-      "required": [
-        "statement"
-      ],
-      "properties": {
-        "statement": {
-          "type": "string",
-          "minLength": 1
-        },
-        "job_executor": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "proposed",
-            "approved"
-          ]
-        },
-        "history": {
-          "$ref": "#/$defs/history"
+    "core_jobs": {
+      "type": "array",
+      "description": "The core functional jobs this study found, abstracted from each interview's own core job.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "statement"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/job_id"
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "job_executor": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "approved"
+            ]
+          },
+          "history": {
+            "$ref": "#/$defs/history"
+          },
+          "interviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/interview_id"
+            },
+            "description": "Computed. Interviews whose own core job rolls up to this one."
+          },
+          "related_interviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/interview_id"
+            },
+            "description": "Computed. Interviews with a related job that rolls up to this one."
+          },
+          "coverage": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Computed. Interviews quoted on this job's steps or outcomes."
+          }
         }
       }
     },
@@ -187,12 +215,12 @@
             "$ref": "#/$defs/own_statement"
           },
           "core_functional_job": {
-            "$ref": "#/$defs/own_statement"
+            "$ref": "#/$defs/own_job"
           },
           "related_jobs": {
             "type": "array",
             "items": {
-              "$ref": "#/$defs/own_statement"
+              "$ref": "#/$defs/own_job"
             }
           },
           "emotional_jobs": {
@@ -219,12 +247,6 @@
         "steps"
       ],
       "properties": {
-        "core_job": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
         "stages": {
           "type": "array",
           "items": {
@@ -247,14 +269,23 @@
           "items": {
             "type": "object",
             "required": [
+              "job",
               "n",
               "stage",
               "statement"
             ],
             "properties": {
+              "id": {
+                "$ref": "#/$defs/step_id",
+                "description": "Computed. Job letter and number, such as A.6."
+              },
+              "job": {
+                "$ref": "#/$defs/job_id"
+              },
               "n": {
                 "type": "integer",
-                "minimum": 1
+                "minimum": 1,
+                "description": "Step number inside its core job. Stable once published."
               },
               "stage": {
                 "$ref": "#/$defs/stage"
@@ -307,12 +338,10 @@
             ],
             "properties": {
               "id": {
-                "type": "string",
-                "pattern": "^[0-9]+\\.[0-9]+$"
+                "$ref": "#/$defs/outcome_id"
               },
               "step": {
-                "type": "integer",
-                "minimum": 1
+                "$ref": "#/$defs/step_id"
               },
               "statement": {
                 "type": "string",
@@ -342,8 +371,7 @@
                 "type": "string"
               },
               "merged_into": {
-                "type": "string",
-                "pattern": "^[0-9]+\\.[0-9]+$"
+                "$ref": "#/$defs/outcome_id"
               },
               "history": {
                 "$ref": "#/$defs/history"
@@ -379,23 +407,79 @@
               "merge_outcomes",
               "move_outcome",
               "new_segment",
+              "new_core_job",
+              "confirm_core_job",
+              "move_step",
+              "relink_interview",
               "other"
             ]
           },
           "target": {
-            "type": [
-              "string",
-              "integer"
-            ]
+            "type": "string",
+            "description": "Step ID, outcome ID, core job ID, segment key or interview ID, by type."
           },
           "stage": {
             "$ref": "#/$defs/stage"
           },
           "merge": {
-            "type": "string"
+            "$ref": "#/$defs/outcome_id"
           },
           "to_step": {
-            "type": "integer"
+            "$ref": "#/$defs/step_id"
+          },
+          "to_job": {
+            "$ref": "#/$defs/job_id"
+          },
+          "job": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[A-Z]{1,2}$",
+            "description": "new_step: the core job the step joins. relink_interview: the core job to link to, or null."
+          },
+          "job_executor": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "description": "new_core_job: the new job's first steps, numbered from 1 when it is approved.",
+            "items": {
+              "type": "object",
+              "required": [
+                "stage",
+                "statement"
+              ],
+              "properties": {
+                "stage": {
+                  "$ref": "#/$defs/stage"
+                },
+                "statement": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "covers": {
+                  "type": "string"
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/evidence"
+                  }
+                }
+              }
+            }
+          },
+          "interviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/interview_id"
+            },
+            "description": "new_core_job: interviews whose own core job is linked to the new job when it is approved."
+          },
+          "related_job": {
+            "type": "string",
+            "description": "relink_interview: the related job to link, by its statement. Without it, the main link changes."
           },
           "proposal": {
             "type": "string",
@@ -501,7 +585,7 @@
           },
           "bootstrap": {
             "type": "boolean",
-            "description": "merge: true when this merge created the core job and job map."
+            "description": "merge: true when this merge created the core jobs and job map."
           },
           "proposal": {
             "type": "string",
@@ -634,6 +718,17 @@
           },
           "was_id": {
             "type": "string"
+          },
+          "was_job": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The core job an interview's job statement was linked to before; null when it had none."
+          },
+          "was_reason": {
+            "type": "string",
+            "description": "The unlinked_reason an interview's core job had before it was linked."
           }
         }
       }
@@ -678,6 +773,51 @@
         "notes": {
           "type": "string",
           "description": "Anything a later reader should know about how this batch was extracted."
+        }
+      }
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^[A-Z]{1,2}$",
+      "description": "A core job's ID: A, B, C… then AA."
+    },
+    "step_id": {
+      "type": "string",
+      "pattern": "^[A-Z]{1,2}\\.[0-9]+$",
+      "description": "A step's ID: its core job's letter and its number inside that job, such as A.6."
+    },
+    "outcome_id": {
+      "type": "string",
+      "pattern": "^[A-Z]{1,2}\\.[0-9]+\\.[0-9]+$",
+      "description": "An outcome's ID: its step's ID and its number under that step, such as A.6.3."
+    },
+    "own_job": {
+      "type": "object",
+      "description": "An interview's own core functional job or related job, with an optional link to a core job.",
+      "required": [
+        "statement",
+        "evidence"
+      ],
+      "properties": {
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "job": {
+          "$ref": "#/$defs/job_id"
+        },
+        "unlinked_reason": {
+          "type": "string",
+          "description": "Core functional job only: why it rolls up to none of the study's core jobs. Leave out when job is set."
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/own_evidence"
+          }
+        },
+        "history": {
+          "$ref": "#/$defs/history"
         }
       }
     }

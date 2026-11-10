@@ -12,11 +12,11 @@ One YAML file holds a whole study. This page explains every field. The machine-c
 
 ```yaml
 meta:                 # about the study
-market_core_job:      # the one job the whole map is built around
+core_jobs: []         # the core jobs the study found: A, B, C…
 clusters:             # segments of people, optional
-interviews: []        # one record per conversation
+interviews: []        # one record per conversation, linked to the core jobs
 job_map:
-  steps: []           # what people do, on the 8 ODI stages
+  steps: []           # what people do, per core job, on the 8 ODI stages
 desired_outcomes:
   outcomes: []        # how people judge each step
 proposed_changes: []  # structural changes waiting for a decision
@@ -24,7 +24,20 @@ changelog: []         # what happened to the KB, and when
 survey / simulation / value_themes / use_cases:   # derived layers, rebuilt on request
 ```
 
-Required at the top level: `meta`, `interviews`, `job_map`, `desired_outcomes`.
+Required at the top level: `meta`, `core_jobs`, `interviews`, `job_map`, `desired_outcomes`.
+
+## IDs
+
+A study can hold more than one core job, so every step and outcome ID starts with its core job's letter.
+
+| Thing | ID | Example | Meaning |
+|---|---|---|---|
+| Core job | a letter | `B` | The second core job. After `Z` come `AA`, `AB`… |
+| Step | job letter + number | `B.2` | Step 2 of core job B. Steps are numbered from 1 inside each core job |
+| Outcome | step ID + number | `B.2.3` | The third outcome of step B.2 |
+| Interview | digits | `"07"` | The seventh conversation |
+
+The letter is there even when the study has one core job (`A.6.3`), so no ID changes when a second job appears. IDs stay stable once published: a moved step or outcome gets a new ID and keeps the old one in `history`.
 
 ## Shared pieces
 
@@ -37,18 +50,18 @@ Required at the top level: `meta`, `interviews`, `job_map`, `desired_outcomes`.
 | `quote` | string | yes | Exact words, copied character for character from the transcript |
 | `name` | string | no | *Computed.* The interviewee's name, filled in for readability |
 
-**Own statement.** A statement inside an interview record: `{statement, evidence}`, where each evidence item is `{source, quote}` because the interview is implied.
+**Own statement.** A statement inside an interview record: `{statement, evidence}`, where each evidence item is `{source, quote}` because the interview is implied. An interview's core functional job and each related job may also carry `job`, the ID of the core job it rolls up to, and `history`. A core functional job with no `job` may carry `unlinked_reason`: why it rolls up to none of the study's core jobs.
 
 **Stage.** One of `define`, `locate`, `prepare`, `confirm`, `execute`, `monitor`, `modify` or `conclude`.
 
-**History.** A list of `{date, was}` (old wording) or `{date, was_id}` (old outcome ID), added when an approved proposal changes something.
+**History.** A list of `{date, was}` (old wording), `{date, was_id}` (old step or outcome ID) or `{date, was_job, was_reason}` (the core job an interview's job was linked to before, `null` for none, and its `unlinked_reason` then, if it had one), added when an approved proposal changes something.
 
 ## `meta`
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `project` | string | yes | Study or client name |
-| `schema_version` | integer | no | Version of this schema; currently 1. `kb_tool.py migrate` raises it, and every command refuses a newer one |
+| `schema_version` | integer | no | Version of this schema; currently 2. `kb_tool.py migrate` raises it, and every command refuses an older or a newer one |
 | `method` | string | no | Method used |
 | `interviewer` | string | no | Who ran the interviews |
 | `created` | date | no | When the KB was started |
@@ -70,14 +83,20 @@ Required at the top level: `meta`, `interviews`, `job_map`, `desired_outcomes`.
 
 Each key replaces the default list, or for `limits` the named entries, so copy the defaults you want to keep.
 
-## `market_core_job`
+## `core_jobs[]`
+
+The core functional jobs the study found, abstracted from each interview's own core job. Most studies have one. A study whose people do different jobs, such as owner-operators and fleet maintenance managers, has one per job.
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
+| `id` | letter | yes | *Computed* on approval: `A`, `B`, `C`… A bootstrap names them in that order |
 | `statement` | string | yes | The core functional job: verb + object + context, no solution, at most 10 words |
 | `job_executor` | string | no | Who carries out the job |
-| `status` | `proposed` or `approved` | no | `proposed` until the team confirms it |
+| `status` | `proposed` or `approved` | no | `proposed` until the team approves its `confirm_core_job`, or the `new_core_job` that added it |
 | `history` | history | no | Earlier wordings |
+| `interviews` | list of IDs | no | *Computed.* Interviews whose own core job rolls up to this one: its executors |
+| `related_interviews` | list of IDs | no | *Computed.* Other interviews with a related job that rolls up to this one |
+| `coverage` | integer | no | *Computed.* How many interviews are quoted on this job's steps and outcomes |
 
 ## `clusters`
 
@@ -97,20 +116,18 @@ A map from a short segment code (`seq`, `fleet`) to `{name, description, intervi
 | `cluster` | string | no | Segment code from `clusters` |
 | `tags` | list of strings | no | Details that don't belong in statements, such as city or years in business |
 | `job_executor` | own statement | yes | Who they are, at most 16 words |
-| `core_functional_job` | own statement | yes | Their own core job, at most 10 words |
-| `related_jobs` | list of own statements | no | Other jobs they do alongside |
+| `core_functional_job` | own statement | yes | Their own core job, at most 10 words. Its `job` is their main link: the core job this rolls up to. No `job` means they carry out none of the study's core jobs, and its `unlinked_reason` says why |
+| `related_jobs` | list of own statements | no | Other jobs they do alongside. A related job's `job` links them to another core job they also do |
 | `emotional_jobs` | list of own statements | no | How they want to feel |
 | `social_jobs` | list of own statements | no | How they want to be seen |
-| `analyst_note` | string | no | Anything a reader must know, such as "the carrier picks his loads" |
+| `analyst_note` | string | no | Anything else a reader must know, such as "answered for two sites" |
 
-An empty list is a finding: the interview gave no evidence for that kind of job.
+An empty list is a finding: the interview gave no evidence for that kind of job. So is a missing main link: `unlinked_reason` should say why.
 
 ## `job_map`
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `core_job` | string | no | Copy of `market_core_job.statement` |
-| `status` | string | no | `proposed` after a bootstrap |
 | `stages` | list of `{key, name}` | no | The 8 stages, for display |
 | `steps` | list | yes | See below |
 
@@ -118,7 +135,9 @@ An empty list is a finding: the interview gave no evidence for that kind of job.
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `n` | integer | yes | Step number. Stable once published, because outcome IDs depend on it |
+| `id` | step ID | no | *Computed.* `<job>.<n>`, such as `A.6` |
+| `job` | letter | yes | The core job this step belongs to. Each step belongs to exactly one |
+| `n` | integer | yes | Step number inside its core job. Stable once published, because outcome IDs depend on it |
 | `stage` | stage | yes | Where the step sits in the job |
 | `statement` | string | yes | Verb + object, at most 10 words |
 | `covers` | string | no | One line on what the step includes |
@@ -131,8 +150,8 @@ An empty list is a finding: the interview gave no evidence for that kind of job.
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `id` | `"<step>.<k>"` | yes | *Computed.* Outcome `6.3` is the third outcome of step 6 |
-| `step` | integer | yes | The step it measures |
+| `id` | `"<job>.<step>.<k>"` | yes | *Computed.* Outcome `A.6.3` is the third outcome of step A.6 |
+| `step` | step ID | yes | The step it measures, such as `A.6` |
 | `statement` | string | yes | Starts with Minimize, Maximize, Increase or Reduce. At most 16 words |
 | `evidence` | list of evidence items | no | Quotes showing people judge the step this way |
 | `interviews`, `interview_count`, `quote_count` | | no | *Computed* |
@@ -145,11 +164,17 @@ An empty list is a finding: the interview gave no evidence for that kind of job.
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `id` | `P<n>` | yes | *Computed* |
-| `type` | `new_step`, `reword_step`, `reword_outcome`, `reword_core_job`, `merge_outcomes`, `move_outcome`, `new_segment` or `other` | yes | What kind of change |
-| `target` | string or integer | no | Step number, outcome ID or segment code |
-| `stage` | stage | no | For `new_step` |
+| `type` | `new_step`, `reword_step`, `reword_outcome`, `reword_core_job`, `merge_outcomes`, `move_outcome`, `new_segment`, `new_core_job`, `confirm_core_job`, `move_step`, `relink_interview` or `other` | yes | What kind of change |
+| `target` | string | no | Step ID, outcome ID, core job ID, segment code or interview ID, depending on `type` |
+| `stage` | stage | no | For `new_step`, and for `move_step` when the step changes stage |
 | `merge` | outcome ID | no | For `merge_outcomes`: the outcome folded into `target` |
-| `to_step` | integer | no | For `move_outcome` |
+| `to_step` | step ID | no | For `move_outcome` |
+| `to_job` | letter | no | For `move_step`: the core job the step moves to |
+| `job` | letter or `null` | no | For `new_step`: the core job the step joins. For `relink_interview`: the core job to link to, or `null` to remove the link |
+| `job_executor` | string | no | For `new_core_job`: who carries out the new job |
+| `steps` | list of `{stage, statement, covers, evidence}` | no | For `new_core_job`: its first steps, numbered from 1 on approval |
+| `interviews` | list of IDs | no | For `new_core_job`: interviews whose main link is set to the new job on approval |
+| `related_job` | string | no | For `relink_interview`: the statement of the related job to link. Without it, the main link changes |
 | `proposal` | string | yes | The new wording, or the change in one line |
 | `rationale` | string | yes | Why, in one sentence of at most 30 words |
 | `status` | `pending`, `approved` or `rejected` | yes | Decided with `kb_tool.py apply` |
@@ -174,7 +199,7 @@ A `merge` entry also carries structured fields, so tools do not have to parse th
 | `run_id` | string | The run that wrote it; the same value is on its line in `logs/kb_tool.jsonl` |
 | `provenance` | mapping | Who extracted the batch: `assistant`, `model`, `started`, `transcripts_read`, `notes` |
 | `proposals` | list of `P<n>` | Proposals this merge filed |
-| `bootstrap` | boolean | Present and true when the merge created the core job and job map |
+| `bootstrap` | boolean | Present and true when the merge created the core jobs and job map |
 
 A `decide` entry carries `proposal` (the ID) and `decision` (`approved` or `rejected`).
 

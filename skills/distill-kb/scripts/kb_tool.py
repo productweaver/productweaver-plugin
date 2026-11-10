@@ -57,8 +57,8 @@ try:
 except ImportError:  # pragma: no cover - depends on the machine
     _jsonschema = None
 
-__version__ = "0.3.0"
-SCHEMA_VERSION = 1
+__version__ = "0.4.0"
+SCHEMA_VERSION = 2
 
 BRAND = "Product Weaver"
 SITE = "https://productweaver.com"
@@ -68,13 +68,17 @@ DERIVED = ["survey", "simulation", "value_themes", "use_cases"]
 SOURCES = ("transcript", "quoted_in_notes", "interviewer_notes")
 STAGES = ["define", "locate", "prepare", "confirm", "execute", "monitor", "modify", "conclude"]
 PROPOSAL_TYPES = ["new_step", "reword_step", "reword_outcome", "reword_core_job",
-                  "merge_outcomes", "move_outcome", "new_segment", "other"]
+                  "merge_outcomes", "move_outcome", "new_segment", "new_core_job", "confirm_core_job",
+                  "move_step", "relink_interview", "other"]
 PATCH_SECTIONS = ("interviews", "bootstrap", "step_evidence", "outcome_evidence", "new_outcomes", "proposed_changes")
 PATCH_KEYS = (*PATCH_SECTIONS, "provenance")  # every top-level key a patch may carry
 PROVENANCE_KEYS = ("assistant", "model", "started", "transcripts_read", "notes")
 LOG_FOLDER, LOG_FILE = "logs", "kb_tool.jsonl"
 DIRECTION = re.compile(r"^(Minimize|Maximize|Increase|Reduce) ")
-OUTCOME_ID = re.compile(r"^[0-9]+\.[0-9]+$")
+JOB_ID = re.compile(r"^[A-Z]{1,2}$")
+STEP_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+$")
+OUTCOME_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+\.[0-9]+$")
+BARE_OUTCOME_ID = re.compile(r"^[0-9]+\.[0-9]+$")  # schema 1, before IDs carried the core job's letter
 TRANSCRIPT_EXTS = (".md", ".markdown", ".txt", ".docx", ".pdf")
 KEEP_BACKUPS = 20
 THIN_STEP = 3
@@ -139,7 +143,10 @@ def kb_summary(path: str) -> Json | None:
     steps = (kb.get("job_map") or {}).get("steps") or []
     outcomes = (kb.get("desired_outcomes") or {}).get("outcomes") or []
     proposals = kb.get("proposed_changes") or []
-    return {"interviews": len(kb.get("interviews") or []), "steps": len(steps),
+    records = [r for r in kb.get("interviews") or [] if isinstance(r, dict)]
+    unlinked = [r for r in records if not (r.get("core_functional_job") or {}).get("job")]
+    return {"interviews": len(records), "core_jobs": len(kb.get("core_jobs") or []),
+            "unlinked_interviews": len(unlinked), "steps": len(steps),
             "thin_steps": len([s for s in steps if s.get("coverage", 0) < THIN_STEP]),
             "outcomes": len([o for o in outcomes if not o.get("merged_into")]),
             "pending_proposals": len([p for p in proposals if p.get("status") == "pending"]),
@@ -272,7 +279,7 @@ def save_yaml(data: Json, path: str) -> None:
     os.replace(tmp, path)
 
 
-KB_ORDER = ["meta", "market_core_job", "clusters", "interviews", "job_map", "desired_outcomes",
+KB_ORDER = ["meta", "core_jobs", "clusters", "interviews", "job_map", "desired_outcomes",
             "proposed_changes", "changelog"]
 
 
@@ -445,14 +452,22 @@ def transcripts_for(roots: list[str], report: Report) -> Transcripts:
 
 
 # ---------- KB access ----------
+def _guess_version(kb: Json) -> int:
+    """A KB written before schema_version existed: schema 1 if it still has the single market core job."""
+    steps = (kb.get("job_map") or {}).get("steps") or []
+    old = "market_core_job" in kb or any(isinstance(s, dict) and "job" not in s for s in steps)
+    return 1 if old else SCHEMA_VERSION
+
+
 def ensure(kb: Any, label: str = "the KB") -> Json:
     if kb is None:
         kb = {}
     if not isinstance(kb, dict):
         raise KbError(f"{label} is not a YAML mapping", code="kb_shape")
     kb.setdefault("meta", {})
-    kb["meta"].setdefault("schema_version", SCHEMA_VERSION)
+    kb["meta"].setdefault("schema_version", _guess_version(kb))
     kb["meta"].setdefault("generated_with", MADE_WITH)
+    kb.setdefault("core_jobs", [])
     kb.setdefault("interviews", [])
     kb.setdefault("job_map", {}).setdefault("steps", [])
     kb.setdefault("desired_outcomes", {}).setdefault("outcomes", [])
@@ -480,8 +495,49 @@ def load_kb(path: str) -> Json:
     return kb
 
 
-def steps_by_n(kb: Json) -> dict[int, Json]:
-    return {int(step["n"]): step for step in kb["job_map"]["steps"]}
+def job_letter(index: int) -> str:
+    """0 -> A, 25 -> Z, 26 -> AA: the ID of the core job in that position."""
+    letters, index = "", index + 1
+    while index:
+        index, rest = divmod(index - 1, 26)
+        letters = chr(65 + rest) + letters
+    return letters
+
+
+def job_index(letter: str) -> int:
+    index = 0
+    for char in letter:
+        index = index * 26 + ord(char) - 64
+    return index - 1
+
+
+def job_of(ref: str) -> str:
+    """The core job a step ID ("B.2") or outcome ID ("B.2.1") belongs to."""
+    return str(ref).split(".")[0]
+
+
+def step_key(step: Json) -> str:
+    return f"{step.get('job', '?')}.{int(step['n'])}"
+
+
+def step_of(outcome_id: str) -> str:
+    return str(outcome_id).rsplit(".", 1)[0]
+
+
+def jobs_by_id(kb: Json) -> dict[str, Json]:
+    return {str(job["id"]): job for job in kb["core_jobs"]}
+
+
+def next_job_id(kb: Json) -> str:
+    return job_letter(max((job_index(str(job["id"])) for job in kb["core_jobs"]), default=-1) + 1)
+
+
+def steps_by_id(kb: Json) -> dict[str, Json]:
+    return {step_key(step): step for step in kb["job_map"]["steps"]}
+
+
+def next_step_n(kb: Json, job: str) -> int:
+    return max((int(s["n"]) for s in kb["job_map"]["steps"] if s.get("job") == job), default=0) + 1
 
 
 def outcomes_by_id(kb: Json) -> dict[str, Json]:
@@ -502,17 +558,27 @@ def next_interview_id(records: list[Json]) -> str:
     return str(highest + 1).zfill(max(2, len(str(highest))))
 
 
-def outcome_sort_key(outcome: Json) -> tuple[int, int]:
-    return int(outcome["step"]), int(str(outcome["id"]).split(".")[1])
+def step_sort_key(step_id: str) -> tuple[int, int]:
+    job, n = str(step_id).split(".")
+    return job_index(job), int(n)
 
 
-def next_outcome_id(kb: Json, step: int) -> str:
-    used = [int(str(o["id"]).split(".")[1]) for o in kb["desired_outcomes"]["outcomes"] if int(o["step"]) == step]
-    return f"{step}.{(max(used) if used else 0) + 1}"
+def outcome_sort_key(outcome: Json) -> tuple[int, int, int]:
+    return (*step_sort_key(str(outcome["step"])), int(str(outcome["id"]).rsplit(".", 1)[1]))
+
+
+def next_outcome_id(kb: Json, step_id: str) -> str:
+    used = [int(str(o["id"]).rsplit(".", 1)[1]) for o in kb["desired_outcomes"]["outcomes"]
+            if str(o["step"]) == step_id]
+    return f"{step_id}.{(max(used) if used else 0) + 1}"
 
 
 def sort_outcomes(kb: Json) -> None:
     kb["desired_outcomes"]["outcomes"].sort(key=outcome_sort_key)
+
+
+def sort_steps(kb: Json) -> None:
+    kb["job_map"]["steps"].sort(key=lambda s: step_sort_key(step_key(s)))
 
 
 def evidence_key(item: Json) -> tuple[str, str]:
@@ -533,20 +599,59 @@ def add_evidence(target: Json, items: list[Json]) -> int:
     return added
 
 
-def recount(kb: Json) -> None:
-    """Recompute every derived count and name. Run after any change."""
-    names = {str(record["id"]): record.get("name", "") for record in kb["interviews"]}
+def main_job(record: Json) -> str | None:
+    """The core job an interview's own core functional job rolls up to, if any."""
+    return (record.get("core_functional_job") or {}).get("job")
+
+
+def unlinked_reason(record: Json) -> str:
+    """Why an interview's own core job rolls up to none of the study's core jobs, if it was said."""
+    return str((record.get("core_functional_job") or {}).get("unlinked_reason") or "").strip()
+
+
+def related_links(record: Json) -> list[str]:
+    return [str(job["job"]) for job in record.get("related_jobs") or [] if isinstance(job, dict) and job.get("job")]
+
+
+def _recount_steps(kb: Json, names: dict[str, str]) -> None:
+    stamped = []
     for step in kb["job_map"]["steps"]:
         for item in step.get("evidence", []):
             item["name"] = names.get(str(item.get("interview")), item.get("name", ""))
         ids = sorted({str(item.get("interview")) for item in step.get("evidence", [])})
         step["interviews"], step["coverage"] = ids, len(ids)
+        rest = {k: v for k, v in step.items() if k not in ("id", "job", "n")}
+        stamped.append({"id": step_key(step), "job": step["job"], "n": int(step["n"]), **rest})
+    kb["job_map"]["steps"][:] = stamped
+
+
+def _recount_jobs(kb: Json) -> None:
+    quoted: dict[str, set[str]] = {}
+    for step in kb["job_map"]["steps"]:
+        quoted.setdefault(str(step["job"]), set()).update(step.get("interviews", []))
+    for outcome in kb["desired_outcomes"]["outcomes"]:
+        if not outcome.get("merged_into"):
+            quoted.setdefault(job_of(outcome["step"]), set()).update(outcome.get("interviews", []))
+    for job in kb["core_jobs"]:
+        jid = str(job["id"])
+        main = sorted(str(r["id"]) for r in kb["interviews"] if main_job(r) == jid)
+        job["interviews"] = main
+        job["related_interviews"] = sorted(str(r["id"]) for r in kb["interviews"]
+                                           if jid in related_links(r) and str(r["id"]) not in main)
+        job["coverage"] = len(quoted.get(jid, set()))
+
+
+def recount(kb: Json) -> None:
+    """Recompute every derived count, name, step ID and link list. Run after any change."""
+    names = {str(record["id"]): record.get("name", "") for record in kb["interviews"]}
+    _recount_steps(kb, names)
     for outcome in kb["desired_outcomes"]["outcomes"]:
         for item in outcome.get("evidence", []):
             item["name"] = names.get(str(item.get("interview")), item.get("name", ""))
         ids = sorted({str(item.get("interview")) for item in outcome.get("evidence", [])})
         outcome["interviews"], outcome["interview_count"] = ids, len(ids)
         outcome["quote_count"] = len(outcome.get("evidence", []))
+    _recount_jobs(kb)
     kb["meta"]["interview_count"] = len(kb["interviews"])
     dates = sorted(str(record["date"]) for record in kb["interviews"] if record.get("date"))
     if dates:
@@ -729,30 +834,51 @@ def _builtin_schema_errors(data: Any, schema: Json, root: str) -> list[str]:
     return checker.errors
 
 
+def _duplicates(values: list[str]) -> list[str]:
+    return sorted({v for v in values if values.count(v) > 1})
+
+
+def _link_problems(kb: Json, jobs: dict[str, Json]) -> list[str]:
+    problems = []
+    for record in kb["interviews"]:
+        for link in ([main_job(record)] if main_job(record) else []) + related_links(record):
+            if link not in jobs:
+                problems.append(f"interview {record['id']}: core job {link} does not exist")
+        if main_job(record) and unlinked_reason(record):
+            problems.append(f"interview {record['id']}: core_functional_job has both a core job and an "
+                            "unlinked_reason; keep one")
+    return problems
+
+
 def structure_problems(kb: Json, schema_path: str | None = None) -> list[str]:
     """Schema check plus the cross-references a schema cannot express."""
     problems = schema_errors(kb, load_schema("kb-schema.json", schema_path))
     if problems:
         return problems
-    steps, outcomes = steps_by_n(kb), outcomes_by_id(kb)
-    ids = [str(o["id"]) for o in kb["desired_outcomes"]["outcomes"]]
-    for dup in sorted({i for i in ids if ids.count(i) > 1}):
-        problems.append(f"outcome id {dup} is used more than once")
-    numbers = [int(s["n"]) for s in kb["job_map"]["steps"]]
-    for dup in sorted({n for n in numbers if numbers.count(n) > 1}):
-        problems.append(f"step number {dup} is used more than once")
+    jobs = jobs_by_id(kb)
+    job_ids = [str(j["id"]) for j in kb["core_jobs"]]
+    problems += [f"core job id {dup} is used more than once" for dup in _duplicates(job_ids)]
+    keys = [step_key(s) for s in kb["job_map"]["steps"]]
+    problems += [f"step {dup} is used more than once" for dup in _duplicates(keys)]
+    for step in kb["job_map"]["steps"]:
+        if step["job"] not in jobs:
+            problems.append(f"step {step_key(step)}: core job {step['job']} does not exist")
+        if step.get("id") and step["id"] != step_key(step):
+            problems.append(f"step {step['id']}: its id does not match job {step['job']} and number {step['n']}")
+    steps, outcomes = steps_by_id(kb), outcomes_by_id(kb)
+    problems += [f"outcome id {dup} is used more than once"
+                 for dup in _duplicates([str(o["id"]) for o in kb["desired_outcomes"]["outcomes"]])]
     for outcome in kb["desired_outcomes"]["outcomes"]:
-        if int(outcome["step"]) not in steps:
+        if str(outcome["step"]) not in steps:
             problems.append(f"outcome {outcome['id']}: step {outcome['step']} does not exist")
-        if not str(outcome["id"]).startswith(f"{int(outcome['step'])}."):
+        if step_of(outcome["id"]) != str(outcome["step"]):
             problems.append(f"outcome {outcome['id']}: its ID does not match step {outcome['step']}")
         target = outcome.get("merged_into")
         if target and target not in outcomes:
             problems.append(f"outcome {outcome['id']}: merged_into {target} does not exist")
     iv_ids = [str(r["id"]) for r in kb["interviews"]]
-    for dup in sorted({i for i in iv_ids if iv_ids.count(i) > 1}):
-        problems.append(f"interview id {dup} is used more than once")
-    return problems
+    problems += [f"interview id {dup} is used more than once" for dup in _duplicates(iv_ids)]
+    return problems + _link_problems(kb, jobs)
 
 
 # ---------- clarity ----------
@@ -851,6 +977,42 @@ class QuoteChecker:
 
 
 # ---------- merge: load and resolve ----------
+def _is_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+class _PatchReader:
+    """Reads YAML values the way the patch writer meant them. Remembers the interview IDs it had to pad."""
+
+    def __init__(self, width: int) -> None:
+        self.width = width
+        self.fixed: set[str] = set()
+
+    def pad(self, value: Any) -> Any:
+        if not _is_int(value):
+            return value
+        self.fixed.add(str(value).zfill(self.width))
+        return str(value).zfill(self.width)
+
+    def walk(self, node: Any) -> None:
+        if isinstance(node, list):
+            for item in node:
+                self.walk(item)
+            return
+        if not isinstance(node, dict):
+            return
+        for key, value in list(node.items()):
+            if isinstance(value, (dt.date, dt.datetime)):
+                node[key] = value.isoformat()
+            elif key == "interview":
+                node[key] = self.pad(value)
+            elif key == "interviews" and isinstance(value, list):
+                node[key] = [self.pad(v) for v in value]
+                self.walk(node[key])
+            else:
+                self.walk(value)
+
+
 def coerce_patch(patch: Any, width: int, report: Report) -> Json:
     """Read the YAML the way the writer meant it: dates become strings and a bare interview number
     becomes a zero-padded ID, with a warning. Outcome IDs are never coerced, because 2.10 would become 2.1."""
@@ -859,31 +1021,104 @@ def coerce_patch(patch: Any, width: int, report: Report) -> Json:
     if not isinstance(patch, dict):
         raise KbError(f"the patch must be a YAML mapping with keys such as {', '.join(PATCH_SECTIONS)}",
                       code="patch_shape")
-    fixed: set[str] = set()
-
-    def walk(node: Any) -> None:
-        if isinstance(node, dict):
-            for key, value in list(node.items()):
-                if isinstance(value, (dt.date, dt.datetime)):
-                    node[key] = value.isoformat()
-                elif key == "interview" and isinstance(value, int) and not isinstance(value, bool):
-                    node[key] = str(value).zfill(width)
-                    fixed.add(node[key])
-                else:
-                    walk(value)
-        elif isinstance(node, list):
-            for item in node:
-                walk(item)
-
-    walk(patch)
-    if fixed:
-        report.warn(f"interview IDs were not quoted and were read as {sorted(fixed)}; write IDs in quotes, like \"01\"",
-                    code="ids_unquoted")
+    reader = _PatchReader(width)
+    reader.walk(patch)
+    for proposal in patch.get("proposed_changes") or []:
+        if isinstance(proposal, dict) and proposal.get("type") == "relink_interview":
+            proposal["target"] = reader.pad(proposal.get("target"))
+    if reader.fixed:
+        report.warn(f"interview IDs were not quoted and were read as {sorted(reader.fixed)}; write IDs in quotes, "
+                    'like "01"', code="ids_unquoted")
     unknown = sorted(set(patch) - set(PATCH_KEYS))
     if unknown:
         report.warn(f"unknown top-level key(s) {unknown} are ignored; a patch uses {list(PATCH_KEYS)}",
                     code="unknown_key")
     return patch
+
+
+def upgrade_bootstrap(patch: Json, report: Report) -> None:
+    """The bootstrap of schema 1 had one market_core_job and its steps. Read it as core job A."""
+    boot = patch.get("bootstrap")
+    if not isinstance(boot, dict):
+        return
+    old = "market_core_job" in boot or "steps" in boot
+    if "core_jobs" in boot:
+        if old:
+            report.error("patch format: patch.bootstrap: give core_jobs, not market_core_job and steps as well "
+                         "(see references/patch-format.md)", code="patch_format")
+        return
+    if "market_core_job" in boot and "steps" in boot:
+        patch["bootstrap"] = {"core_jobs": [{"id": "A", **boot["market_core_job"], "steps": boot["steps"]}]}
+        report.warn("bootstrap uses the older market_core_job form; read as core job A", code="ref_legacy")
+        return
+    report.error("patch format: patch.bootstrap: missing 'core_jobs' (see references/patch-format.md)",
+                 code="patch_format")
+
+
+class JobRefs:
+    """Turns step and outcome IDs without a job letter ("6", "6.3") into full IDs ("A.6", "A.6.3").
+
+    That is safe only when the KB has exactly one core job. With several, a bare ID is refused."""
+
+    def __init__(self, kb: Json, patch: Json, report: Report) -> None:
+        boot = patch.get("bootstrap") or {}
+        self.jobs = [str(j["id"]) for j in kb["core_jobs"]] or [str(j.get("id")) for j in boot.get("core_jobs", [])]
+        self.only = self.jobs[0] if len(self.jobs) == 1 else None
+        self.report = report
+        self.read: list[str] = []
+
+    def _bare(self, value: str, kind: str, where: str) -> str:
+        if self.only:
+            self.read.append(f"{value} -> {self.only}.{value}")
+            return f"{self.only}.{value}"
+        example = f"{self.jobs[0] if self.jobs else 'A'}.{value}"
+        self.report.error(f"{where}: {kind} {value} has no job letter; write it with the letter of its core job, "
+                          f'like "{example}"', code="ref_ambiguous")
+        return value
+
+    def step(self, value: Any, where: str) -> Any:
+        if _is_int(value) or (isinstance(value, str) and value.isdigit()):
+            return self._bare(str(int(value)), "step", where)
+        return value
+
+    def outcome(self, value: Any, where: str) -> Any:
+        if isinstance(value, str) and BARE_OUTCOME_ID.match(value):
+            return self._bare(value, "outcome", where)
+        return value
+
+    def job(self, proposal: Json, key: str) -> None:
+        """A proposal that must name a core job may leave it out while the KB has only one."""
+        if self.only and not proposal.get(key):
+            proposal[key] = self.only
+
+
+def resolve_job_refs(kb: Json, patch: Json, report: Report) -> None:
+    """Give every step and outcome reference in the patch its job letter, or refuse the ones that need it."""
+    upgrade_bootstrap(patch, report)
+    refs = JobRefs(kb, patch, report)
+    for index, item in enumerate(patch.get("step_evidence", [])):
+        item["step"] = refs.step(item["step"], f"step_evidence[{index}]")
+    for index, item in enumerate(patch.get("new_outcomes", [])):
+        item["step"] = refs.step(item["step"], f"new_outcomes[{index}]")
+    for index, item in enumerate(patch.get("outcome_evidence", [])):
+        item["outcome"] = refs.outcome(item["outcome"], f"outcome_evidence[{index}]")
+    for index, proposal in enumerate(patch.get("proposed_changes", [])):
+        kind, where = proposal.get("type"), f"proposal {index + 1} ({proposal.get('type')})"
+        if kind in ("reword_step", "move_step"):
+            proposal["target"] = refs.step(proposal.get("target"), where)
+        elif kind in ("reword_outcome", "merge_outcomes", "move_outcome"):
+            proposal["target"] = refs.outcome(proposal.get("target"), where)
+        if kind == "merge_outcomes":
+            proposal["merge"] = refs.outcome(proposal.get("merge"), where)
+        if kind == "move_outcome":
+            proposal["to_step"] = refs.step(proposal.get("to_step"), where)
+        if kind == "new_step":
+            refs.job(proposal, "job")
+        if kind in ("reword_core_job", "confirm_core_job"):
+            refs.job(proposal, "target")
+    if refs.read:
+        report.warn(f"IDs without a job letter were read as job {refs.only}: {', '.join(refs.read[:8])}; "
+                    f'write the letter, like "{refs.only}.6" and "{refs.only}.6.3"', code="ref_legacy")
 
 
 @dataclass
@@ -908,14 +1143,16 @@ def resolve_bootstrap(kb: Json, patch: Json, plan: MergePlan, report: Report) ->
     bootstrap = patch.get("bootstrap")
     if not bootstrap:
         return
-    if not (kb["job_map"]["steps"] or kb.get("market_core_job")):
+    if not (kb["job_map"]["steps"] or kb["core_jobs"]):
         plan.bootstrap = bootstrap
         return
-    steps = steps_by_n(kb)
-    core_known = norm(bootstrap["market_core_job"]["statement"]) in _wordings(kb.get("market_core_job") or {})
-    steps_known = all(int(s["n"]) in steps and norm(s["statement"]) in _wordings(steps[int(s["n"])])
-                      for s in bootstrap["steps"])
-    if core_known and steps_known:
+    jobs, steps = jobs_by_id(kb), steps_by_id(kb)
+    known = all(str(job["id"]) in jobs and norm(job["statement"]) in _wordings(jobs[str(job["id"])])
+                and all(f"{job['id']}.{int(s['n'])}" in steps
+                        and norm(s["statement"]) in _wordings(steps[f"{job['id']}.{int(s['n'])}"])
+                        for s in job["steps"])
+                for job in bootstrap["core_jobs"])
+    if known:
         report.warn("bootstrap already applied to this KB; ignored", code="bootstrap_repeated")
         patch.pop("bootstrap")
     else:
@@ -970,18 +1207,33 @@ def resolve_interviews(kb: Json, patch: Json, transcripts: Transcripts, report: 
     return plan
 
 
+def _live(evidence: Any, skipped: dict[str, str]) -> Any:
+    if not isinstance(evidence, list):
+        return evidence
+    return [e for e in evidence if not (isinstance(e, dict) and str(e.get("interview")) in skipped)]
+
+
+def _keep_item(item: Json, skipped: dict[str, str]) -> bool:
+    """Trim what came from skipped interviews out of a patch item. False when nothing of it is left."""
+    cited = 0
+    for holder in [item] + [s for s in item.get("steps") or [] if isinstance(s, dict)]:
+        evidence = holder.get("evidence")
+        if isinstance(evidence, list) and evidence:
+            cited += len(evidence)
+            holder["evidence"] = _live(evidence, skipped)
+    named = item.get("interviews")
+    if isinstance(named, list) and named:
+        cited += len(named)
+        item["interviews"] = [ref for ref in named if str(ref) not in skipped]
+    left = len(_live(item.get("evidence"), skipped) or []) + len(item.get("interviews") or []) \
+        + sum(len(s.get("evidence") or []) for s in item.get("steps") or [] if isinstance(s, dict))
+    return not cited or left > 0
+
+
 def _drop_skipped_evidence(patch: Json, plan: MergePlan, report: Report) -> None:
     for section in ("step_evidence", "outcome_evidence", "new_outcomes", "proposed_changes"):
-        kept = []
-        for item in patch.get(section, []):
-            evidence = item.get("evidence")
-            if isinstance(evidence, list) and evidence:
-                live = [e for e in evidence if not (isinstance(e, dict) and str(e.get("interview")) in plan.skipped)]
-                if not live:
-                    plan.dropped += 1
-                    continue
-                item["evidence"] = live
-            kept.append(item)
+        kept = [item for item in patch.get(section, []) if _keep_item(item, plan.skipped)]
+        plan.dropped += len(patch.get(section, [])) - len(kept)
         if section in patch:
             patch[section] = kept
     if plan.dropped:
@@ -1044,27 +1296,43 @@ class Checks:
     """What the content checks need: the KB and its lookups, the study's style, and where to report."""
 
     kb: Json
-    steps: dict[int, Json]
+    jobs: set[str]
+    steps: dict[str, Json]
     outcomes: dict[str, Json]
     style: Style
     checker: QuoteChecker
     report: Report
+    interviews: set[str] = field(default_factory=set)  # KB IDs and the keys of new interviews in this patch
 
 
-def check_new_interviews(plan: MergePlan, ctx: Checks) -> None:
+def _check_link(job: Any, label: str, ctx: Checks) -> None:
+    if job is not None and str(job) not in ctx.jobs:
+        ctx.report.error(f"{label}: core job {job} does not exist; link to one of {sorted(ctx.jobs)} or leave it out",
+                         code="job_missing")
+
+
+def check_new_interviews(plan: MergePlan, patch: Json, ctx: Checks) -> None:
     key_of = {kb_id: key for key, kb_id in plan.keymap.items()}
+    awaiting = {str(ref) for p in patch.get("proposed_changes", []) if p.get("type") == "new_core_job"
+                for ref in p.get("interviews") or []}
     for record in plan.new_interviews:
         key, label = key_of[record["id"]], os.path.basename(str(record["file"]))
         for fld, kind in (("job_executor", "executor"), ("core_functional_job", "job")):
             clarity(record[fld]["statement"], kind, f"{label} {fld}", ctx.style, ctx.report)
             own = [{**e, "interview": key} for e in record[fld].get("evidence", [])]
             ctx.checker.check(own, f"{label} {fld}", ctx.report)
+        _check_link(main_job(record), f"{label} core_functional_job", ctx)
+        if not (main_job(record) or key in awaiting or unlinked_reason(record)):
+            ctx.report.warn(f"interview {key} ({label}) is not linked to a core job; link it, list it in a "
+                            "new_core_job proposal, or say why in unlinked_reason", code="job_unlinked")
         for fld in ("related_jobs", "emotional_jobs", "social_jobs"):
             kind = "job" if fld == "related_jobs" else "feeling"
             for job in record.get(fld) or []:
                 clarity(job.get("statement", ""), kind, f"{label} {fld}", ctx.style, ctx.report)
                 own = [{**e, "interview": key} for e in job.get("evidence", [])]
                 ctx.checker.check(own, f"{label} {fld}: {short(job.get('statement', ''), 40)}", ctx.report)
+                if fld == "related_jobs":
+                    _check_link(job.get("job"), f"{label} related job", ctx)
         cluster = record.get("cluster")
         if cluster and cluster not in (ctx.kb.get("clusters") or {}):
             ctx.report.warn(f"{label}: segment '{cluster}' is not in the KB; add a new_segment proposal",
@@ -1072,17 +1340,21 @@ def check_new_interviews(plan: MergePlan, ctx: Checks) -> None:
 
 
 def check_bootstrap(bootstrap: Json, ctx: Checks) -> None:
-    clarity(bootstrap["market_core_job"]["statement"], "job", "market core job", ctx.style, ctx.report)
-    numbers = [int(step["n"]) for step in bootstrap["steps"]]
-    for dup in sorted({n for n in numbers if numbers.count(n) > 1}):
-        ctx.report.error(f"bootstrap: step number {dup} is used more than once", code="step_duplicate")
-    for step in bootstrap["steps"]:
-        clarity(step.get("statement", ""), "step", f"step {step.get('n')}", ctx.style, ctx.report)
+    given = [str(job["id"]) for job in bootstrap["core_jobs"]]
+    if given != [job_letter(i) for i in range(len(given))]:
+        ctx.report.error(f"bootstrap: core job IDs must be A, B, C… in order; found {given}", code="job_order")
+    for job in bootstrap["core_jobs"]:
+        clarity(job["statement"], "job", f"core job {job['id']}", ctx.style, ctx.report)
+        numbers = [int(step["n"]) for step in job["steps"]]
+        for dup in sorted({n for n in numbers if numbers.count(n) > 1}):
+            ctx.report.error(f"bootstrap: step {job['id']}.{dup} is used more than once", code="step_duplicate")
+        for step in job["steps"]:
+            clarity(step.get("statement", ""), "step", f"step {job['id']}.{step.get('n')}", ctx.style, ctx.report)
 
 
 def check_step_evidence(patch: Json, ctx: Checks) -> None:
     for item in patch.get("step_evidence", []):
-        if int(item["step"]) not in ctx.steps:
+        if str(item["step"]) not in ctx.steps:
             ctx.report.error(f"step_evidence: step {item['step']} does not exist", code="step_missing")
         ctx.checker.check(item["evidence"], f"step {item['step']}", ctx.report)
 
@@ -1099,35 +1371,38 @@ def check_outcome_evidence(patch: Json, ctx: Checks) -> None:
 
 
 def check_new_outcomes(patch: Json, ctx: Checks) -> None:
-    seen = {norm(o["statement"]).lower(): str(o["id"]) for o in ctx.outcomes.values()}
+    seen = {(job_of(o["step"]), norm(o["statement"]).lower()): str(o["id"]) for o in ctx.outcomes.values()}
     for item in patch.get("new_outcomes", []):
-        statement = item["statement"]
+        statement, step = item["statement"], str(item["step"])
         label = f"new outcome '{short(statement, 40)}'"
-        if int(item["step"]) not in ctx.steps:
-            ctx.report.error(f"{label}: step {item['step']} does not exist", code="step_missing")
-        clarity(statement, "outcome", f"new outcome (step {item['step']})", ctx.style, ctx.report)
+        if step not in ctx.steps:
+            ctx.report.error(f"{label}: step {step} does not exist", code="step_missing")
+        clarity(statement, "outcome", f"new outcome (step {step})", ctx.style, ctx.report)
         if not DIRECTION.match(statement):
             ctx.report.error(f"{label}: an outcome must start with Minimize, Maximize, Increase or Reduce",
                              code="outcome_direction")
-        normalized = norm(statement).lower()
-        if normalized in seen:
-            ctx.report.error(f"{label}: duplicates {seen[normalized]}; send it as outcome_evidence",
+        key = (job_of(step), norm(statement).lower())
+        if key in seen:
+            ctx.report.error(f"{label}: duplicates {seen[key]}; send it as outcome_evidence",
                              code="outcome_duplicate")
-        seen[normalized] = "another new outcome in this patch"
+        seen[key] = "another new outcome in this patch"
         ctx.checker.check(item["evidence"], label, ctx.report)
 
 
 class ProposalRefs:
     """Resolves the things a proposal points at. Each miss becomes one readable problem."""
 
-    def __init__(self, kb: Json, steps: dict[int, Json], outcomes: dict[str, Json]) -> None:
+    def __init__(self, kb: Json, steps: dict[str, Json], outcomes: dict[str, Json],
+                 interviews: set[str] | None = None, jobs: set[str] | None = None) -> None:
         self.kb, self.steps, self.outcomes = kb, steps, outcomes
+        self.jobs = jobs if jobs is not None else set(jobs_by_id(kb))
+        self.interviews = interviews if interviews is not None else {str(r["id"]) for r in kb["interviews"]}
         self.problems: list[str] = []
 
     def outcome(self, value: Any, what: str) -> Json | None:
         key = str(value) if value is not None else ""
         if not OUTCOME_ID.match(key):
-            self.problems.append(f"{what} must be an outcome ID such as \"6.3\", got {value!r}")
+            self.problems.append(f"{what} must be an outcome ID such as \"A.6.3\", got {value!r}")
             return None
         outcome = self.outcomes.get(key)
         if not outcome:
@@ -1137,19 +1412,32 @@ class ProposalRefs:
             return None
         return outcome
 
-    def step(self, value: Any, what: str) -> int | None:
-        if value is None or not re.fullmatch(r"\d+", str(value)):
-            self.problems.append(f"{what} must be a step number, got {value!r}")
+    def step(self, value: Any, what: str) -> str | None:
+        if value is None or not STEP_ID.match(str(value)):
+            self.problems.append(f"{what} must be a step ID such as \"A.6\", got {value!r}")
             return None
-        if int(value) not in self.steps:
+        if str(value) not in self.steps:
             self.problems.append(f"{what}: step {value} does not exist")
             return None
-        return int(value)
+        return str(value)
+
+    def job(self, value: Any, what: str) -> str | None:
+        if not self.jobs:
+            self.problems.append(f"{what}: the KB has no core job yet")
+            return None
+        if not isinstance(value, str) or str(value) not in self.jobs:
+            self.problems.append(f"{what} must name a core job, one of {sorted(self.jobs)}, got {value!r}")
+            return None
+        return value
+
+    def stage(self, value: Any, what: str) -> None:
+        if value not in STAGES:
+            self.problems.append(f"{what} needs a stage, one of {STAGES}")
 
 
 def _refs_new_step(refs: ProposalRefs, proposal: Json) -> None:
-    if proposal.get("stage") not in STAGES:
-        refs.problems.append(f"new_step needs a stage, one of {STAGES}")
+    refs.stage(proposal.get("stage"), "new_step")
+    refs.job(proposal.get("job"), "job")
 
 
 def _refs_reword_step(refs: ProposalRefs, proposal: Json) -> None:
@@ -1161,19 +1449,21 @@ def _refs_reword_outcome(refs: ProposalRefs, proposal: Json) -> None:
 
 
 def _refs_reword_core_job(refs: ProposalRefs, proposal: Json) -> None:
-    if not (refs.kb.get("market_core_job") or {}).get("statement"):
-        refs.problems.append("reword_core_job: the KB has no core job yet")
+    refs.job(proposal.get("target"), "target")
 
 
 def _refs_merge_outcomes(refs: ProposalRefs, proposal: Json) -> None:
     keep, drop = refs.outcome(proposal.get("target"), "target"), refs.outcome(proposal.get("merge"), "merge")
     if keep and drop and keep is drop:
         refs.problems.append("merge_outcomes: target and merge are the same outcome")
+    elif keep and drop and job_of(keep["id"]) != job_of(drop["id"]):
+        refs.problems.append(f"merge_outcomes: {keep['id']} and {drop['id']} sit under different core jobs; "
+                             "move one of them first")
 
 
 def _refs_move_outcome(refs: ProposalRefs, proposal: Json) -> None:
     outcome, step = refs.outcome(proposal.get("target"), "target"), refs.step(proposal.get("to_step"), "to_step")
-    if outcome and step is not None and int(outcome["step"]) == step:
+    if outcome and step is not None and str(outcome["step"]) == step:
         refs.problems.append(f"move_outcome: outcome {outcome['id']} is already under step {step}")
 
 
@@ -1185,6 +1475,48 @@ def _refs_new_segment(refs: ProposalRefs, proposal: Json) -> None:
         refs.problems.append(f"new_segment: segment '{target}' already exists")
 
 
+def _refs_new_core_job(refs: ProposalRefs, proposal: Json) -> None:
+    for index, step in enumerate(proposal.get("steps") or []):
+        refs.stage(step.get("stage"), f"new_core_job steps[{index}]")
+    for ref in proposal.get("interviews") or []:
+        if str(ref) not in refs.interviews:
+            refs.problems.append(f"new_core_job: interview {ref} does not exist")
+
+
+def _refs_confirm_core_job(refs: ProposalRefs, proposal: Json) -> None:
+    job = refs.job(proposal.get("target"), "target")
+    if job and jobs_by_id(refs.kb).get(job, {}).get("status") == "approved":
+        refs.problems.append(f"confirm_core_job: core job {job} is already approved")
+
+
+def _refs_move_step(refs: ProposalRefs, proposal: Json) -> None:
+    step, job = refs.step(proposal.get("target"), "target"), refs.job(proposal.get("to_job"), "to_job")
+    if step and job and job_of(step) == job:
+        refs.problems.append(f"move_step: step {step} is already under core job {job}")
+    if proposal.get("stage") is not None:
+        refs.stage(proposal["stage"], "move_step")
+
+
+def _related_job(record: Json, statement: str) -> Json | None:
+    return next((job for job in record.get("related_jobs") or []
+                 if isinstance(job, dict) and norm(str(job.get("statement", ""))) == norm(statement)), None)
+
+
+def _refs_relink_interview(refs: ProposalRefs, proposal: Json) -> None:
+    target = str(proposal.get("target") or "")
+    if target not in refs.interviews:
+        refs.problems.append(f"relink_interview: interview {target or '(none)'} does not exist")
+        return
+    if "job" not in proposal:
+        refs.problems.append("relink_interview needs job: a core job ID, or null to remove the link")
+    elif proposal["job"] is not None:
+        refs.job(proposal["job"], "job")
+    record = next((r for r in refs.kb["interviews"] if str(r["id"]) == target), None)
+    related = proposal.get("related_job")
+    if record and related and not _related_job(record, str(related)):
+        refs.problems.append(f"relink_interview: interview {target} has no related job '{short(str(related), 60)}'")
+
+
 PROPOSAL_CHECKS: dict[str, Callable[[ProposalRefs, Json], None]] = {
     "new_step": _refs_new_step,
     "reword_step": _refs_reword_step,
@@ -1193,12 +1525,16 @@ PROPOSAL_CHECKS: dict[str, Callable[[ProposalRefs, Json], None]] = {
     "merge_outcomes": _refs_merge_outcomes,
     "move_outcome": _refs_move_outcome,
     "new_segment": _refs_new_segment,
+    "new_core_job": _refs_new_core_job,
+    "confirm_core_job": _refs_confirm_core_job,
+    "move_step": _refs_move_step,
+    "relink_interview": _refs_relink_interview,
 }
 
 
-def proposal_problems(kb: Json, proposal: Json, steps: dict[int, Json], outcomes: dict[str, Json]) -> list[str]:
+def proposal_problems(refs: ProposalRefs, proposal: Json) -> list[str]:
     """Check that a proposal's references point at real things. Used at merge time and again before apply."""
-    refs = ProposalRefs(kb, steps, outcomes)
+    refs.problems = []
     check = PROPOSAL_CHECKS.get(str(proposal.get("type")))
     if check:
         check(refs, proposal)
@@ -1206,8 +1542,10 @@ def proposal_problems(kb: Json, proposal: Json, steps: dict[int, Json], outcomes
 
 
 def check_proposals(patch: Json, ctx: Checks) -> None:
-    kinds = {"new_step": "step", "reword_step": "step", "reword_core_job": "job", "reword_outcome": "outcome"}
+    kinds = {"new_step": "step", "reword_step": "step", "reword_core_job": "job", "reword_outcome": "outcome",
+             "new_core_job": "job", "confirm_core_job": "job"}
     limit = ctx.style.limits.get("rationale", 30)
+    refs = ProposalRefs(ctx.kb, ctx.steps, ctx.outcomes, ctx.interviews, ctx.jobs)
     for index, proposal in enumerate(patch.get("proposed_changes", [])):
         label = f"proposal {index + 1} ({proposal.get('type')})"
         kind = kinds.get(str(proposal.get("type")))
@@ -1216,19 +1554,31 @@ def check_proposals(patch: Json, ctx: Checks) -> None:
         if len(str(proposal.get("rationale", "")).split()) > limit:
             ctx.report.error(f"clarity: {label} rationale is over {limit} words; say why in one plain sentence",
                              code="rationale_length")
-        for problem in proposal_problems(ctx.kb, proposal, ctx.steps, ctx.outcomes):
+        for problem in proposal_problems(refs, proposal):
             ctx.report.error(f"{label}: {problem}", code="proposal_ref")
         if proposal.get("evidence"):
             ctx.checker.check(proposal["evidence"], label, ctx.report)
+        if proposal.get("type") == "new_core_job":
+            _check_new_core_job(proposal, label, ctx)
+
+
+def _check_new_core_job(proposal: Json, label: str, ctx: Checks) -> None:
+    if proposal.get("job_executor"):
+        clarity(proposal["job_executor"], "executor", f"{label} job_executor", ctx.style, ctx.report)
+    for index, step in enumerate(proposal.get("steps") or []):
+        clarity(str(step.get("statement", "")), "step", f"{label} steps[{index}]", ctx.style, ctx.report)
+        if step.get("evidence"):
+            ctx.checker.check(step["evidence"], f"{label} steps[{index}]", ctx.report)
 
 
 def check_patch(kb: Json, patch: Json, plan: MergePlan, transcripts: Transcripts, report: Report) -> None:
-    steps = steps_by_n(kb)
+    jobs, steps = set(jobs_by_id(kb)), steps_by_id(kb)
     if not steps and plan.bootstrap:
-        steps = {int(step["n"]): step for step in plan.bootstrap["steps"]}
-    ctx = Checks(kb, steps, outcomes_by_id(kb), style_of(kb), QuoteChecker(make_lookup(kb, plan, transcripts, report)),
-                 report)
-    check_new_interviews(plan, ctx)
+        jobs = {str(job["id"]) for job in plan.bootstrap["core_jobs"]}
+        steps = {f"{job['id']}.{int(step['n'])}": step for job in plan.bootstrap["core_jobs"] for step in job["steps"]}
+    ctx = Checks(kb, jobs, steps, outcomes_by_id(kb), style_of(kb),
+                 QuoteChecker(make_lookup(kb, plan, transcripts, report)), report, set(plan.keymap))
+    check_new_interviews(plan, patch, ctx)
     if plan.bootstrap:
         check_bootstrap(plan.bootstrap, ctx)
     check_step_evidence(patch, ctx)
@@ -1242,15 +1592,64 @@ def remap(items: list[Json], keymap: dict[str, str]) -> list[Json]:
     return [{**item, "interview": keymap.get(str(item["interview"]), str(item["interview"]))} for item in items]
 
 
+def remap_proposal(proposal: Json, keymap: dict[str, str]) -> Json:
+    """A proposal as the KB stores it: patch keys turned into interview IDs, wherever it names an interview."""
+    record = dict(proposal)
+    if record.get("evidence"):
+        record["evidence"] = remap(record["evidence"], keymap)
+    if record.get("steps"):
+        record["steps"] = [{**step, "evidence": remap(step.get("evidence") or [], keymap)} for step in record["steps"]]
+    if record.get("interviews"):
+        record["interviews"] = [keymap.get(str(ref), str(ref)) for ref in record["interviews"]]
+    if record.get("type") == "relink_interview":
+        record["target"] = keymap.get(str(record.get("target")), str(record.get("target")))
+    return record
+
+
 def has_new_evidence(kb: Json, patch: Json, plan: MergePlan) -> bool:
-    steps, outcomes = steps_by_n(kb), outcomes_by_id(kb)
-    pairs = [(steps.get(int(i["step"])), i["evidence"]) for i in patch.get("step_evidence", [])]
+    steps, outcomes = steps_by_id(kb), outcomes_by_id(kb)
+    pairs = [(steps.get(str(i["step"])), i["evidence"]) for i in patch.get("step_evidence", [])]
     pairs += [(outcomes.get(str(i["outcome"])), i["evidence"]) for i in patch.get("outcome_evidence", [])]
     for target, evidence in pairs:
         have = {evidence_key(e) for e in (target or {}).get("evidence", [])}
         if any(evidence_key(e) not in have for e in remap(evidence, plan.keymap)):
             return True
     return False
+
+
+def job_support(kb: Json, job: str) -> str:
+    """How many people interviewed back a core job, in one sentence for reviewers."""
+    total = len(kb["interviews"])
+    main = sum(1 for r in kb["interviews"] if main_job(r) == job)
+    related = sum(1 for r in kb["interviews"] if main_job(r) != job and job in related_links(r))
+    if total == 1:
+        return f"The one person interviewed {'has' if main else 'does not have'} it as their main job."
+    text = f"{main} of {total} people interviewed {'has' if main == 1 else 'have'} it as their main job"
+    text += f", {related} more as a related job." if related else "."
+    return text + (" It rests on one interview." if main == 1 else "")
+
+
+def confirmation(kb: Json, job: str, why: str) -> Json:
+    """A decision asking the team to confirm a core job the tool set up, such as the first batch's."""
+    return {"type": "confirm_core_job", "target": job, "proposal": jobs_by_id(kb)[job]["statement"],
+            "rationale": f"{why} {job_support(kb, job)}"}
+
+
+def file_proposal(kb: Json, proposal: Json) -> str:
+    """Add a pending proposal with the next free P-number. Returns its ID."""
+    numbers = [int(str(p["id"])[1:]) for p in kb["proposed_changes"] if re.fullmatch(r"P\d+", str(p.get("id", "")))]
+    record = {"id": f"P{max(numbers, default=0) + 1}", "status": "pending", "raised": today(), **proposal}
+    kb["proposed_changes"].append(record)
+    return record["id"]
+
+
+def _bootstrap_into(kb: Json, bootstrap: Json) -> str:
+    jobs = bootstrap["core_jobs"]
+    kb["core_jobs"] = [{**{k: v for k, v in job.items() if k != "steps"}, "status": "proposed"} for job in jobs]
+    kb["job_map"]["stages"] = [{"key": k, "name": k.capitalize()} for k in STAGES]
+    kb["job_map"]["steps"] = [{"job": str(job["id"]), **step, "evidence": []} for job in jobs for step in job["steps"]]
+    ids = ", ".join(str(job["id"]) for job in jobs)
+    return f"bootstrapped core job{'s' if len(jobs) > 1 else ''} {ids} and {len(kb['job_map']['steps'])} steps"
 
 
 def apply_patch(kb: Json, patch: Json, plan: MergePlan, stamp: Json) -> Json | None:
@@ -1264,38 +1663,29 @@ def apply_patch(kb: Json, patch: Json, plan: MergePlan, stamp: Json) -> Json | N
         return None
     log: list[str] = []
     if plan.bootstrap:
-        kb["market_core_job"] = {**plan.bootstrap["market_core_job"], "status": "proposed"}
-        kb["job_map"].update({"core_job": kb["market_core_job"]["statement"], "status": "proposed",
-                              "stages": [{"key": k, "name": k.capitalize()} for k in STAGES],
-                              "steps": [{**step, "evidence": []} for step in plan.bootstrap["steps"]]})
-        log.append(f"bootstrapped core job and {len(plan.bootstrap['steps'])} steps")
+        log.append(_bootstrap_into(kb, plan.bootstrap))
     kb["interviews"].extend(plan.new_interviews)
     added_ids = [record["id"] for record in plan.new_interviews]
     log.append(f"added interviews {', '.join(added_ids) or 'none'}")
-    steps, outcomes = steps_by_n(kb), outcomes_by_id(kb)
-    step_quotes = sum(add_evidence(steps[int(i["step"])], remap(i["evidence"], plan.keymap))
+    steps, outcomes = steps_by_id(kb), outcomes_by_id(kb)
+    step_quotes = sum(add_evidence(steps[str(i["step"])], remap(i["evidence"], plan.keymap))
                       for i in patch.get("step_evidence", []))
     outcome_quotes = sum(add_evidence(outcomes[str(i["outcome"])], remap(i["evidence"], plan.keymap))
                          for i in patch.get("outcome_evidence", []))
     new_outcome_ids = []
     for item in patch.get("new_outcomes", []):
-        step = int(item["step"])
+        step = str(item["step"])
         record = {"id": next_outcome_id(kb, step), "step": step, "statement": item["statement"], "added": today(),
                   "evidence": []}
         add_evidence(record, remap(item["evidence"], plan.keymap))
         kb["desired_outcomes"]["outcomes"].append(record)
         new_outcome_ids.append(record["id"])
     sort_outcomes(kb)
-    numbers = [int(str(p["id"])[1:]) for p in kb["proposed_changes"] if re.fullmatch(r"P\d+", str(p.get("id", "")))]
-    next_number = max(numbers, default=0) + 1
     proposal_ids = []
-    for proposal in patch.get("proposed_changes", []):
-        record = {"id": f"P{next_number}", "status": "pending", "raised": today(), **proposal}
-        if record.get("evidence"):
-            record["evidence"] = remap(record["evidence"], plan.keymap)
-        kb["proposed_changes"].append(record)
-        proposal_ids.append(record["id"])
-        next_number += 1
+    filed = [confirmation(kb, str(job["id"]), "Set up from the first batch.") for job in kb["core_jobs"]] \
+        if plan.bootstrap else []
+    for proposal in filed + [remap_proposal(p, plan.keymap) for p in patch.get("proposed_changes", [])]:
+        proposal_ids.append(file_proposal(kb, proposal))
     log += [f"{step_quotes} step quotes", f"{outcome_quotes} outcome quotes",
             f"new outcomes {', '.join(new_outcome_ids) or 'none'}", f"proposals {', '.join(proposal_ids) or 'none'}"]
     recount(kb)
@@ -1353,7 +1743,7 @@ class MergeOutput:
 
 
 def _merge_verdict(out: MergeOutput, entry: Json, candidate: Json) -> None:
-    out.result.update({"ok": True, "changes": entry, "thin_steps": [int(s["n"]) for s in thin_steps(candidate)],
+    out.result.update({"ok": True, "changes": entry, "thin_steps": [step_key(s) for s in thin_steps(candidate)],
                        "stale": stale_layers(candidate)})
     if out.args.dry_run:
         out.verdict += ["dry run OK: every quote matches, every reference resolves and the KB structure stays valid",
@@ -1378,6 +1768,8 @@ def cmd_merge(args: argparse.Namespace) -> int:
     patch = coerce_patch(load_yaml(args.patch), id_width(kb), report)
     for problem in schema_errors(patch, load_schema("patch-schema.json"), "patch"):
         report.error(f"patch format: {problem} (see references/patch-format.md)", code="patch_format")
+    if not report.errors:
+        resolve_job_refs(kb, patch, report)
     if report.errors:
         return out.finish(1)
     transcripts = transcripts_for(args.transcripts, report)
@@ -1414,28 +1806,37 @@ def _history(obj: Json, **entry: Any) -> None:
     obj.setdefault("history", []).append({"date": today(), **entry})
 
 
+def _clean_evidence(items: list[Json] | None) -> list[Json]:
+    return [{k: v for k, v in e.items() if k in ("interview", "source", "quote")} for e in items or []]
+
+
 def _apply_new_step(kb: Json, proposal: Json) -> str:
-    number = max(steps_by_n(kb), default=0) + 1
-    evidence = [{k: v for k, v in e.items() if k in ("interview", "source", "quote")}
-                for e in proposal.get("evidence", [])]
-    kb["job_map"]["steps"].append({"n": number, "stage": proposal["stage"], "statement": proposal["proposal"],
-                                   "covers": proposal.get("covers", ""), "evidence": evidence})
-    return f"added step {number}"
+    job = str(proposal["job"])
+    number = next_step_n(kb, job)
+    kb["job_map"]["steps"].append({"job": job, "n": number, "stage": proposal["stage"],
+                                   "statement": proposal["proposal"], "covers": proposal.get("covers", ""),
+                                   "evidence": _clean_evidence(proposal.get("evidence"))})
+    sort_steps(kb)
+    return f"added step {job}.{number}"
 
 
 def _apply_reword(kb: Json, proposal: Json) -> str:
     kind = proposal["type"]
     if kind == "reword_step":
-        target = steps_by_n(kb)[int(proposal["target"])]
+        target = steps_by_id(kb)[str(proposal["target"])]
     elif kind == "reword_outcome":
         target = outcomes_by_id(kb)[str(proposal["target"])]
     else:
-        target = kb["market_core_job"]
+        target = jobs_by_id(kb)[str(proposal["target"])]
     _history(target, was=target["statement"])
     target["statement"] = proposal["proposal"]
-    if kind == "reword_core_job":
-        kb["job_map"]["core_job"] = proposal["proposal"]
-    return f"reworded {proposal.get('target') or 'the core job'}"
+    if kind != "reword_core_job":
+        return f"reworded {proposal['target']}"
+    for other in kb["proposed_changes"]:  # a pending confirmation asks about the job as it now reads
+        if other.get("type") == "confirm_core_job" and other.get("status") == "pending" \
+                and str(other.get("target")) == str(proposal["target"]):
+            other["proposal"] = proposal["proposal"]
+    return f"reworded core job {proposal['target']}"
 
 
 def _apply_merge_outcomes(kb: Json, proposal: Json) -> str:
@@ -1449,25 +1850,28 @@ def _apply_merge_outcomes(kb: Json, proposal: Json) -> str:
     return f"merged {drop['id']} into {keep['id']}"
 
 
-def rename_outcome(kb: Json, old: str, new: str) -> None:
-    """Point every reference to an outcome ID at its new ID: merged_into pointers and pending proposals."""
+REF_FIELDS = ("target", "merge", "to_step")
+
+
+def rename_refs(kb: Json, renamed: dict[str, str]) -> None:
+    """Point every reference to a renamed step or outcome at its new ID: merged_into and pending proposals."""
     for outcome in kb["desired_outcomes"]["outcomes"]:
-        if outcome.get("merged_into") == old:
-            outcome["merged_into"] = new
+        if outcome.get("merged_into") in renamed:
+            outcome["merged_into"] = renamed[outcome["merged_into"]]
     for proposal in kb["proposed_changes"]:
         if proposal.get("status") == "pending":
-            for key in ("target", "merge"):
-                if str(proposal.get(key)) == old:
-                    proposal[key] = new
+            for key in REF_FIELDS:
+                if str(proposal.get(key)) in renamed:
+                    proposal[key] = renamed[str(proposal[key])]
 
 
 def _apply_move_outcome(kb: Json, proposal: Json) -> str:
     outcome = outcomes_by_id(kb)[str(proposal["target"])]
-    step = int(proposal["to_step"])
+    step = str(proposal["to_step"])
     old, new = str(outcome["id"]), next_outcome_id(kb, step)
     _history(outcome, was_id=old)
     outcome["id"], outcome["step"] = new, step
-    rename_outcome(kb, old, new)
+    rename_refs(kb, {old: new})
     sort_outcomes(kb)
     return f"moved {old} to {new} under step {step}"
 
@@ -1478,6 +1882,84 @@ def _apply_new_segment(kb: Json, proposal: Json) -> str:
     return f"added segment {proposal['target']}"
 
 
+def _link(own: Json, job: str | None, reason: str = "") -> None:
+    """Point an interview's own job statement at a core job, keeping the old link and the old reason for having
+    none in its history. Removing the main link records why, so the KB never says a linked person has no job."""
+    if own.get("job") == job:
+        return
+    entry: Json = {"was_job": own.get("job")}
+    if own.get("unlinked_reason"):
+        entry["was_reason"] = own["unlinked_reason"]
+    _history(own, **entry)
+    own.pop("unlinked_reason", None)
+    if job is None:
+        own.pop("job", None)
+        if reason:
+            own["unlinked_reason"] = reason
+    else:
+        own["job"] = job
+
+
+def _apply_new_core_job(kb: Json, proposal: Json) -> str:
+    job = next_job_id(kb)
+    record = {"id": job, "statement": proposal["proposal"], "status": "approved"}
+    if proposal.get("job_executor"):
+        record["job_executor"] = proposal["job_executor"]
+    kb["core_jobs"].append(record)
+    added = []
+    for n, step in enumerate(proposal.get("steps") or [], start=1):
+        kb["job_map"]["steps"].append({"job": job, "n": n, "stage": step["stage"], "statement": step["statement"],
+                                       "covers": step.get("covers", ""),
+                                       "evidence": _clean_evidence(step.get("evidence"))})
+        added.append(f"{job}.{n}")
+    linked = [str(ref) for ref in proposal.get("interviews") or []]
+    for record in kb["interviews"]:
+        if str(record["id"]) in linked:
+            _link(record["core_functional_job"], job)
+    message = f"added core job {job}" + (f" with steps {', '.join(added)}" if added else "")
+    return message + (f"; linked interviews {', '.join(linked)}" if linked else "")
+
+
+def _apply_confirm_core_job(kb: Json, proposal: Json) -> str:
+    jobs_by_id(kb)[str(proposal["target"])]["status"] = "approved"
+    return f"confirmed core job {proposal['target']}"
+
+
+def _apply_move_step(kb: Json, proposal: Json) -> str:
+    old = str(proposal["target"])
+    step, job = steps_by_id(kb)[old], str(proposal["to_job"])
+    number = next_step_n(kb, job)
+    new = f"{job}.{number}"
+    _history(step, was_id=old)
+    step["job"], step["n"] = job, number
+    if proposal.get("stage"):
+        step["stage"] = proposal["stage"]
+    renamed = {old: new}
+    for outcome in kb["desired_outcomes"]["outcomes"]:
+        if str(outcome["step"]) == old:
+            moved = f"{new}.{str(outcome['id']).rsplit('.', 1)[1]}"
+            _history(outcome, was_id=outcome["id"])
+            renamed[str(outcome["id"])] = moved
+            outcome["id"], outcome["step"] = moved, new
+    rename_refs(kb, renamed)
+    sort_steps(kb)
+    sort_outcomes(kb)
+    pairs = [f"{a} to {b}" for a, b in renamed.items() if a != old]
+    return f"moved step {old} to {new}" + (f", with outcomes {', '.join(pairs)}" if pairs else "")
+
+
+def _apply_relink_interview(kb: Json, proposal: Json) -> str:
+    record = next(r for r in kb["interviews"] if str(r["id"]) == str(proposal["target"]))
+    job = proposal["job"]
+    if proposal.get("related_job"):
+        _link(_related_job(record, str(proposal["related_job"])) or {}, job)
+        what = f"a related job of interview {record['id']}"
+    else:
+        _link(record["core_functional_job"], job, str(proposal.get("rationale") or ""))
+        what = f"interview {record['id']}"
+    return f"linked {what} to core job {job}" if job else f"unlinked {what}"
+
+
 APPLY_HANDLERS: dict[str, Callable[[Json, Json], str]] = {
     "new_step": _apply_new_step,
     "reword_step": _apply_reword,
@@ -1486,6 +1968,10 @@ APPLY_HANDLERS: dict[str, Callable[[Json, Json], str]] = {
     "merge_outcomes": _apply_merge_outcomes,
     "move_outcome": _apply_move_outcome,
     "new_segment": _apply_new_segment,
+    "new_core_job": _apply_new_core_job,
+    "confirm_core_job": _apply_confirm_core_job,
+    "move_step": _apply_move_step,
+    "relink_interview": _apply_relink_interview,
 }
 
 
@@ -1502,7 +1988,8 @@ def cmd_apply(args: argparse.Namespace) -> int:
     status = "approved" if args.decision == "approve" else "rejected"
     message = f"{args.id} {status}"
     if status == "approved":
-        problems = proposal_problems(candidate, proposal, steps_by_n(candidate), outcomes_by_id(candidate))
+        refs = ProposalRefs(candidate, steps_by_id(candidate), outcomes_by_id(candidate))
+        problems = proposal_problems(refs, proposal)
         if problems:
             raise KbError(f"{args.id} cannot be applied as it stands:\n  - " + "\n  - ".join(problems)
                           + "\nFix the KB or reject the proposal.", code="proposal_stale")
@@ -1542,27 +2029,52 @@ def cmd_init(args: argparse.Namespace) -> int:
     return 0
 
 
-def context_data(kb: Json) -> Json:
-    core = kb.get("market_core_job") or {}
-    by_step: dict[int, list[Json]] = {}
+def _job_steps(kb: Json, job: str) -> list[Json]:
+    by_step: dict[str, list[Json]] = {}
     for outcome in kb["desired_outcomes"]["outcomes"]:
         if not outcome.get("merged_into"):
-            by_step.setdefault(int(outcome["step"]), []).append(outcome)
-    steps = [{"n": n, "stage": step.get("stage", ""), "statement": step["statement"],
-              "coverage": step.get("coverage", 0),
-              "outcomes": [{"id": o["id"], "statement": o["statement"], "interview_count": o.get("interview_count", 0)}
-                           for o in by_step.get(n, [])]}
-             for n, step in sorted(steps_by_n(kb).items())]
+            by_step.setdefault(str(outcome["step"]), []).append(outcome)
+    steps = sorted((s for s in kb["job_map"]["steps"] if s.get("job") == job), key=lambda s: int(s["n"]))
+    return [{"id": step_key(step), "stage": step.get("stage", ""), "statement": step["statement"],
+             "coverage": step.get("coverage", 0),
+             "outcomes": [{"id": o["id"], "statement": o["statement"], "interview_count": o.get("interview_count", 0)}
+                          for o in by_step.get(step_key(step), [])]}
+            for step in steps]
+
+
+def people_data(kb: Json) -> list[Json]:
+    """Each interview with its own core job and the core jobs it is linked to. The basis for abstracting jobs."""
+    return [{"id": str(r["id"]), "name": r.get("name", ""),
+             "core_functional_job": (r.get("core_functional_job") or {}).get("statement", ""), "job": main_job(r),
+             "unlinked_reason": unlinked_reason(r),
+             "related": [{"statement": j.get("statement", ""), "job": j.get("job")}
+                         for j in r.get("related_jobs") or [] if isinstance(j, dict)],
+             "analyst_note": r.get("analyst_note", "")}
+            for r in kb["interviews"]]
+
+
+def context_data(kb: Json) -> Json:
+    jobs = [{"id": str(job["id"]), "statement": job["statement"], "status": job.get("status", ""),
+             "job_executor": job.get("job_executor", ""), "interviews": job.get("interviews", []),
+             "related_interviews": job.get("related_interviews", []), "steps": _job_steps(kb, str(job["id"]))}
+            for job in kb["core_jobs"]]
+    people = people_data(kb)
     return {"project": kb["meta"].get("project", ""), "interview_count": len(kb["interviews"]),
-            "core_job": core.get("statement"), "core_job_status": core.get("status", ""),
-            "job_executor": core.get("job_executor", ""),
+            "core_jobs": jobs, "people": people, "unlinked": [p["id"] for p in people if not p["job"]],
             "segments": {k: v.get("name", "") for k, v in (kb.get("clusters") or {}).items()},
-            "steps": steps, "processed_files": sorted(interviews_by_file(kb)),
-            "pending_proposals": [{"id": p["id"], "type": p["type"], "target": p.get("target", ""),
+            "processed_files": sorted(interviews_by_file(kb)),
+            "pending_proposals": [{"id": p["id"], "type": p["type"], "target": p.get("target") or p.get("job") or "",
                                    "proposal": p.get("proposal", "")}
                                   for p in kb["proposed_changes"] if p.get("status") == "pending"],
             "stale": stale_layers(kb), "schema_version": kb["meta"].get("schema_version"),
             "tool_version": __version__}
+
+
+def _person_line(person: Json) -> str:
+    links = person["job"] or "no core job" + (f" ({person['unlinked_reason']})" if person["unlinked_reason"] else "")
+    also = sorted({r["job"] for r in person["related"] if r["job"] and r["job"] != person["job"]})
+    return f"  {person['id']} {person['name']}: {person['core_functional_job']} -> {links}" + \
+        (f"; also {', '.join(also)}" if also else "")
 
 
 def cmd_context(args: argparse.Namespace) -> int:
@@ -1570,16 +2082,25 @@ def cmd_context(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
         return 0
-    print(f"PROJECT {data['project']}  interviews={data['interview_count']}")
-    print(f"CORE JOB: {data['core_job'] or '(none yet: bootstrap)'}  [{data['core_job_status']}]")
-    if data["job_executor"]:
-        print(f"EXECUTOR: {data['job_executor']}")
+    print(f"PROJECT {data['project']}  interviews={data['interview_count']}  core jobs={len(data['core_jobs'])}")
+    if not data["core_jobs"]:
+        print("CORE JOB: (none yet: bootstrap)")
+    for job in data["core_jobs"]:
+        print(f"\nCORE JOB {job['id']}: {job['statement']}  [{job['status']}]")
+        if job["job_executor"]:
+            print(f"  EXECUTOR: {job['job_executor']}")
+        main, also = ", ".join(job["interviews"]) or "none", ", ".join(job["related_interviews"]) or "none"
+        print(f"  PEOPLE: main {main}; also {also}")
+        for step in job["steps"]:
+            print(f"STEP {step['id']} [{step['stage']}] {step['statement']}  (interviews {step['coverage']})")
+            for outcome in step["outcomes"]:
+                print(f"   {outcome['id']:>7}  {outcome['statement']}  (iv {outcome['interview_count']})")
     if data["segments"]:
-        print("SEGMENTS: " + "; ".join(f"{k}={v}" for k, v in data["segments"].items()))
-    for step in data["steps"]:
-        print(f"\nSTEP {step['n']} [{step['stage']}] {step['statement']}  (interviews {step['coverage']})")
-        for outcome in step["outcomes"]:
-            print(f"   {outcome['id']:>6}  {outcome['statement']}  (iv {outcome['interview_count']})")
+        print("\nSEGMENTS: " + "; ".join(f"{k}={v}" for k, v in data["segments"].items()))
+    if data["people"]:
+        print("\nPEOPLE AND THEIR JOBS (their own core job -> the core job it rolls up to)")
+        for person in data["people"]:
+            print(_person_line(person))
     print("\nPROCESSED FILES: " + ", ".join(data["processed_files"]))
     if data["pending_proposals"]:
         pending = "; ".join(f"{p['id']} {p['type']} {p['target']}" for p in data["pending_proposals"])
@@ -1591,20 +2112,30 @@ def cmd_context(args: argparse.Namespace) -> int:
 
 # ---------- review ----------
 def describe_proposal(proposal: Json) -> str:
-    return {"new_step": "Add a step", "reword_step": f"Reword step {proposal.get('target')}",
-            "reword_outcome": f"Reword outcome {proposal.get('target')}", "reword_core_job": "Reword the core job",
+    return {"new_step": f"Add a step to core job {proposal.get('job')}",
+            "reword_step": f"Reword step {proposal.get('target')}",
+            "reword_outcome": f"Reword outcome {proposal.get('target')}",
+            "reword_core_job": f"Reword core job {proposal.get('target')}",
             "merge_outcomes": f"Merge outcome {proposal.get('merge')} into {proposal.get('target')}",
             "move_outcome": f"Move outcome {proposal.get('target')} to step {proposal.get('to_step')}",
-            "new_segment": "Add a segment"}.get(str(proposal.get("type")), "Change")
+            "new_segment": "Add a segment", "new_core_job": "Add a core job",
+            "confirm_core_job": f"Confirm core job {proposal.get('target')}",
+            "move_step": f"Move step {proposal.get('target')} to core job {proposal.get('to_job')}",
+            "relink_interview": f"Link interview {proposal.get('target')} to "
+                                + (f"core job {proposal['job']}" if proposal.get("job") else "no core job"),
+            }.get(str(proposal.get("type")), "Change")
 
 
 def _review_head(kb: Json, live_outcomes: list[Json]) -> list[str]:
-    core = kb.get("market_core_job") or {}
-    return [f"# {kb['meta'].get('project', 'ODI study')}: review sheet", "",
-            f"{len(kb['interviews'])} interviews · {len(kb['job_map']['steps'])} job steps · "
-            f"{len(live_outcomes)} outcomes · updated {today()}", "",
-            f"**Core job:** {core.get('statement', 'not set yet')}"
-            + (" *(proposed)*" if core.get("status") == "proposed" else ""), ""]
+    lines = [f"# {kb['meta'].get('project', 'ODI study')}: review sheet", "",
+             f"{len(kb['interviews'])} interviews · {len(kb['core_jobs'])} core jobs · "
+             f"{len(kb['job_map']['steps'])} job steps · {len(live_outcomes)} outcomes · updated {today()}", ""]
+    if not kb["core_jobs"]:
+        return lines + ["**Core job:** not set yet", ""]
+    for job in kb["core_jobs"]:
+        lines.append(f"- **Core job {job['id']}:** {job['statement']}"
+                     + (" *(proposed)*" if job.get("status") == "proposed" else ""))
+    return lines + [""]
 
 
 def _review_decisions(kb: Json) -> list[str]:
@@ -1624,8 +2155,9 @@ def _review_new(kb: Json, since: str, new_outcomes: set[str]) -> list[str]:
         return []
     lines = [f"## New since {since}", ""]
     for record in new_interviews:
+        link = f"core job {main_job(record)}" if main_job(record) else "no core job yet"
         lines.append(f"- **{record['id']} {record.get('name', '')}:** {record['job_executor']['statement']} "
-                     f"Core job: *{record['core_functional_job']['statement']}*")
+                     f"Core job: *{record['core_functional_job']['statement']}* ({link})")
     for outcome in kb["desired_outcomes"]["outcomes"]:
         if outcome["id"] in new_outcomes:
             lines.append(f"- New outcome **{outcome['id']}:** {outcome['statement']}")
@@ -1633,29 +2165,56 @@ def _review_new(kb: Json, since: str, new_outcomes: set[str]) -> list[str]:
 
 
 def _review_map(kb: Json, live_outcomes: list[Json], new_outcomes: set[str]) -> list[str]:
-    by_step: dict[int, list[Json]] = {}
+    by_step: dict[str, list[Json]] = {}
     for outcome in live_outcomes:
-        by_step.setdefault(int(outcome["step"]), []).append(outcome)
-    lines = ["## Job map", "",
-             "Numbers in brackets show how many interviews support each line. ● marks what is new.", ""]
-    ordered = sorted(kb["job_map"]["steps"], key=lambda s: int(s["n"]))
-    for stage in STAGES:
-        steps = [s for s in ordered if s.get("stage") == stage]
-        if not steps:
-            continue
-        lines.append(f"### {stage.capitalize()}")
-        for step in steps:
-            lines.append(f"**{step['n']}. {step['statement']}** [{step.get('coverage', 0)}]")
-            for outcome in by_step.get(int(step["n"]), []):
-                mark = "● " if outcome["id"] in new_outcomes else ""
-                lines.append(f"- {mark}{outcome['id']} {outcome['statement']} [{outcome.get('interview_count', 0)}]")
-            lines.append("")
+        by_step.setdefault(str(outcome["step"]), []).append(outcome)
+    lines: list[str] = []
+    for index, job in enumerate(kb["core_jobs"]):
+        lines += [f"## Core job {job['id']}: {job['statement']}", ""]
+        if index == 0:
+            lines += ["Numbers in brackets show how many interviews support each line. ● marks what is new.", ""]
+        ordered = sorted((s for s in kb["job_map"]["steps"] if s.get("job") == job["id"]), key=lambda s: int(s["n"]))
+        for stage in STAGES:
+            steps = [s for s in ordered if s.get("stage") == stage]
+            if not steps:
+                continue
+            lines.append(f"### {stage.capitalize()}")
+            for step in steps:
+                lines.append(f"**{step_key(step)} {step['statement']}** [{step.get('coverage', 0)}]")
+                for outcome in by_step.get(step_key(step), []):
+                    mark = "● " if outcome["id"] in new_outcomes else ""
+                    count = outcome.get("interview_count", 0)
+                    lines.append(f"- {mark}{outcome['id']} {outcome['statement']} [{count}]")
+                lines.append("")
+    return lines
+
+
+def _review_people(kb: Json) -> list[str]:
+    jobs = jobs_by_id(kb)
+    named = [r for r in kb["interviews"] if main_job(r) or related_links(r)] if len(jobs) > 1 else []
+    lines = []
+    if named:
+        lines += ["## People and their jobs", ""]
+        for record in named:
+            parts = [f"{jobs[j]['statement']} ({j})" for j in [main_job(record)] if j and j in jobs]
+            also = [f"{jobs[j]['statement']} ({j})" for j in dict.fromkeys(related_links(record))
+                    if j in jobs and j != main_job(record)]
+            text = ", ".join(parts) + (", also " if parts and also else "also " if also else "") + ", ".join(also)
+            lines.append(f"- **{record['id']} {record.get('name', '')}:** {text}")
+        lines.append("")
+    unlinked = [r for r in kb["interviews"] if not main_job(r)]
+    if unlinked:
+        lines += ["## Not linked to any core job", ""]
+        for record in unlinked:
+            note = unlinked_reason(record) or record.get("analyst_note") or record["core_functional_job"]["statement"]
+            lines.append(f"- **{record['id']} {record.get('name', '')}:** {note}")
+        lines.append("")
     return lines
 
 
 def _review_tail(kb: Json) -> list[str]:
     lines = []
-    thin = [f"{s['n']}. {s['statement']}" for s in thin_steps(kb)]
+    thin = [f"{step_key(s)} {s['statement']}" for s in sorted(thin_steps(kb), key=lambda s: step_sort_key(step_key(s)))]
     if thin:
         lines += ["## Ask about these next", "", f"Fewer than {THIN_STEP} interviews support these steps:", ""]
         lines += [f"- {t}" for t in thin] + [""]
@@ -1671,7 +2230,7 @@ def review_lines(kb: Json, since: str) -> list[str]:
     live_outcomes = [o for o in kb["desired_outcomes"]["outcomes"] if not o.get("merged_into")]
     new_outcomes = {o["id"] for o in kb["desired_outcomes"]["outcomes"] if since and str(o.get("added", "")) >= since}
     return (_review_head(kb, live_outcomes) + _review_decisions(kb) + _review_new(kb, since, new_outcomes)
-            + _review_map(kb, live_outcomes, new_outcomes) + _review_tail(kb))
+            + _review_map(kb, live_outcomes, new_outcomes) + _review_people(kb) + _review_tail(kb))
 
 
 def cmd_review(args: argparse.Namespace) -> int:
@@ -1688,9 +2247,10 @@ def cmd_review(args: argparse.Namespace) -> int:
 
 
 # ---------- map ----------
-MAP_KEYS = ["meta", "market_core_job", "job_map", "desired_outcomes", "interviews", "clusters", "proposed_changes",
+MAP_KEYS = ["meta", "core_jobs", "job_map", "desired_outcomes", "interviews", "clusters", "proposed_changes",
             "changelog"]
 MAP_START, MAP_END = "/* @kb-data:start */", "/* @kb-data:end */"
+MAP_SCHEMA = f"/* @kb-schema:{SCHEMA_VERSION} */"  # the template can draw a KB of this schema version
 
 
 def embed_kb(template: str, payload: str) -> str:
@@ -1721,6 +2281,9 @@ def cmd_map(args: argparse.Namespace) -> int:
                       code="skill_file_missing")
     with open(template_path, encoding="utf-8") as handle:
         template = handle.read()
+    if MAP_SCHEMA not in template:
+        raise KbError(f"the map template {template_path} is older than KB schema {SCHEMA_VERSION} and cannot draw "
+                      "several core jobs; use discovery-map-template.html from the skill", code="template_old")
     out = args.out or os.path.join(os.path.dirname(os.path.abspath(args.kb)), "discovery-map.html")
     with open(out, "w", encoding="utf-8") as handle:
         handle.write(embed_kb(template, payload))
@@ -1765,13 +2328,18 @@ def _check_own_quotes(kb: Json, texts: dict[str, str | None], checker: QuoteChec
 def _check_shared_quotes(kb: Json, checker: QuoteChecker, report: Report) -> None:
     for step in kb["job_map"]["steps"]:
         if step.get("evidence"):
-            checker.check(step["evidence"], f"step {step['n']}", report)
+            checker.check(step["evidence"], f"step {step_key(step)}", report)
     for outcome in kb["desired_outcomes"]["outcomes"]:
         if outcome.get("evidence"):
             checker.check(outcome["evidence"], f"outcome {outcome['id']}", report)
     for proposal in kb["proposed_changes"]:
-        if proposal.get("status") == "pending" and proposal.get("evidence"):
+        if proposal.get("status") != "pending":
+            continue
+        if proposal.get("evidence"):
             checker.check(proposal["evidence"], f"proposal {proposal.get('id')}", report)
+        for index, step in enumerate(proposal.get("steps") or []):
+            if step.get("evidence"):
+                checker.check(step["evidence"], f"proposal {proposal.get('id')} steps[{index}]", report)
 
 
 def check_stored_quotes(kb: Json, transcripts: Transcripts, report: Report) -> dict[str, str]:
@@ -1805,8 +2373,7 @@ def _accept_drift(kb: Json, drifted: dict[str, str], args: argparse.Namespace) -
 
 
 def cmd_validate(args: argparse.Namespace) -> int:
-    kb = ensure(load_yaml(args.kb), args.kb)
-    check_version(kb, args.kb)
+    kb = load_kb(args.kb)
     problems = structure_problems(kb, args.schema)
     args.run.note(structure_problems=len(problems))
     if problems:
@@ -1846,7 +2413,60 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0
 
 
-MIGRATIONS: dict[int, Callable[[Json], None]] = {}  # from version -> function that upgrades the KB to version + 1
+def _prefixed(value: Any, job: str) -> Any:
+    """A schema 1 step number or outcome ID with the job letter in front: 6 -> "A.6", "6.3" -> "A.6.3"."""
+    if _is_int(value) or (isinstance(value, str) and (value.isdigit() or BARE_OUTCOME_ID.match(value))):
+        return f"{job}.{value}"
+    return value
+
+
+def _migrate_proposal_1(proposal: Json) -> None:
+    kind = proposal.get("type")
+    renamed = ("reword_step", "reword_outcome", "merge_outcomes", "move_outcome")
+    if kind in renamed and proposal.get("target") not in (None, ""):
+        proposal["target"] = _prefixed(proposal["target"], "A")
+    for key in ("merge", "to_step"):
+        if key in proposal:
+            proposal[key] = _prefixed(proposal[key], "A")
+    if kind == "new_step":
+        proposal["job"] = "A"
+    if kind == "reword_core_job":
+        proposal["target"] = "A"
+
+
+def _migrate_1(kb: Json) -> str:
+    """Schema 1 -> 2. The one market core job becomes core job A, and every step and outcome ID gets its letter."""
+    old = kb.pop("market_core_job", None) or {}
+    job_map = kb["job_map"]
+    statement, status = old.get("statement") or job_map.get("core_job"), old.get("status") or job_map.get("status")
+    job_map.pop("core_job", None)
+    job_map.pop("status", None)
+    if not (statement or job_map["steps"]):
+        return "no core job yet, so nothing to rename"
+    job = {"id": "A", "statement": statement or "Core job not named yet", "status": status or "proposed"}
+    job.update({k: old[k] for k in ("job_executor", "history") if k in old})
+    kb["core_jobs"] = [job]
+    for step in job_map["steps"]:
+        step["job"] = "A"
+    for outcome in kb["desired_outcomes"]["outcomes"]:
+        outcome["id"], outcome["step"] = _prefixed(str(outcome["id"]), "A"), f"A.{int(outcome['step'])}"
+        if outcome.get("merged_into"):
+            outcome["merged_into"] = _prefixed(str(outcome["merged_into"]), "A")
+        for entry in outcome.get("history", []):
+            if "was_id" in entry:
+                entry["was_id"] = _prefixed(str(entry["was_id"]), "A")
+    for proposal in kb["proposed_changes"]:
+        _migrate_proposal_1(proposal)
+    for record in kb["interviews"]:
+        record["core_functional_job"]["job"] = "A"
+    mark_stale(kb, "step and outcome IDs gained the job letter A, so text that cites old IDs is out of date")
+    recount(kb)
+    if job["status"] == "proposed":
+        file_proposal(kb, confirmation(kb, "A", "Set up before a core job could be confirmed."))
+    return "the core job is now core job A; step and outcome IDs gained the prefix A. (6.3 is now A.6.3)"
+
+
+MIGRATIONS: dict[int, Callable[[Json], str]] = {1: _migrate_1}  # from version -> upgrade to version + 1
 
 
 def cmd_migrate(args: argparse.Namespace) -> int:
@@ -1856,17 +2476,21 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     if version == SCHEMA_VERSION:
         print(f"nothing to do: {args.kb} already uses schema version {SCHEMA_VERSION}")
         return 0
-    start = version
+    start, notes = version, []
     while version < SCHEMA_VERSION:
-        MIGRATIONS[version](kb)
+        notes.append(MIGRATIONS[version](kb))
         version += 1
         kb["meta"]["schema_version"] = version
-    kb["changelog"].append(changelog_entry(args.run, "migrate",
-                                           summary=f"migrated from schema version {start} to {SCHEMA_VERSION}"))
+    summary = f"migrated from schema version {start} to {SCHEMA_VERSION}: " + "; ".join(notes)
+    kb["changelog"].append(changelog_entry(args.run, "migrate", summary=summary))
+    problems = structure_problems(kb)
+    if problems:
+        raise KbError("the migrated KB would break the KB structure; nothing written. Fix these first:\n  - "
+                      + "\n  - ".join(problems), code="structure")
     made = backup(args.kb)
     save_kb(kb, args.kb)
     args.run.note(written=True, backup=args.run.relative(made))
-    print(f"migrated {args.kb} from schema version {start} to {SCHEMA_VERSION}")
+    print(f"migrated {args.kb} {summary[len('migrated '):]}")
     return 0
 
 

@@ -24,11 +24,17 @@ Work where the files live: if the transcripts and the KB are on the user's compu
 
 ## What a run changes, and what it leaves alone
 
-- **Writes (evidence layers):** interviews, job executor, core functional job, related, emotional and social jobs per interview; new evidence on existing job steps and outcomes; new outcomes.
-- **Proposes, never applies:** anything that changes the shared structure. That covers a new job step, a reworded step, outcome or core job, a merge of two outcomes, a moved outcome or a new segment. These go to `proposed_changes` with status `pending`. The user decides, then `kb_tool apply` acts.
+- **Writes (evidence layers):** interviews, job executor, core functional job, related, emotional and social jobs per interview, and each new interview's links to the study's core jobs; new evidence on existing job steps and outcomes; new outcomes.
+- **Proposes, never applies:** anything that changes the shared structure. That covers a new core job, a new job step, a reworded step, outcome or core job, a merge of two outcomes, a moved outcome or step, a changed link of an earlier interview, or a new segment. These go to `proposed_changes` with status `pending`. The user decides, then `kb_tool apply` acts.
 - **Flags, never rewrites:** derived layers (`survey`, `simulation`, `value_themes`, `use_cases`). The script marks them `stale: true` with a reason. They are rebuilt on request, not on every run.
 
-The exception is a brand-new KB with no core job yet. Then the run proposes the core job and job map as a `bootstrap`, marked `status: proposed`, so the user can review them.
+The exception is a brand-new KB with no core job yet. Then the run proposes the core job or jobs and their job maps as a `bootstrap`, marked `status: proposed`, so the user can review them. The merge also files one `confirm_core_job` decision per core job, saying how many people back it. Approving it marks the job approved.
+
+## One core job or several
+
+Most studies have one core job. When the people interviewed do different jobs, for example restaurant owners who order ingredients and kitchen managers who staff each shift, the study has several. Each core job has a letter (`A`, `B`…) and its own job map, so every step and outcome ID starts with its job's letter: step `B.2`, outcome `B.2.3`. The letter is there even with one job.
+
+Every interview's own core functional job links to the core job it rolls up to (`job: "B"`). That is the person's main job. A related job may link to another core job, so one person can belong to several. An interview whose job fits none of them stays unlinked, with the reason in its core functional job's `unlinked_reason`. When the person is linked later, the tool moves that reason into history. How to decide whether two people share a core job is in `references/odi-rules.md`, "One job or several".
 
 ## Workflow
 
@@ -36,7 +42,7 @@ The exception is a brand-new KB with no core job yet. Then the run proposes the 
 
 Ask only if they cannot be found. Typical layout: `<study>/KB/odi-kb.yaml` with transcripts in `<study>/Interviews/`.
 
-No KB yet: `kb_tool init KB/odi-kb.yaml --project "<name>" --interviewer "<name>"`.
+No KB yet: `kb_tool init KB/odi-kb.yaml --project "<name>"`. Add `--interviewer "<name>"` only when the user or the transcripts say who ran the interviews; never fill it in from anywhere else.
 
 ### 2. Load the current structure
 
@@ -44,16 +50,19 @@ No KB yet: `kb_tool init KB/odi-kb.yaml --project "<name>" --interviewer "<name>
 kb_tool context KB/odi-kb.yaml            # add --json for the same information as one JSON object
 ```
 
-This prints the core job, every step with its outcomes and IDs, the segments, the files already processed, pending proposals and stale layers. Map new evidence against this. Skip any transcript whose file is in "processed files". The script also skips it, matching by file name and content hash, so re-running the same batch never double-counts.
+This prints each core job with its steps, outcomes and IDs, then every person with their own core job and the core job it links to, the segments, the files already processed, pending proposals and stale layers. Map new evidence against this. Skip any transcript whose file is in "processed files". The script also skips it, matching by file name and content hash, so re-running the same batch never double-counts.
+
+A KB made before several core jobs were possible (schema 1) is refused with a message to run `kb_tool migrate KB/odi-kb.yaml`. Run it, then tell the user: the core job is now core job A, and every step and outcome ID gained the letter, so `6.3` is now `A.6.3`.
 
 ### 3. Read each new transcript in full, then extract
 
 Read the whole transcript before writing anything. The rules for each statement are in `references/odi-rules.md`; read that file once per session, starting with "Write for the reviewer first". Founders, product managers, domain experts and architects will review these statements, so each one should be short, plain and land on the first read. The merge blocks statements that are too long or carry asides. In short:
 
 - **Per interview:** the job executor (who they are, in this market), their core functional job (verb + object + context, no solution, no success words), related jobs, emotional jobs ("feel…", "avoid feeling…") and social jobs ("be seen as…"). Each needs 1 to 3 supporting quotes. If there is no evidence for a job type, use an empty list. Do not infer.
-- **Executor check:** does this person actually carry out the market's core job? For example, a driver whose carrier picks the loads does not. Say so in `analyst_note`. Their quotes still count as evidence for the steps they do perform.
-- **Against the shared structure:** a passage about *doing* a step goes to `step_evidence`. A passage about how they judge success or failure goes to `outcome_evidence` when an existing outcome covers it, and to `new_outcomes` only when none does. Prefer existing outcomes: compare by the object of control, not the wording. A near-duplicate outcome splits the evidence and weakens both.
-- **Structural signals go to `proposed_changes`:** an activity no step covers, a step or outcome the new evidence shows is worded wrong, two outcomes that are really one, a new kind of executor or segment. Give each a rationale and evidence. Every target you name must exist in `context` output: the merge refuses a proposal that points at a missing step or outcome.
+- **Which core job:** ask "why?" of the person's own core job until it meets one of the study's core jobs. Link it there with `job`. Link a related job too when it is another core job of the study. If none fits, leave `job` out and raise a `new_core_job` proposal that lists the interview, or, when the person carries out none of the study's jobs, say why in `unlinked_reason` on their `core_functional_job`. For example, a driver whose carrier picks the loads does not plan loads. Their quotes still count as evidence for the steps they do perform.
+- **First batch:** decide the core jobs from all the interviews before you link anyone. Write each person's own core job, group the ones that meet, then settle each person left over, as in `references/odi-rules.md`, "The odd one out". Bootstrap every core job you found, `A`, `B`… in order, each with its own steps.
+- **Against the shared structure:** a passage about *doing* a step goes to `step_evidence`, under the core job it serves. A passage about how they judge success or failure goes to `outcome_evidence` when an existing outcome covers it, and to `new_outcomes` only when none does. Prefer existing outcomes: compare by the object of control, not the wording. A near-duplicate outcome splits the evidence and weakens both.
+- **Structural signals go to `proposed_changes`:** an activity no step covers, a step or outcome the new evidence shows is worded wrong, two outcomes that are really one, a step under the wrong core job, a core job the study lacks, an earlier interview linked to the wrong job, a new kind of executor or segment. Give each a rationale and evidence. Every target you name must exist in `context` output: the merge refuses a proposal that points at a missing step, outcome, core job or interview.
 
 ### 4. Quote exactly
 
@@ -67,7 +76,7 @@ Tag the source honestly:
 
 ### 5. Write the patch, dry-run, merge
 
-Write the patch to `KB/patches/<date>-<batch>.yaml`, using the format in `references/patch-format.md`. Open it with a `provenance` block: which assistant and model you are, when you started reading, which interviews you read (by ID or key, never by file name) and any note a later reader needs. The merge copies it into the KB's changelog, so every batch can be traced to who extracted it and how. Write every interview ID and outcome ID in quotes (`"01"`, `"6.3"`): unquoted, YAML reads them as numbers. Then:
+Write the patch to `KB/patches/<date>-<batch>.yaml`, using the format in `references/patch-format.md`. Open it with a `provenance` block: which assistant and model you are, when you started reading, which interviews you read (by ID or key, never by file name) and any note a later reader needs. The merge copies it into the KB's changelog, so every batch can be traced to who extracted it and how. Write every ID in quotes: interviews `"01"`, core jobs `"B"`, steps `"B.2"`, outcomes `"B.2.3"`. Unquoted, YAML reads an interview ID as a number. Then:
 
 ```
 kb_tool merge KB/odi-kb.yaml KB/patches/<file>.yaml --transcripts Interviews --dry-run
@@ -80,7 +89,7 @@ The dry run and the real merge run the same checks in the same order, so a clean
 
 - **Patch format**, against `references/patch-schema.json`: a missing field, a list where a mapping belongs, or an unquoted ID gives one message that names the place in the patch.
 - **Quote not found:** open the transcript, copy the exact span and fix the patch. Never loosen the check.
-- **Reference:** a step, outcome, interview, proposal target or segment that does not exist, or an outcome that was merged into another.
+- **Reference:** a step, outcome, interview, core job link, proposal target or segment that does not exist, or an outcome that was merged into another. In a KB with several core jobs, an ID without its job letter (`6.3`) is refused too.
 - **Clarity:** a statement is too long or carries brackets, examples or a semicolon. Rewrite it shorter, following "Write for the reviewer first". Treat the warnings ("may hold two jobs", abbreviations) as prompts to reread the statement.
 - **Structure:** the KB that would result is checked against `kb-schema.json` before anything is written.
 
@@ -108,10 +117,12 @@ Run both after every merge or approved proposal, so reviewers never open a stale
 
 The reader may be a founder or a domain expert, not an ODI specialist, so write in plain words. Lead with one sentence on what changed. Then keep it short:
 
-- new interviews: name, who they are and their core job, one line each, plus any skipped as already processed
+- new interviews: name, who they are and their core job, and which of the study's core jobs it links to, one line each, plus any skipped as already processed
+- when the study has several core jobs, name each by its statement with the letter after it ("Keep the trucks on the road (B)"), never by the letter alone
 - what the new evidence strengthened: name the outcomes in words, with the ID after the text, never as a bare list of IDs. This holds for every mention, including a passing one in a closing remark: a reviewer cannot hold "1.1 and 5.1" in their head.
 - new outcomes, each as its full statement
 - decisions waiting: what and why in one line each, and how to answer ("approve P1")
+- after a first batch: each core job by its statement, its steps in plain words and how many people back it; then ask the user to confirm each one ("approve P1") or say what to change
 - what to ask about next (thin steps), and which derived layers are now out of date
 - a pointer to `review.md` and `discovery-map.html`, with the note that the map holds the interviewees' names and quotes
 
@@ -125,11 +136,17 @@ When the user decides:
 kb_tool apply KB/odi-kb.yaml P3 --decision approve --note "agreed in review"
 ```
 
-`apply` re-checks that the proposal's target still exists before it acts. A proposal raised against an outcome that was since merged or moved is refused with a message, not applied blindly. Automatic actions exist for `new_step`, `reword_step`, `reword_outcome`, `reword_core_job`, `merge_outcomes`, `move_outcome` and `new_segment`. Old wording is kept in `history`. IDs stay stable: new steps get the next free number, and merged outcomes keep a `merged_into` pointer instead of being deleted. A moved outcome gets the next free ID under its new step, the old ID goes to `history`, and pending proposals that cited the old ID are updated. For `other`, edit the KB by hand, then run `validate`.
+`apply` re-checks that the proposal's target still exists before it acts. A proposal raised against an outcome that was since merged or moved is refused with a message, not applied blindly. Automatic actions exist for `new_step`, `reword_step`, `reword_outcome`, `reword_core_job`, `merge_outcomes`, `move_outcome`, `new_segment`, `new_core_job`, `confirm_core_job`, `move_step` and `relink_interview`. A rejected `confirm_core_job` changes nothing: ask the user what is wrong with the job, then propose `reword_core_job`, or `move_step` and `relink_interview`. Old wording and old links are kept in `history`. IDs stay stable: new steps get the next free number in their core job, and merged outcomes keep a `merged_into` pointer instead of being deleted. A moved outcome or step gets the next free ID where it lands, the old ID goes to `history`, and pending proposals that cited the old ID are updated. For `other`, edit the KB by hand, then run `validate`.
+
+An approved `new_core_job` gets the next free letter, its steps are numbered from 1 and the interviews it lists are linked to it. It has no outcomes yet, because outcome IDs need the job to exist. Right after approval, reread those interviews and write a short follow-up patch that cites them by ID and adds the new job's outcomes and step evidence. Also check the people → jobs list in `context` for earlier interviews whose related job is the new core job, and propose `relink_interview` for them.
+
+## When asked whether the study holds more than one job
+
+Run `context` and read the people → jobs list. Ask "why?" of each person's own core job, as in `references/odi-rules.md`, "One job or several". Group the people whose jobs meet. For a group that no core job fits, propose `new_core_job` with its steps and people. Then propose `move_step` for steps that belong to the new job and `relink_interview` for people linked to the wrong one. Tell the user how many people support each job before they decide. Splitting a job is a big change to the map, so propose; never edit the KB by hand for it.
 
 ## When asked to rebuild a derived layer
 
-Value themes, surveys and use cases are rebuilt only on request. When you rebuild them, the reviewer rules still apply:
+Value themes, surveys and use cases are rebuilt only on request. When the study has several core jobs, build them per core job: a survey asks one job's executors about that job's outcomes. When you rebuild them, the reviewer rules still apply:
 - theme names are verb-first and at most 6 words ("Know your numbers cold")
 - each theme states its need in one sentence of at most 25 words
 - each outcome is shown with its text, never as an ID alone
@@ -167,7 +184,7 @@ kb_tool validate KB/odi-kb.yaml --transcripts Interviews
 
 First checks the KB's structure against `kb-schema.json`: required fields, ID formats, stages, source types and the references between steps and outcomes. Then it re-checks every stored quote against its transcript and compares each transcript with the content hash stored when it was added. A transcript that changed is reported; if the change is intended, add `--rehash` to accept the new content once every quote matches. Leave out `--transcripts` to check structure only. Run it after any hand edit. `merge` runs the same structure check and refuses to write a KB that would break it.
 
-Each KB records its schema version. `kb_tool migrate KB/odi-kb.yaml` brings an older KB up to date, and every command refuses a KB written by a newer version of the tool, with a message to update the skill.
+Each KB records its schema version. `kb_tool migrate KB/odi-kb.yaml` brings an older KB up to date, keeping a backup; every other command refuses an older KB with a message to migrate, and a KB written by a newer version of the tool with a message to update the skill.
 
 The KB's fields are explained one by one in `references/kb-schema.md`. Read it before editing a KB by hand or building anything that reads one.
 
