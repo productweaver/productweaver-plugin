@@ -3,6 +3,16 @@
 Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning.
 
+## 0.3.1 — 2026-11-10
+
+- **The first discovery map opens by itself.** `kb_tool map --open` shows the
+  map in your default browser, and the assistant uses it for a study's first
+  map and whenever you ask to see the map. Later rebuilds open nothing; reload
+  the tab. `map` always prints a `file://` link you can click. On a remote
+  machine, or one with no display, it says so and opens nothing. Set
+  `KB_TOOL_OPEN=0` to never open a browser.
+- `kb_tool` 0.6.0. The run log gains a `browser` field for `map --open`.
+
 ## 0.3.0 — 2026-11-10
 
 Everything a study needs now lives in one folder, `.pw-kb/`, at the root of

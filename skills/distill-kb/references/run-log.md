@@ -40,6 +40,7 @@ Commands add their own fields:
 | `backup` | merge, apply, validate, migrate | The backup made before the write, relative to the KB folder |
 | `proposal`, `proposal_type`, `decision` | apply | What was decided on and how. Logged even when the apply is refused |
 | `out`, `since` | review, map | The file written; for review, the date new items are counted from |
+| `browser` | map | Only with `--open`: `opened`, `failed` (no browser could be started), `no_display` (a remote session or no display, so it did not try) or `off` (`KB_TOOL_OPEN=0`) |
 | `structure_problems`, `outcome_quotes`, `drifted`, `rehash` | validate | Structure problems found, outcome quotes in the KB, transcripts whose content changed, whether `--rehash` was given |
 | `schema_from` | migrate | The schema version the KB had before |
 | `moved`, `transcripts_copied` | migrate | True when migrate moved a study made by an earlier version into `.pw-kb/`, and how many transcripts it copied there |

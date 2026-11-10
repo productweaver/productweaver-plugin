@@ -136,10 +136,17 @@ kb_tool map .pw-kb/pw-kb.yaml
 
 Run both after every merge or approved proposal, so reviewers never open a stale picture.
 
+Add `--open` to `map` when it writes the study's first map, and whenever the user asks to see the map: the tool then shows it in the user's default browser. Do not ask first. Leave `--open` out on later rebuilds, so the user does not get a new tab after every merge.
+
 - `.pw-kb/review.md` is a plain sheet listing decisions waiting, what is new since the last merge, the job map by stage with interview counts and the steps to ask about next.
 - `.pw-kb/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It is one file with the KB inside: it opens in any browser and works offline.
 
-A folder whose name starts with a dot is hidden in Finder and in most file dialogs. When you point the user to these files, give the full path, and offer to open the map in their browser.
+A folder whose name starts with a dot is hidden in Finder and in most file dialogs, so the user cannot easily find the map by hand. `map` prints a `link:` line with a `file://` address. Give the user that address, exactly as printed, every time you point to the map, and give the full path of `review.md`.
+
+- After `map --open`, say what the tool said: the map is open in their browser, or it could not be opened here and what to do instead. Never say it is open when the tool did not.
+- After a rebuild without `--open`, say the map is updated and that an open tab must be reloaded.
+- Do not run a command of your own to open the map (`open`, `xdg-open`, `start`). It would cost the user one more permission question.
+- When the files are on a machine the user cannot reach, such as a remote sandbox, hand them the map the way your host shares files.
 
 **The map contains personal data.** It embeds every interviewee's name and every quote. Before suggesting that anyone share it, say so, and let the user decide who may see it. The same goes for the KB file and `review.md`.
 
@@ -156,14 +163,14 @@ The reader may be a founder or a domain expert, not an ODI specialist, so write 
 - decisions waiting: what and why in one line each, and how to answer ("approve P1")
 - current solutions, briefly: each new group in one line with its why and its most used solutions, then what people stopped using and why. Point to the Solutions view in the map for the full list
 - what to ask about next: per core job, the steps that fewest people support, at most 5, as `review.md` lists them under "Ask about these next"; and which derived layers are now out of date
-- a pointer to `review.md` and `discovery-map.html`, with the note that the map holds the interviewees' names and quotes
+- a pointer to `review.md` and the map's `file://` link, with the note that the map holds the interviewees' names and quotes
 
 **After a first batch** everything is new, so that list would be the whole study. Report this instead, and leave the rest to `review.md` and the map:
 
 - each core job by its statement, how many people have it as their main job, its number of steps and three of them in plain words; then ask the user to confirm each one ("approve P1") or say what to change
 - each person in one line: who they are and the core job they are linked to, or why none
 - the rest as counts, with the one or two findings that matter most: outcomes, current solutions and their groups, and what people stopped using
-- what to ask about next, as above, and the pointer to `review.md` and `discovery-map.html`
+- what to ask about next, as above, and the pointer to `review.md` and the map, which `map --open` has just shown in their browser
 
 Skip tool jargon such as "patch", "object of control" or "verbatim check" unless the user uses it. Say "every quote matches the transcript word for word". Flag anything that should change how the user reads the KB, such as a new interview that contradicts the core job, or a segment that keeps growing without a home.
 

@@ -20,7 +20,8 @@ Commands
   apply     <kb.yaml> <proposal-id> --decision approve|reject [--note TEXT]
                                                               act on a proposed structural change
   review    <kb.yaml> [--since DATE] [--out FILE]             write review.md, a plain sheet for human reviewers
-  map       <kb.yaml> [--template FILE] [--out FILE]          write discovery-map.html, the interactive map, KB inside
+  map       <kb.yaml> [--template FILE] [--out FILE] [--open] write discovery-map.html, the interactive map, KB inside;
+                                                              --open also shows it in the default browser
   validate  <kb.yaml> [--structure-only] [--schema FILE] [--rehash]
                                                               check the structure, then every quote and transcript hash
   migrate   <kb.yaml> [--to .pw-kb/pw-kb.yaml] [--transcripts DIR ...]
@@ -34,6 +35,7 @@ Or install PyYAML once: python3 -m pip install pyyaml==6.0.3
 Every run, including a failed one or a dry run, appends one JSON line to .pw-kb/logs/kb_tool.jsonl:
 what was asked, how it ended, error and warning codes, counts, versions. Never quotes, names or file names.
 Set KB_TOOL_LOG=0 to switch the log off and KB_TOOL_AGENT=<assistant> to name the assistant that is running.
+Set KB_TOOL_OPEN=0 and map --open never starts a browser.
 """
 from __future__ import annotations
 
@@ -46,12 +48,14 @@ import glob
 import hashlib
 import json
 import os
+import pathlib
 import platform
 import re
 import shutil
 import sys
 import time
 import uuid
+import webbrowser
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -65,7 +69,7 @@ try:
 except ImportError:  # pragma: no cover - depends on the machine
     _jsonschema = None
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 SCHEMA_VERSION = 2
 
 BRAND = "Product Weaver"
@@ -2912,6 +2916,41 @@ def embed_kb(template: str, payload: str) -> str:
     return "\n".join(lines)
 
 
+def has_local_browser() -> bool:
+    """False on a machine the user is not sitting at: an SSH session, a remote container, Linux with no display."""
+    if os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_TTY"):
+        return False
+    if os.environ.get("CODESPACES") or os.environ.get("REMOTE_CONTAINERS"):
+        return False
+    if not sys.platform.startswith("linux"):
+        return True
+    if "microsoft" in platform.release().lower():  # WSL: the browser lives on the Windows side
+        return False
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+def open_in_browser(uri: str) -> str:
+    """Show a file in the default browser. Returns what happened: opened, failed, no_display or off."""
+    if os.environ.get("KB_TOOL_OPEN", "").strip() in ("0", "off", "false"):
+        return "off"
+    if not has_local_browser():  # here webbrowser would start a text browser in the terminal, or hang
+        return "no_display"
+    try:
+        return "opened" if webbrowser.open(uri) else "failed"
+    except (webbrowser.Error, OSError):
+        return "failed"
+
+
+MAP_NEXT = {
+    None: "Open the link in any browser. If the map is already open, reload the tab.",
+    "opened": "Opened in the default browser. If nothing appeared, open the link.",
+    "failed": "Could not start a browser here. Open the link in any browser.",
+    "no_display": "This machine has no browser to show it (a remote session, or no display). Download the file, "
+                  "or open it from your editor's file tree.",
+    "off": "Opening is switched off (KB_TOOL_OPEN=0). Open the link in any browser.",
+}
+
+
 def cmd_map(args: argparse.Namespace) -> int:
     """Rebuild the interactive discovery map with the current KB embedded, so it opens with no setup."""
     kb = load_kb(args.kb)
@@ -2932,8 +2971,13 @@ def cmd_map(args: argparse.Namespace) -> int:
     with open(out, "w", encoding="utf-8") as handle:
         handle.write(embed_kb(template, payload))
     args.run.note(out=args.run.relative(out))
-    print(f"wrote {out} ({len(kb['interviews'])} interviews, {len(kb['desired_outcomes']['outcomes'])} outcomes); "
-          "open it in any browser. It contains every name and quote in the KB, so treat it as personal data.")
+    uri = pathlib.Path(os.path.abspath(out)).as_uri()
+    browser = open_in_browser(uri) if args.open else None
+    if browser:
+        args.run.note(browser=browser)
+    print(f"wrote {out} ({len(kb['interviews'])} interviews, {len(kb['desired_outcomes']['outcomes'])} outcomes)\n"
+          f"link: {uri}\n{MAP_NEXT[browser]}\n"
+          "It contains every name and quote in the KB, so treat it as personal data.")
     return 0
 
 
@@ -3289,6 +3333,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp = command("map", cmd_map, "write discovery-map.html")
     sp.add_argument("--template")
     sp.add_argument("--out")
+    sp.add_argument("--open", action="store_true",
+                    help="also show the map in the default browser; set KB_TOOL_OPEN=0 to never do so")
     sp = command("validate", cmd_validate, f"check the KB's structure, then its quotes against {KB_FOLDER}/{COPIES}/")
     sp.add_argument("--structure-only", action="store_true", help="check the structure, not the quotes")
     sp.add_argument("--schema", help="path to kb-schema.json, if it is not next to the script")

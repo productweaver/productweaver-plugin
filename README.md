@@ -86,7 +86,8 @@ workspace holds one study.
 - `transcripts/`, a copy of each transcript the knowledge base quotes. Your own
   files are never changed;
 - `review.md`, the review sheet;
-- `discovery-map.html`, the interactive map, which works offline;
+- `discovery-map.html`, the interactive map, which works offline. The first
+  time it is made, it opens in your browser;
 - `patches/`, one file per batch, the audit trail of what each batch added;
 - `backups/`, copies of the knowledge base before each merge (the newest 20);
 - `logs/kb_tool.jsonl`, one line per run, for debugging. It holds no quotes,
