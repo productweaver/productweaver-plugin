@@ -18,6 +18,8 @@
   --amber:#a86400; --amber-soft:#fdf1dc;
   /* what people use today, by kind: kept apart from the green evidence ramp and from amber */
   --sol-product:#6a4bd4; --sol-tool:#1f8fc2; --sol-people:#a52f7c; --sol-own:#d44a2e;
+  /* map boxes: a step is a bordered card, a measure of success a green-tinted box */
+  --step-line:#a9b1c1; --out-fill:#f0f8f3; --out-line:#c6e4d2; --out-ink:#2b8558;
   --quote:#f7f8fa;
   --shadow:0 6px 24px rgba(20,30,60,.12);
   --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -31,6 +33,7 @@
     --ev1:#1d3a2b; --ev2:#2b6447; --ev3:#3f9a6c; --ev4:#78d3a3;
     --amber:#f0b45a; --amber-soft:#3a2c17; --quote:#151a23; --shadow:0 6px 24px rgba(0,0,0,.45);
     --sol-product:#7d5fe6; --sol-tool:#2fa0d4; --sol-people:#c04d98; --sol-own:#e85f3f;
+    --step-line:#4f5a75; --out-fill:#15241b; --out-line:#26452f; --out-ink:#6cc596;
     color-scheme:dark;
   }
 }
@@ -40,6 +43,7 @@
   --ev1:#1d3a2b; --ev2:#2b6447; --ev3:#3f9a6c; --ev4:#78d3a3;
   --amber:#f0b45a; --amber-soft:#3a2c17; --quote:#151a23; --shadow:0 6px 24px rgba(0,0,0,.45);
   --sol-product:#7d5fe6; --sol-tool:#2fa0d4; --sol-people:#c04d98; --sol-own:#e85f3f;
+  --step-line:#4f5a75; --out-fill:#15241b; --out-line:#26452f; --out-ink:#6cc596;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -139,9 +143,23 @@ aside.side{border-right:1px solid var(--line);background:var(--surface);display:
 .legend .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .sw{display:inline-block;width:14px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:4px}
 
-/* map nodes */
+/* map nodes. Each kind has its own shape, so a reader can tell them apart before reading:
+   a step is a bordered card with its number, a measure of success a green box with a target,
+   a solution a pill with an icon for its kind. The green bar on the left always means how many people said it. */
 .node{cursor:pointer}
 .node rect.box{fill:var(--surface);stroke:var(--line);stroke-width:1.2}
+.node.step rect.box{stroke:var(--step-line);stroke-width:1.5}
+.node.out rect.box{fill:var(--out-fill);stroke:var(--out-line)}
+.node.sol rect.box{fill:color-mix(in srgb,var(--k,var(--muted)) 9%,var(--surface));stroke:color-mix(in srgb,var(--k,var(--muted)) 45%,var(--surface))}
+.mk-k-product{--k:var(--sol-product)} .mk-k-everyday_tool{--k:var(--sol-tool)} .mk-k-people{--k:var(--sol-people)} .mk-k-own_method{--k:var(--sol-own)}
+.node .mk-num{font-size:12px;font-weight:700;fill:var(--accent)}
+.node .mk-div{stroke:var(--line);stroke-width:1}
+.node .mk-oico,.mk-cap.out use{color:var(--out-ink)}
+.node .mk-disc{fill:var(--k,var(--muted))}
+.node .mk-glyph{color:#fff}
+.node.sol.gone .mk-disc{fill:var(--muted)}
+.mk-cap text{font-family:var(--font);font-size:11.5px;font-weight:700;fill:var(--muted)}
+.mk-cap.sol use{color:var(--muted)}
 .node:hover rect.box{stroke:var(--accent)}
 .node.sel rect.box{stroke:var(--accent);stroke-width:2.4}
 .node.root rect.box{fill:var(--accent);stroke:var(--accent)}
@@ -155,14 +173,31 @@ aside.side{border-right:1px solid var(--line);background:var(--surface);display:
 .node.dim{opacity:.18}
 .node.hit rect.box{stroke:var(--accent);stroke-width:2.4}
 .edge{fill:none;stroke:var(--line);stroke-width:1.6}
+.edge.mk-e-out{stroke:var(--ev2)}
 .edge.dim{opacity:.2}
 .tog circle{fill:var(--surface);stroke:var(--accent);stroke-width:1.4}
 .tog text{fill:var(--accent);font-size:11px;font-weight:700}
 .thinflag{fill:var(--amber)}
 .node.sol .t1{font-size:13px}
-.node.sol.gone rect.box{stroke:var(--muted);stroke-dasharray:5 4}
+.node.sol.gone rect.box{fill:var(--surface);stroke:var(--muted);stroke-dasharray:5 4}
+.node.sol.gone:hover rect.box,.node.sol.gone.sel rect.box,.node.sol.gone.hit rect.box{stroke:var(--accent)}
 .sw.dash{background:transparent;border:1.5px dashed var(--muted)}
 .legend.wide{max-width:min(400px,calc(100% - 24px))}
+/* the key at the top of the legend draws each kind of box the way the map does */
+.mk-key{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.mk-key > span{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;font-weight:600;color:var(--ink);white-space:nowrap}
+.mk-key > .mk-kstep{background:var(--surface);border:1.5px solid var(--step-line);border-radius:5px;box-shadow:inset 4px 0 0 var(--ev3);padding-left:0}
+.mk-kstep b{color:var(--accent);font-size:.72rem;line-height:14px;padding:0 7px 0 11px;border-right:1px solid var(--line)}
+.mk-key > .mk-kout{background:var(--out-fill);border:1px solid var(--out-line);border-radius:5px;box-shadow:inset 4px 0 0 var(--ev3);padding-left:11px}
+.mk-key > .mk-ksol{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding-left:3px}
+svg.mk-ic.mk-c-out{color:var(--out-ink)}
+.mk-dot{width:17px;height:17px;border-radius:50%;background:var(--k,var(--muted));display:inline-grid;place-items:center;color:#fff;flex:none;vertical-align:-4px}
+.legend .mk-dot{margin-right:4px}
+/* icons in HTML: sized after the .stage svg rule, which would stretch them to full width */
+svg.mk-ic{width:14px;height:14px;display:inline-block;flex:none;cursor:inherit;vertical-align:-2px}
+.mk-dot svg.mk-ic{width:11px;height:11px;vertical-align:0}
+.stage.solmode .drawer svg.mk-ic{visibility:visible}
+.mk-numh{display:inline-block;border:1.5px solid var(--step-line);border-radius:4px;padding:0 5px;color:var(--accent);font-weight:800;letter-spacing:0;line-height:1.35}
 
 /* Solutions view: a full-width table over the map, inside the stage */
 /* --soltop is the toolbar's height, set from script; content fades out as it scrolls under the floating view switch */
@@ -374,7 +409,7 @@ aside.side{border-right:1px solid var(--line);background:var(--surface);display:
 }
 
 .tip{position:fixed;z-index:30;pointer-events:none;max-width:320px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:9px 11px;font-size:.82rem;line-height:1.4}
-.tip .tk{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--muted)}
+.tip .tk{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px}
 .tip .tt{font-weight:700;margin:2px 0 4px}
 .tip .tm{color:var(--muted)}
 .tip .tc{margin-top:5px;font-size:.76rem;color:var(--accent);font-weight:600}
@@ -386,7 +421,7 @@ aside.side{border-right:1px solid var(--line);background:var(--surface);display:
 @media (prefers-reduced-motion: reduce){.drawer{transition:none}}
 .dhead{padding:16px 18px 12px;border-bottom:1px solid var(--line);display:grid;gap:6px;position:relative}
 .dclose{position:absolute;top:10px;right:10px;border:0;background:var(--bg);color:var(--ink);border-radius:8px;width:30px;height:30px;font-size:1.1rem;line-height:1}
-.dkind{font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:var(--muted)}
+.dkind{font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:7px}
 .dtitle{font-size:1.15rem;font-weight:700;line-height:1.3;padding-right:34px;text-wrap:balance}
 .dbody{overflow:auto;padding:14px 18px 24px;display:grid;gap:14px;align-content:start}
 .explain{font-size:.88rem;color:var(--muted);background:var(--bg);border-radius:8px;padding:8px 10px}
@@ -438,6 +473,16 @@ button.tag:hover{border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
+<!-- icons for the kinds of boxes, shared by the map, its key, the tooltips and the details panel -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <symbol id="mk-i-out" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8" r="6.2"/><circle cx="8" cy="8" r="2.9"/></g><circle cx="8" cy="8" r="1" fill="currentColor"/></symbol>
+  <symbol id="mk-i-sol" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="5.4" rx="2.7"/><rect x="1" y="8.8" width="10" height="5.4" rx="2.7"/></g></symbol>
+  <symbol id="mk-i-product" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M2 6.6h12"/></g></symbol>
+  <symbol id="mk-i-everyday_tool" viewBox="0 0 16 16"><path d="M13.6 4.6a3.6 3.6 0 0 1-4.7 4.2l-4.6 4.6a1.5 1.5 0 0 1-2.1-2.1l4.6-4.6a3.6 3.6 0 0 1 4.2-4.7L8.9 4.3l.4 2.1 2.1.4z" fill="currentColor"/></symbol>
+  <symbol id="mk-i-people" viewBox="0 0 16 16"><circle cx="8" cy="5.2" r="2.8" fill="currentColor"/><path d="M2.6 14c.5-3 2.6-4.8 5.4-4.8s4.9 1.8 5.4 4.8z" fill="currentColor"/></symbol>
+  <symbol id="mk-i-own_method" viewBox="0 0 16 16"><path d="M3 13l.6-2.6 7.5-7.5 2 2-7.5 7.5zM9.6 4.4l2 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="mk-i-other" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="currentColor"/></symbol>
+</defs></svg>
 <header>
   <div class="top">
     <div class="titles">
@@ -4714,8 +4759,10 @@ function renderNext(){
 }
 
 /* ---------- map ---------- */
-const COL = {root:0, stage:310, step:520, out:880};
-const WID = {root:260, stage:150, step:300, out:320, sol:230};
+const COL = {root:0, stage:310, step:520, out:900};
+const WID = {root:260, stage:150, step:320, out:320, sol:250, cap:320};
+// where the title starts: after a step's number, a measure's target, a solution's icon
+const TX = {step:64, out:38, sol:44};
 let expanded = new Set(), selected=null, personHL=null, searchHL=null;
 let showSols = false, solHL = null, solMode = false, themeMode = false, overMode = false; // solHL: {kind:"sol"|"group", id}
 const solOn = sol => !!solHL && (solHL.kind==="group" ? sol.group===solHL.id : sol.id===solHL.id);
@@ -4728,9 +4775,12 @@ function wrap(text, chars){
 function strengthColor(n){ return n>=6?"var(--ev4)":n>=4?"var(--ev3)":n>=2?"var(--ev2)":n>=1?"var(--ev1)":"var(--line)"; }
 function stepNode(s){
   const sn={id:s.id,type:"step",ref:s,kids:[]};
-  if(expanded.has(s.id)) s.outs.forEach(o=>sn.kids.push({id:o.id,type:"out",ref:o,kids:[]}));
+  // a caption names each group under an open step, so no one has to guess what the boxes are
+  if(expanded.has(s.id) && s.outs.length){ sn.kids.push({id:s.id+"~cap-out",type:"cap",kind:"out",kids:[]});
+    s.outs.forEach(o=>sn.kids.push({id:o.id,type:"out",ref:o,kids:[]})); }
   // what people use at this step, after its measures
-  if(showSols) s.sols.forEach(x=>sn.kids.push({id:"x"+s.key+"~"+x.sol.id,type:"sol",ref:x,kids:[]}));
+  if(showSols && s.sols.length){ sn.kids.push({id:s.id+"~cap-sol",type:"cap",kind:"sol",after:sn.kids.length>0,kids:[]});
+    s.sols.forEach(x=>sn.kids.push({id:"x"+s.key+"~"+x.sol.id,type:"sol",ref:x,kids:[]})); }
   return sn;
 }
 function makeTree(){
@@ -4746,7 +4796,8 @@ function makeTree(){
   return root;
 }
 function measure(n){
-  const w=WID[n.type]; n.w=w; const chars=Math.floor((w-36)/7.1);
+  const w=WID[n.type]; n.w=w; const chars=Math.floor((w-(TX[n.type]||18)-18)/7.1);
+  if(n.type==="cap"){ n.lines=[]; n.h=n.after?30:18; return; }
   if(n.type==="root"){ n.lines=wrap(M.goal||"Main goal not set yet",Math.floor((w-28)/7.6));
     n.meta = many() ? `Core job ${M.job} · ${doers(M.jobById[M.job].main.length)}` : `The main goal · ${plural(M.ivs.length,"conversation")}`; }
   else if(n.type==="stage"){ n.lines=[n.name]; n.meta=`${plural(n.kids.length,"step")}`; }
@@ -4758,11 +4809,14 @@ function measure(n){
   n.h = 18 + n.lines.length*17 + 16 + (n.meta2?14:0);
   n.kids.forEach(measure);
 }
+// an open step, or a stage holding one, gets more room around it, so each step's group reads as its own
+const isOpen = n => n.type==="step" ? n.kids.length>0 : n.kids.some(isOpen);
 function place(n, depth, y0){
   n.x = n.type==="root"?COL.root:n.type==="stage"?COL.stage:n.type==="step"?COL.step:COL.out;
   const gap = n.type==="stage"?22:n.type==="step"?10:8;
   if(!n.kids.length){ n.y=y0; return n.h; }
-  let y=y0; n.kids.forEach((c,i)=>{ const h=place(c,depth+1,y); y+=h+(i<n.kids.length-1?gap:0); });
+  let y=y0; n.kids.forEach((c,i)=>{ const h=place(c,depth+1,y); const next=n.kids[i+1];
+    y+=h+(next?(isOpen(c)||isOpen(next)?Math.max(gap,34):gap):0); });
   const total=y-y0; const f=n.kids[0], l=n.kids[n.kids.length-1];
   n.y = (f.y + l.y + l.h)/2 - n.h/2;
   if(n.h>total){ const shift=(n.h-total)/2; shiftKids(n,shift); n.y=y0; return n.h; }
@@ -4770,12 +4824,14 @@ function place(n, depth, y0){
   return Math.max(total, n.y+n.h-y0);
 }
 function shiftKids(n,d){ n.kids.forEach(c=>{ c.y+=d; shiftKids(c,d); }); }
-let flat=[], tree=null;
+let flat=[], tree=null, bounds=null;
 function layout(){
   tree=makeTree(); measure(tree); place(tree,0,0);
   flat=[]; (function walk(n,p){ n.parent=p; flat.push(n); n.kids.forEach(c=>walk(c,n)); })(tree,null);
+  bounds={minX:Math.min(...flat.map(n=>n.x)), maxX:Math.max(...flat.map(n=>n.x+n.w)), minY:Math.min(...flat.map(n=>n.y)), maxY:Math.max(...flat.map(n=>n.y+n.h))};
 }
 function nodeMatches(n){
+  if(n.type==="cap") return null;
   const hits=[];
   if(personHL){ if(n.type==="step") hits.push(n.ref.people.includes(personHL)||n.ref.outs.some(o=>o.people.includes(personHL))||n.ref.solPeople.includes(personHL)); else if(n.type==="out") hits.push(n.ref.people.includes(personHL)); else if(n.type==="sol") hits.push(n.ref.ev.some(e=>e.interview===personHL)); else hits.push(null); }
   if(searchHL){ const q=searchHL; let t="";
@@ -4795,21 +4851,30 @@ function render(keepId){
   const E=[], N=[];
   const anyHL = personHL||searchHL||solHL;
   flat.forEach(n=>{
+    // a group caption: an icon and a few words over the boxes it names, with no box, no line and no click
+    if(n.type==="cap"){ const ty=n.h-5;
+      N.push(`<g class="mk-cap ${n.kind}" transform="translate(${n.x},${n.y})" aria-hidden="true"><use href="#mk-i-${n.kind}" x="3" y="${ty-11}" width="13" height="13"/><text x="22" y="${ty}">${n.kind==="out"?"Measures of success":"What they use today"}</text></g>`);
+      return; }
     const m = anyHL?nodeMatches(n):null;
     n.dim = anyHL && m===false;
     if(n.parent){ const p=n.parent; const x1=p.x+p.w, y1=p.y+p.h/2, x2=n.x, y2=n.y+n.h/2, mx=(x1+x2)/2;
-      E.push(`<path class="edge${n.dim?" dim":""}" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/>`); }
-    const isSol = n.type==="sol", gone = isSol && !n.ref.cur.length;
-    const label = isSol ? `${n.ref.sol.name}, ${n.meta}${n.meta2?", "+n.meta2:""}` : (n.lines||[]).join(" ");
-    let g=`<g class="node ${n.type}${gone?" gone":""}${n.dim?" dim":""}${anyHL&&m===true?" hit":""}${selected===n.id?" sel":""}" data-id="${esc(n.id)}" transform="translate(${n.x},${n.y})" tabindex="0" role="button" aria-label="${esc(label)}">`;
-    g+=`<rect class="box" width="${n.w}" height="${n.h}" rx="${n.type==="root"?14:isSol?16:10}"/>`;
+      E.push(`<path class="edge${n.type==="out"?" mk-e-out":""}${n.dim?" dim":""}" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/>`); }
+    const isSol = n.type==="sol", gone = isSol && !n.ref.cur.length, kind = isSol ? (KINDS[n.ref.sol.kind] ? n.ref.sol.kind : "other") : "";
+    const label = isSol ? `${gone?"Stopped using":"Used today"}: ${n.ref.sol.name}, ${n.meta}${n.meta2?", "+n.meta2:""}`
+      : n.type==="step" ? `Step ${n.ref.key}: ${n.ref.text}` : n.type==="out" ? `Measure of success: ${n.ref.plain}` : (n.lines||[]).join(" ");
+    let g=`<g class="node ${n.type}${isSol?" mk-k-"+kind:""}${gone?" gone":""}${n.dim?" dim":""}${anyHL&&m===true?" hit":""}${selected===n.id?" sel":""}" data-id="${esc(n.id)}" transform="translate(${n.x},${n.y})" tabindex="0" role="button" aria-label="${esc(label)}">`;
+    // a solution is a pill; steps and measures are boxes with small corners
+    g+=`<rect class="box" width="${n.w}" height="${n.h}" rx="${n.type==="root"?14:n.type==="stage"?10:isSol?Math.min(n.h/2,26):6}"/>`;
     let ppl=0;
     if(n.type==="step"){ ppl=n.ref.allPeople.length; }
     if(n.type==="out"){ ppl=n.ref.people.length; }
     if(n.type==="step"||n.type==="out"){ g+=`<rect x="0" y="0" width="6" height="${n.h}" rx="3" fill="${strengthColor(ppl)}"/>`; }
-    // a solution's side bar shows its kind, not how many people said it
-    if(isSol){ g+=`<rect x="6" y="9" width="5" height="${n.h-18}" rx="2.5" fill="var(${kindOf(n.ref.sol.kind)[1]})"/>`; }
-    const tx = n.type==="step"||n.type==="out"||isSol?18:14;
+    // a step shows its number in its own column: steps are done in order
+    if(n.type==="step"){ g+=`<text class="mk-num" x="29" y="${n.h/2+4}" text-anchor="middle">${esc(n.ref.key)}</text><line class="mk-div" x1="52" y1="9" x2="52" y2="${n.h-9}"/>`; }
+    if(n.type==="out"){ g+=`<use class="mk-oico" href="#mk-i-out" x="16" y="11" width="15" height="15"/>`; }
+    // a solution's icon shows its kind; the green bar stays reserved for how many people said it
+    if(isSol){ const cy=n.h/2; g+=`<circle class="mk-disc" cx="23" cy="${cy}" r="11"/><use class="mk-glyph" href="#mk-i-${kind}" x="16" y="${cy-7}" width="14" height="14"/>`; }
+    const tx = TX[n.type]||14;
     n.lines.forEach((l,i)=>{ g+=`<text class="t1" x="${tx}" y="${22+i*17}">${esc(l)}</text>`; });
     g+=`<text class="t2" x="${tx}" y="${22+n.lines.length*17+4}">${esc(n.meta)}</text>`;
     if(n.meta2) g+=`<text class="t2" x="${tx}" y="${22+n.lines.length*17+18}">${esc(n.meta2)}</text>`;
@@ -4857,34 +4922,50 @@ function ensureVisible(id){
   else view.y=top-T*view.k;
   applyView();
 }
+/* the same small marker names each kind of box wherever it appears: the map key, the tooltips, the details panel */
+const mkIcon = (id, cls) => `<svg class="mk-ic${cls?" "+cls:""}" viewBox="0 0 16 16" aria-hidden="true"><use href="#mk-i-${id}"/></svg>`;
+const mkStep = key => `<span class="mk-numh">${esc(key)}</span>`;
+const mkOut = () => mkIcon("out","mk-c-out");
+const mkSol = k => { const kind=KINDS[k]?k:"other"; return `<i class="mk-dot mk-k-${kind}">${mkIcon(kind)}</i>`; };
 function tipFor(n){
   if(n.type==="root") return `<div class="tk">${many()?`Core job ${esc(M.job)}`:"The main goal"}</div><div class="tt">${esc(M.goal)}</div><div class="tm">What these customers are trying to get done, in their words. Everything else on the map hangs off it.</div><div class="tc">Click for who does it</div>`;
   if(n.type==="stage") return `<div class="tk">Stage · ${esc(n.key)}</div><div class="tt">${esc(n.name)}</div><div class="tm">${esc(n.desc)}</div>`;
-  if(n.type==="step"){ const s=n.ref; return `<div class="tk">A step in their job</div><div class="tt">${esc(s.text)}</div>
+  if(n.type==="step"){ const s=n.ref; return `<div class="tk">${mkStep(s.key)}A step in their job</div><div class="tt">${esc(s.text)}</div>
     <div class="tm">${plural(s.allPeople.length,"person","people")} talked about this step. Click to see ${plural(s.outs.length,"measure")} of how they judge it, with their exact words.</div>
     ${s.allPeople.length<3?`<div class="tc" style="color:var(--amber)">Needs more conversations</div>`:""}`; }
   if(n.type==="sol"){ const x=n.ref, q=(x.curEv[0]||x.stopEv[0]);
-    return `<div class="tk">${x.cur.length?"What they use for this step":"Stopped using it for this step"}</div><div class="tt">${esc(x.sol.name)}</div>
+    return `<div class="tk">${mkSol(x.sol.kind)}${x.cur.length?"What they use for this step":"Stopped using it for this step"}</div><div class="tt">${esc(x.sol.name)}</div>
     <div class="tm">${esc(kindOf(x.sol.kind)[0])}${M.groupById[x.sol.group]&&x.sol.group?` · ${esc(M.groupById[x.sol.group].name)}`:""}</div>
     <div class="tm">${x.cur.length?`Used here by ${esc(names(x.cur))}.`:"No one here uses it now."}${x.stop.length?` Stopped: ${esc(names(x.stop))}.`:""}</div>
     ${q?`<div class="tm" style="margin-top:5px;font-style:italic">“${esc(short(q.quote,130))}”</div>`:""}<div class="tc">Click for what they said</div>`; }
-  const o=n.ref; return `<div class="tk">A measure of success</div><div class="tt">${esc(o.plain)}</div>
+  const o=n.ref; return `<div class="tk">${mkOut()}A measure of success</div><div class="tt">${esc(o.plain)}</div>
     <div class="tm">Said by ${o.people.map(id=>esc(M.ivById[id]?.name||id)).join(", ")||"no one yet"}.</div>
     ${o.ev[0]?`<div class="tm" style="margin-top:5px;font-style:italic">“${esc(o.ev[0].quote.length>130?o.ev[0].quote.slice(0,127)+"…":o.ev[0].quote)}”</div>`:""}<div class="tc">Click for all quotes</div>`;
 }
 function renderLegend(){
-  document.getElementById("legend").classList.toggle("wide", showSols && M.hasSols);
+  const sols = showSols && M.hasSols;
+  document.getElementById("legend").classList.toggle("wide", sols);
+  // the key draws each kind of box the way the map does, so the shapes are learned at a glance
   document.getElementById("legend").innerHTML = `
-    <div class="row"><b style="color:var(--ink)">How many people said it</b></div>
+    <div class="mk-key"><span class="mk-kstep"><b>${esc(M.steps[0]?.key||"1")}</b>Step</span><span class="mk-kout">${mkOut()}Measure of success</span>${sols?`<span class="mk-ksol">${mkSol("")}Used today</span>`:""}</div>
+    <div class="row"><b style="color:var(--ink)">Green bar: how many people said it</b></div>
     <div class="row"><span><i class="sw" style="background:var(--ev1)"></i>1</span><span><i class="sw" style="background:var(--ev2)"></i>2–3</span><span><i class="sw" style="background:var(--ev3)"></i>4–5</span><span><i class="sw" style="background:var(--ev4)"></i>6+</span><span><i class="sw" style="background:var(--amber);border-radius:50%;width:10px"></i>needs more voices</span></div>
-    ${showSols && M.hasSols ? `<div class="row"><b style="color:var(--ink)">What they use today</b></div>
-    <div class="row">${Object.values(KINDS).map(([l,v])=>`<span><i class="sw" style="background:var(${v})"></i>${esc(l)}</span>`).join("")}<span><i class="sw dash"></i>dashed = stopped using</span></div>` : ""}
-    <div class="row">Click a step's + to see how customers judge it. Drag to move, scroll to zoom.</div>`;
+    ${sols ? `<div class="row"><b style="color:var(--ink)">What they use today, by kind</b></div>
+    <div class="row">${Object.entries(KINDS).map(([k,[l]])=>`<span>${mkSol(k)}${esc(l)}</span>`).join("")}<span><i class="sw dash"></i>dashed = stopped using</span></div>` : ""}
+    <div class="row">Click a step's + to see how customers judge it. Drag or scroll to move. Pinch or Ctrl + scroll to zoom.</div>`;
 }
 
 /* ---------- pan and zoom ---------- */
 const svg=document.getElementById("svg"), vp=document.getElementById("vp");
-function applyView(){ vp.setAttribute("transform",`translate(${view.x},${view.y}) scale(${view.k})`); }
+const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
+// keep part of the map on screen, so a fast scroll or a fling can never lose it
+function keepInView(){
+  if(!bounds) return; const r=svg.getBoundingClientRect(); if(!r.width||!r.height) return;
+  const m=120, L=bounds.minX*view.k+view.x, R=bounds.maxX*view.k+view.x, T=bounds.minY*view.k+view.y, B=bounds.maxY*view.k+view.y;
+  if(R<m) view.x+=m-R; else if(L>r.width-m) view.x-=L-(r.width-m);
+  if(B<m) view.y+=m-B; else if(T>r.height-m) view.y-=T-(r.height-m);
+}
+function applyView(){ keepInView(); vp.setAttribute("transform",`translate(${view.x},${view.y}) scale(${view.k})`); }
 function fit(readable){
   if(!flat.length) return; const r=svg.getBoundingClientRect();
   const minX=Math.min(...flat.map(n=>n.x)), maxX=Math.max(...flat.map(n=>n.x+n.w))+20, minY=Math.min(...flat.map(n=>n.y)), maxY=Math.max(...flat.map(n=>n.y+n.h));
@@ -4892,12 +4973,39 @@ function fit(readable){
   view.x=Math.max(20,(r.width-(maxX-minX)*view.k)/2)-minX*view.k;
   const ch=(maxY-minY)*view.k; view.y=(ch<=r.height-110? 70+((r.height-110)-ch)/2 : 70)-minY*view.k; applyView();
 }
-function zoomAt(f,cx,cy){ const k2=Math.min(2.5,Math.max(.2,view.k*f)); view.x=cx-(cx-view.x)*(k2/view.k); view.y=cy-(cy-view.y)*(k2/view.k); view.k=k2; applyView(); }
-let drag=null;
-svg.addEventListener("pointerdown",e=>{ if(e.target.closest(".node")) return; drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y,moved:false}; svg.setPointerCapture(e.pointerId); svg.classList.add("dragging"); });
-svg.addEventListener("pointermove",e=>{ if(!drag) return; const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(Math.abs(dx)+Math.abs(dy)>3) drag.moved=true; view.x=drag.vx+dx; view.y=drag.vy+dy; applyView(); });
-svg.addEventListener("pointerup",e=>{ if(drag && !drag.moved){ closeDrawer(); } drag=null; svg.classList.remove("dragging"); });
-svg.addEventListener("wheel",e=>{ e.preventDefault(); const r=svg.getBoundingClientRect(); zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX-r.left,e.clientY-r.top); },{passive:false});
+function zoomAt(f,cx,cy){ const k2=clamp(view.k*f,.2,2.5); view.x=cx-(cx-view.x)*(k2/view.k); view.y=cy-(cy-view.y)*(k2/view.k); view.k=k2; applyView(); }
+/* Scroll moves the map; pinch, or Ctrl or ⌘ with the wheel, zooms. The zoom follows how far the fingers or the wheel
+   travel, so a trackpad's many small events zoom a little each, and one wheel notch about 14%. */
+let drag=null, pinch=null, gesture=null; const touches=new Map();
+function twoFingers(){ const [a,b]=[...touches.values()]; return {d:Math.hypot(a.x-b.x,a.y-b.y)||1, x:(a.x+b.x)/2, y:(a.y+b.y)/2}; }
+svg.addEventListener("pointerdown",e=>{
+  if(e.pointerType==="touch"){ touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    // a second finger turns the drag into a pinch, wherever the fingers land
+    if(touches.size===2){ const r=svg.getBoundingClientRect(), f=twoFingers(); drag=null; svg.classList.remove("dragging");
+      try{ svg.setPointerCapture(e.pointerId); }catch(_){}
+      pinch={d:f.d, k:view.k, x:f.x-r.left, y:f.y-r.top, vx:view.x, vy:view.y}; return; } }
+  if(e.target.closest(".node")) return;
+  drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y,moved:false};
+  try{ svg.setPointerCapture(e.pointerId); }catch(_){}
+  svg.classList.add("dragging"); });
+svg.addEventListener("pointermove",e=>{
+  if(touches.has(e.pointerId)) touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch && touches.size===2){ const r=svg.getBoundingClientRect(), f=twoFingers(), k2=clamp(pinch.k*f.d/pinch.d,.2,2.5), s=k2/pinch.k;
+    view.k=k2; view.x=(f.x-r.left)-(pinch.x-pinch.vx)*s; view.y=(f.y-r.top)-(pinch.y-pinch.vy)*s; applyView(); return; }
+  if(!drag) return; const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(Math.abs(dx)+Math.abs(dy)>3) drag.moved=true; view.x=drag.vx+dx; view.y=drag.vy+dy; applyView(); });
+function endPointer(e){ touches.delete(e.pointerId); if(touches.size<2) pinch=null; svg.classList.remove("dragging"); }
+svg.addEventListener("pointerup",e=>{ const tap=drag && !drag.moved && !pinch; endPointer(e); if(tap) closeDrawer(); drag=null; });
+svg.addEventListener("pointercancel",e=>{ endPointer(e); drag=null; });
+svg.addEventListener("wheel",e=>{
+  e.preventDefault(); const r=svg.getBoundingClientRect();
+  const unit=e.deltaMode===1?16:e.deltaMode===2?r.height:1; let dx=e.deltaX*unit, dy=e.deltaY*unit;
+  // a trackpad pinch arrives as a wheel event with ctrlKey set; Safari sends gesture events instead (below)
+  if(e.ctrlKey||e.metaKey){ if(!gesture) zoomAt(Math.exp(-clamp(dy,-15,15)*.01),e.clientX-r.left,e.clientY-r.top); return; }
+  if(e.shiftKey && !dx){ dx=dy; dy=0; }
+  view.x-=dx; view.y-=dy; applyView(); },{passive:false});
+svg.addEventListener("gesturestart",e=>{ e.preventDefault(); gesture={k:view.k}; });
+svg.addEventListener("gesturechange",e=>{ if(!gesture) return; e.preventDefault(); const r=svg.getBoundingClientRect(); zoomAt(gesture.k*e.scale/view.k,e.clientX-r.left,e.clientY-r.top); });
+svg.addEventListener("gestureend",e=>{ e.preventDefault(); gesture=null; });
 document.getElementById("bIn").onclick=()=>{ const r=svg.getBoundingClientRect(); zoomAt(1.2,r.width/2,r.height/2); };
 document.getElementById("bOut").onclick=()=>{ const r=svg.getBoundingClientRect(); zoomAt(1/1.2,r.width/2,r.height/2); };
 document.getElementById("bFit").onclick=()=>fit(false);
@@ -5245,7 +5353,7 @@ overview.addEventListener("click",e=>{
 const drawer=document.getElementById("drawer");
 function closeDrawer(){ drawer.classList.remove("open"); document.getElementById("stage").classList.remove("has-drawer"); selected=null; document.querySelectorAll(".node.sel").forEach(n=>n.classList.remove("sel")); }
 document.getElementById("dClose").onclick=closeDrawer;
-function setDrawer(kind,title,body){ document.getElementById("dKind").textContent=kind; document.getElementById("dTitle").textContent=title; document.getElementById("dBody").innerHTML=body; drawer.classList.add("open"); document.getElementById("stage").classList.add("has-drawer");
+function setDrawer(kind,title,body,mark){ document.getElementById("dKind").innerHTML=(mark||"")+esc(kind); document.getElementById("dTitle").textContent=title; document.getElementById("dBody").innerHTML=body; drawer.classList.add("open"); document.getElementById("stage").classList.add("has-drawer");
   // links that point at the map leave the Solutions view first
   document.getElementById("dBody").querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>{ setView(false, true); focusNode(b.dataset.go); }));
   document.getElementById("dBody").querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>{ setView(false, true); jobFor(b.dataset.person); setPerson(b.dataset.person); openPerson(b.dataset.person); fitHits(); }));
@@ -5285,7 +5393,7 @@ function openDetails(n){
       ${s.covers?`<div class="explain">${esc(s.covers)}</div>`:""}
       <div><div class="sect">How they judge this step (${s.outs.length})</div><div class="olist">${s.outs.slice().sort((a,b)=>b.people.length-a.people.length).map(o=>`<button class="oitem" type="button" data-go="${o.id}"><span>${esc(o.plain)}</span>${dots(o.people.length)}</button>`).join("")||`<p class="hint">None yet.</p>`}</div></div>
       ${M.hasSols?stepSolsHTML(s):""}
-      <div><div class="sect">What people said while describing it</div>${quotesHTML(s.ev)}</div>`);
+      <div><div class="sect">What people said while describing it</div>${quotesHTML(s.ev)}</div>`, mkStep(s.key));
     return;
   }
   if(n.type==="sol"){ openSolution(n.ref.sol.id); return; }
@@ -5295,7 +5403,7 @@ function openDetails(n){
     <div class="explain">Customers use this to judge whether <b>${esc(step?.text||"this step")}</b> went well. The fewer problems here, the better the step goes for them.</div>
     <div class="formal"><b>Formal statement:</b> ${esc(o.text)} <span style="opacity:.7">(#${esc(o.oid)})</span></div>
     ${o.people.length===1?`<div class="flag">Heard from one person so far. Worth testing in the next conversation.</div>`:""}
-    <div><div class="sect">In their own words (${plural(o.ev.length,"quote")})</div>${quotesHTML(o.ev)}</div>`);
+    <div><div class="sect">In their own words (${plural(o.ev.length,"quote")})</div>${quotesHTML(o.ev)}</div>`, mkOut());
 }
 function openPerson(id){
   const i=M.ivById[id]; if(!i) return;
@@ -5335,7 +5443,7 @@ function openSolution(id){
     <div><div class="sect">Used for</div><div class="olist">${sc.at.map(a=>`<button class="oitem" type="button" data-go="${esc(a.step.id)}"><span>${esc(a.step.text)}</span><span class="meta">${where(a)}</span></button>`).join("")}</div></div>
     ${sc.curEv.length?`<div><div class="sect">What they said (${plural(sc.curEv.length,"quote")})</div>${quotesHTML(sc.curEv)}</div>`:""}
     ${sc.stopEv.length?`<div><div class="sect">Why they stopped</div>${quotesHTML(sc.stopEv)}</div>`:""}
-    ${other.length&&inJob?`<p class="hint" style="margin:0">Also used in ${other.map(j=>`<button type="button" class="linkbtn" data-job="${esc(j)}">${esc(jobName(j))}</button>`).join(", ")}. The numbers above count ${esc(jobName(M.job))} only.</p>`:""}`);
+    ${other.length&&inJob?`<p class="hint" style="margin:0">Also used in ${other.map(j=>`<button type="button" class="linkbtn" data-job="${esc(j)}">${esc(jobName(j))}</button>`).join(", ")}. The numbers above count ${esc(jobName(M.job))} only.</p>`:""}`, mkSol(s.kind));
 }
 function openGroup(id){
   const g=M.groupById[id]; if(!g) return;
@@ -5374,13 +5482,14 @@ document.getElementById("btnRead").onclick=()=>openModal(`
     <dt>The main goal</dt><dd>The blue box. What these customers are trying to get done, with no product named.</dd>
     ${many()?`<dt>Core jobs</dt><dd>These people do ${M.jobs.length} different jobs, so the study has ${M.jobs.length} main goals, A, B and so on. Each has its own map. Pick one with the buttons under the title.</dd>`:""}
     <dt>Stages</dt><dd>The light blue labels: Plan, Gather, Set up, Check, Do it, Watch, Adjust, Wrap up. Almost any job moves through these.</dd>
-    <dt>Steps</dt><dd>What customers actually do inside each stage.</dd>
-    <dt>Measures of success</dt><dd>Open a step with + to see them. Each one is a way customers judge that step, such as "less time to find a load". They are written so a survey can later ask how much each one matters.</dd>
-    <dt>Colored edge</dt><dd>How many people said it. Darker green means more people.</dd>
+    <dt>Steps</dt><dd>White cards with a number, such as ${esc(M.steps[0]?.key||"A.1")}. What customers actually do inside each stage, in order.</dd>
+    <dt>Measures of success</dt><dd>Green boxes with a target. Open a step with + to see them, under "Measures of success". Each one is a way customers judge that step, such as "less time to find a load". They are written so a survey can later ask how much each one matters.</dd>
+    <dt>Green bar</dt><dd>On the left of steps and measures: how many people said it. Darker green means more people.</dd>
     <dt>Amber dot</dt><dd>Fewer than 3 people talked about this step. It needs more conversations.</dd>
-    ${M.hasSols?`<dt>Solutions in use today</dt><dd>The products, everyday tools, other people and own methods people rely on now to get a step done. They are grouped by the work they compete for, and each group says why. Turn on Show solutions to see them beside each step, or open the Solutions view for the full list.</dd>
+    ${M.hasSols?`<dt>Solutions in use today</dt><dd>Rounded pills with a colored icon for the kind. The products, everyday tools, other people and own methods people rely on now to get a step done. They are grouped by the work they compete for, and each group says why. Turn on Show solutions to see them beside each step, under "What they use today", or open the Solutions view for the full list.</dd>
     <dt>Stopped using</dt><dd>Something people used for a step and then dropped. On the map it has a dashed outline. Why they stopped is often a clue to what matters.</dd>`:""}
     ${M.hasThemes?`<dt>Value themes</dt><dd>A few needs, each written as "Help me…", that gather the measures of success serving the same judgment, often across several steps. Open the Value themes view to see each theme with its measures, what people use today and what they said. Sort ideas into them.</dd>`:""}
+    <dt>Moving around</dt><dd>Drag or scroll to move. Pinch, or hold Ctrl or ⌘ and scroll, to zoom; the + and − buttons zoom too. Fit brings the whole map back.</dd>
   </dl>
   <p>Click any box to read the exact quotes behind it. Pick a person on the left to see what their conversation added.</p>`);
 document.getElementById("btnBuilt").onclick=()=>openModal(`

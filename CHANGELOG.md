@@ -3,6 +3,20 @@
 Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning.
 
+## 0.5.1 — 2026-11-11
+
+- **Calmer navigation in the discovery map.** Scrolling with a trackpad or a
+  mouse wheel now moves the map. To zoom, pinch, or hold Ctrl or ⌘ while you
+  scroll. The zoom follows how far you pinch, so one swipe no longer jumps
+  from the smallest view to the biggest. Two-finger pinch works on phones and
+  tablets, and the map can no longer be scrolled out of sight.
+- **Each kind of box on the map has its own look.** A step is a white card
+  with its number, a measure of success is a green box with a target, and a
+  solution is a rounded pill with an icon for its kind. Under an open step, a
+  caption names each group: "Measures of success" and "What they use today".
+  The legend starts with a key that draws the three kinds. The green bar on
+  the left now always means how many people said it.
+
 ## 0.5.0 — 2026-11-11
 
 - **The skill is now called pw-discovery** (it was distill-kb). In Claude
