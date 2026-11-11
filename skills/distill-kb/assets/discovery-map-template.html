@@ -202,6 +202,21 @@ aside.side{border-right:1px solid var(--line);background:var(--surface);display:
 .oitem .meta{display:flex;gap:8px;align-items:center;flex:none;color:var(--muted);font-size:.78rem;white-space:nowrap}
 .linkbtn{border:0;background:none;padding:0;color:inherit;text-decoration:underline;text-underline-offset:2px;font-size:inherit}
 .linkbtn:hover{color:var(--accent)}
+/* Value themes view: one card per theme, in the same kind of overlay as the Solutions view */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr));gap:14px;align-items:start}
+.tcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:grid;gap:12px;min-width:0}
+.solin .tcard h3{margin:0;font-size:1.08rem;line-height:1.3;text-wrap:balance}
+.tneed{margin:3px 0 0;font-family:var(--font-read);font-size:1rem;line-height:1.4}
+.tsig{display:grid;gap:5px;font-size:.84rem}
+.tsig small{color:var(--muted);font-size:.74rem}
+.twhy{margin:0;font-size:.86rem;color:var(--muted)}
+.tcard .sect{margin-top:0}
+.tcard .oitem{width:100%;flex-wrap:wrap}
+.tcard .oitem > span:first-child{flex:1 1 10em;min-width:0}
+.oitem small{display:block;color:var(--muted);font-size:.74rem;margin-top:2px}
+.hlk{display:grid;gap:6px}
+.hlk + .hlk{margin-top:8px}
+.hlk .tag{justify-self:start;font-weight:700}
 @media (max-width:860px){
   .solview{padding-left:12px;padding-right:12px}
   .soltable thead{display:none}
@@ -211,6 +226,151 @@ aside.side{border-right:1px solid var(--line);background:var(--surface);display:
   .soltable td{display:grid;grid-template-columns:100px minmax(0,1fr);gap:10px}
   .soltable td::before{content:attr(data-l);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--muted);padding-top:2px}
   .soltable tr.ghead th{border-top:1px solid var(--line)}
+}
+
+/* Overview view: the study as a short story, for someone new to the method. One sheet, a rail that shows how the
+   findings build on each other, a small question and a large answer per step. Four type sizes. Sans is our words;
+   serif is the customers' words only. */
+.ov-page{max-width:1010px;margin:0 auto;display:grid;grid-template-columns:190px minmax(0,1fr);gap:0 34px;align-items:start}
+.ov-rail{position:sticky;top:var(--soltop,64px);padding-top:30px;font-size:.84rem}
+.ov-rail p{margin:0 0 12px;color:var(--muted)}
+.ov-rail ol{list-style:none;margin:0;padding:0;display:grid}
+.ov-rail li{position:relative;padding-bottom:16px}
+.ov-rail li::before{content:"";position:absolute;left:11px;top:24px;bottom:0;width:2px;background:var(--line)}
+.ov-rail li:last-child{padding-bottom:0}
+.ov-rail li:last-child::before{display:none}
+.ov-rail li button{border:0;background:none;padding:0;width:100%;text-align:left;display:grid;grid-template-columns:24px 1fr;gap:10px;color:var(--muted);align-items:start}
+.ov-rail li b{width:24px;height:24px;border-radius:50%;border:2px solid var(--line);background:var(--bg);display:grid;place-items:center;font-size:.72rem;font-variant-numeric:tabular-nums;position:relative;z-index:1}
+.ov-rail li span{display:grid;line-height:1.3;padding-top:3px;font-weight:700}
+.ov-rail li small{font-weight:400;font-size:.76rem}
+.ov-rail li button:hover,.ov-rail li button.on{color:var(--ink)}
+.ov-rail li button.on b{border-color:var(--ev3);background:var(--ev3);color:#fff}
+.ov-railnext{margin-top:18px;border:1px solid var(--accent);background:none;color:var(--accent);font-weight:700;font-size:.84rem;border-radius:8px;padding:6px 10px;width:100%;text-align:left}
+.ov-railnext:hover{background:var(--accent-soft)}
+
+.ov-sheet{background:var(--surface);border:1px solid var(--line);border-radius:14px;min-width:0}
+.ov-blk{padding:30px 38px}
+.ov-blk + .ov-blk{border-top:1px solid var(--line)}
+.ov-sheet p,.ov-sheet h2,.ov-sheet h3{margin:0}
+.ov-note{font-size:.84rem;color:var(--muted);max-width:66ch}
+.ov-body{font-size:1rem;line-height:1.55;max-width:64ch}
+.ov-lk{border:0;background:none;padding:0;color:var(--accent);font-size:.84rem;font-weight:700;text-align:left}
+.ov-lk:hover{text-decoration:underline;text-underline-offset:3px}
+.ov-todo{border:1px dashed var(--line);border-radius:8px;padding:10px 12px;font-size:.9rem;color:var(--muted);max-width:66ch}
+.ov-todo b{color:var(--ink)}
+.ov-sheet blockquote{font-size:1rem;line-height:1.5;padding:10px 14px;max-width:66ch}
+
+.ov-lead{display:grid;gap:18px}
+.ov-lead .ov-bl{font-size:1.9rem;line-height:1.2;font-weight:700;letter-spacing:-.01em;text-wrap:balance;max-width:26em}
+.ov-sure{display:grid;gap:8px;max-width:66ch}
+.ov-gauge{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:.78rem;color:var(--muted)}
+.ov-gauge li{border-top:5px solid var(--line);padding-top:5px;line-height:1.25}
+.ov-gauge li.done{border-top-color:var(--ev3)}
+.ov-gauge li.now{border-top-color:var(--ev3);color:var(--ink);font-weight:700}
+
+.ov-blk.ov-next{padding:0}
+.ov-nexttog{border:0;background:none;color:var(--ink);text-align:left;width:100%;padding:20px 38px;display:flex;gap:12px 24px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.ov-ntitle{display:grid;gap:6px;min-width:0}
+.ov-ntitle > b{font-size:1.15rem;line-height:1.25}
+.ov-nsum{display:flex;gap:6px 18px;flex-wrap:wrap;font-size:.84rem;color:var(--muted)}
+.ov-nsum > span{display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+.ov-pill{font-size:.74rem;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap;color:var(--ink)}
+.ov-pill.go{background:var(--ev1)} .ov-pill.try{background:var(--accent-soft);color:var(--accent)} .ov-pill.wait{background:var(--amber-soft)}
+.ov-ncta{display:inline-flex;gap:8px;align-items:center;background:var(--accent);color:var(--surface);font-weight:700;font-size:.95rem;border-radius:10px;padding:10px 16px;white-space:nowrap}
+.ov-nexttog:hover .ov-ncta{filter:brightness(1.08)}
+.stage.solmode .ov-ncta svg{visibility:visible;cursor:inherit}
+.ov-ncta svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
+.ov-nexttog[aria-expanded="true"] .ov-ncta{background:var(--accent-soft);color:var(--accent)}
+.ov-nexttog[aria-expanded="true"] .ov-nsum{display:none}
+.ov-nexttog[aria-expanded="true"] .ov-ncta svg{transform:rotate(180deg)}
+@media (prefers-reduced-motion:reduce){ .ov-ncta svg{transition:none} }
+.ov-nextbody{padding:4px 38px 28px;display:grid;gap:16px}
+.ov-tracks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.ov-track{display:grid;gap:10px;align-content:start;padding:0 20px;border-left:1px solid var(--line)}
+.ov-track:first-child{padding-left:0;border-left:0}
+.ov-track:last-child{padding-right:0}
+.ov-tname{font-size:.84rem;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ov-track h3{font-size:1.05rem;line-height:1.3}
+.ov-track dl{margin:0;display:grid;gap:8px;font-size:.9rem}
+.ov-track dt{font-size:.78rem;color:var(--muted)}
+.ov-track dd{margin:0}
+.ov-track q{font-family:var(--font-read);quotes:"“" "”"}
+.ov-next > .ov-todo{margin:0 38px 24px}
+
+.ov-step{display:grid;gap:16px;scroll-margin-top:var(--soltop,64px)}
+.ov-ask{display:flex;gap:10px;align-items:center;font-size:.9rem;color:var(--muted);font-weight:700}
+.ov-ask b{width:24px;height:24px;border-radius:50%;background:var(--ev3);color:#fff;display:grid;place-items:center;font-size:.74rem;font-variant-numeric:tabular-nums;flex:none}
+.ov-ans{font-size:1.5rem;line-height:1.25;font-weight:700;letter-spacing:-.005em;text-wrap:balance;max-width:28em}
+.ov-step .ov-ask + .ov-ans{margin-top:-8px}
+.ov-foot{display:flex;gap:6px 20px;justify-content:space-between;align-items:baseline;flex-wrap:wrap}
+
+.ov-people{display:flex;gap:6px;flex-wrap:wrap}
+.ov-person{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:3px 12px 3px 4px;font-size:.84rem;display:flex;gap:7px;align-items:center}
+.ov-person:hover{border-color:var(--accent)}
+.ov-person i{font-style:normal;width:22px;height:22px;border-radius:50%;background:var(--ev1);display:grid;place-items:center;font-size:.7rem;font-weight:700;flex:none}
+.ov-person small{color:var(--muted);font-size:.78rem}
+
+.ov-parts{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px}
+.ov-part{display:grid;gap:5px;font-size:.8rem;min-width:0}
+.ov-part i{height:10px;border-radius:3px;background:var(--line)}
+.ov-part.c3 i{background:var(--ev4)} .ov-part.c2 i{background:var(--ev3)} .ov-part.c1 i{background:var(--ev2)} .ov-part.c0 i{background:var(--amber);opacity:.55}
+.ov-part b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ov-part span{color:var(--muted);font-size:.76rem}
+.ov-part.c0 span{color:var(--amber)}
+
+.ov-tbl{width:100%;border-collapse:collapse;font-size:.92rem}
+.ov-tbl th,.ov-tbl td{text-align:left;padding:10px 14px 10px 0;border-top:1px solid var(--line);vertical-align:top}
+.ov-tbl thead th{border-top:0;font-size:.78rem;font-weight:400;color:var(--muted);padding-top:0;padding-bottom:6px}
+.ov-tbl tbody th{font-weight:700}
+.ov-tbl tbody th .ov-lk{font-size:inherit;color:var(--ink)}
+.ov-tbl tbody th .ov-lk:hover{color:var(--accent)}
+.ov-tbl td:last-child,.ov-tbl th:last-child{padding-right:0}
+.ov-tbl .sm{color:var(--muted);font-size:.84rem}
+.ov-tbl .num{white-space:nowrap;font-variant-numeric:tabular-nums}
+.ov-heard{display:flex;gap:8px;align-items:center;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ov-heard i{display:block;width:72px;height:8px;border-radius:4px;background:var(--bg);border:1px solid var(--line);overflow:hidden;flex:none}
+.ov-heard i::before{content:"";display:block;height:100%;width:var(--w);background:var(--ev3)}
+
+.ov-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 28px;font-size:.78rem;color:var(--muted);padding-bottom:6px}
+.ov-fall{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 28px;padding:16px 0;border-top:1px solid var(--line);align-items:start}
+.ov-fall:last-child{padding-bottom:0}
+.ov-fall h3{font-size:1.05rem;line-height:1.3;margin-bottom:4px}
+.ov-fall p{font-size:.92rem}
+.ov-fall .ov-with{font-size:.8rem;color:var(--muted);margin-top:6px}
+
+.ov-theme{border:0;border-top:1px solid var(--line);background:none;color:var(--ink);text-align:left;padding:14px 0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 24px;align-items:center;width:100%}
+.ov-theme:hover .tl{color:var(--accent)}
+.ov-theme .tl{font-size:1.05rem;font-weight:700;line-height:1.3}
+.ov-theme .tn{font-family:var(--font-read);font-size:1rem;line-height:1.45;grid-column:1;max-width:60ch}
+.ov-theme .ov-heard{grid-column:2;grid-row:1 / span 2}
+.ov-theme.first{border-top:2px solid var(--ev3)}
+.ov-theme.first .tl::after{content:"Best supported";margin-left:10px;font-size:.74rem;font-weight:700;background:var(--ev1);border-radius:999px;padding:2px 9px;vertical-align:2px;white-space:nowrap}
+
+.ov-end{border:0;border-top:1px solid var(--line);background:none;color:var(--ink);width:100%;padding:22px 38px;display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;font-size:1rem;border-radius:0 0 14px 14px;text-align:left}
+.ov-end b{color:var(--accent)}
+.ov-end:hover{background:var(--accent-soft)}
+
+@media (max-width:860px){
+  .ov-page{grid-template-columns:minmax(0,1fr)}
+  .ov-rail{display:none}
+  .ov-blk{padding:22px 18px}
+  .ov-lead .ov-bl{font-size:1.5rem}
+  .ov-ans{font-size:1.3rem}
+  .ov-nexttog{padding:18px} .ov-ncta{width:100%;justify-content:center} .ov-nextbody{padding:0 18px 22px} .ov-next > .ov-todo{margin:0 18px 18px}
+  .ov-tracks{grid-template-columns:minmax(0,1fr)}
+  .ov-track{padding:16px 0 0;border-left:0;border-top:1px solid var(--line);margin-top:16px}
+  .ov-track:first-child{border-top:0;padding-top:0;margin-top:0}
+  .ov-gauge{font-size:.72rem}
+  .ov-parts{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 3px}
+  .ov-fall{grid-template-columns:minmax(0,1fr)}
+  .ov-cols{display:none}
+  .ov-tbl thead{display:none}
+  .ov-tbl tr{display:grid;padding:10px 0;border-top:1px solid var(--line);gap:3px}
+  .ov-tbl tbody tr:first-child{border-top:0;padding-top:0}
+  .ov-tbl th,.ov-tbl td{border:0;padding:0}
+  .ov-theme{grid-template-columns:minmax(0,1fr)}
+  .ov-theme .ov-heard{grid-column:1;grid-row:auto}
+  .ov-end{padding:18px}
 }
 
 .tip{position:fixed;z-index:30;pointer-events:none;max-width:320px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:9px 11px;font-size:.82rem;line-height:1.4}
@@ -310,11 +470,15 @@ button.tag:hover{border-color:var(--accent);color:var(--accent)}
 
   <section class="stage" id="stage" aria-label="Map of the customer's job">
     <svg id="svg" role="img" aria-label="Mind map: main goal, stages, steps and success measures"><g id="vp"><g id="edges"></g><g id="nodes"></g></g></svg>
+    <div class="solview" id="overview" role="tabpanel" aria-labelledby="vOver" hidden></div>
     <div class="solview" id="solview" role="tabpanel" aria-labelledby="vSol" hidden></div>
+    <div class="solview" id="themeview" role="tabpanel" aria-labelledby="vThemes" hidden></div>
     <div class="toolbar" id="toolbar">
       <div class="viewsw" id="viewsw" role="tablist" aria-label="Choose a view" hidden>
+        <button type="button" role="tab" id="vOver" aria-selected="false" aria-controls="overview" tabindex="-1" hidden>Overview</button>
         <button type="button" role="tab" id="vMap" aria-selected="true" tabindex="0">Map</button>
         <button type="button" role="tab" id="vSol" aria-selected="false" aria-controls="solview" tabindex="-1">Solutions</button>
+        <button type="button" role="tab" id="vThemes" aria-selected="false" aria-controls="themeview" tabindex="-1" hidden>Value themes</button>
       </div>
       <label class="search"><span aria-hidden="true">⌕</span><input id="q" type="search" placeholder="Search the map and the quotes" aria-label="Search"></label>
       <div class="tgroup" role="group" aria-label="Map controls">
@@ -4348,6 +4512,27 @@ function build(raw){
     steps:steps.filter(s=>s.job===id), outs:outs.filter(o=>o.job===id)}; });
   jobs.forEach(j=>{ j.sols=solScope(sols, groups, j.id);
     j.people=[...new Set([...j.main, ...j.also, ...j.steps.flatMap(s=>[...s.allPeople, ...s.solPeople])])]; });
+  // value themes: a few needs that group the measures of success of one core job, across its steps
+  const vt = !v1 && raw.value_themes && typeof raw.value_themes==="object" ? raw.value_themes : {};
+  const outByKey = Object.fromEntries(outs.map(o=>[o.oid,o]));
+  const themes = (Array.isArray(vt.themes)?vt.themes:[]).filter(t=>t && /^[A-Z]{1,2}\.T\d+$/.test(String(t.id||""))).map(t=>{
+    const os = [...new Set((Array.isArray(t.outcomes)?t.outcomes:[]).map(String))].map(k=>outByKey[k]).filter(Boolean);
+    const at = [...new Set(os.map(o=>stepByKey[o.step]).filter(Boolean))].flatMap(st=>st.sols);
+    const using = [...new Set(at.map(a=>a.sol))].map(sol=>{ const mine=at.filter(a=>a.sol===sol), cur=[...new Set(mine.flatMap(a=>a.cur))];
+      return {sol, cur, stop:[...new Set(mine.flatMap(a=>a.stop))].filter(x=>!cur.includes(x))}; })
+      .sort((a,b)=>b.cur.length-a.cur.length||b.stop.length-a.stop.length||a.sol.name.localeCompare(b.sol.name));
+    return {id:String(t.id), job:String(t.job||String(t.id).split(".")[0]), label:t.label||String(t.id), need:t.need||"", why:t.why||"",
+      outs:os.slice().sort((a,b)=>b.people.length-a.people.length), people:people(os.flatMap(o=>o.ev)),
+      quotes:os.reduce((a,o)=>a+o.ev.length,0), using, dropped:[...new Set(using.flatMap(u=>u.stop))],
+      hl:(Array.isArray(t.highlights)?t.highlights:[]).filter(h=>h && h.quote).map(h=>({...h, interview:String(h.interview)}))};
+  });
+  themes.sort((a,b)=>b.people.length-a.people.length||b.outs.length-a.outs.length||a.id.localeCompare(b.id,undefined,{numeric:true}));
+  outs.forEach(o=>{ o.themes=themes.filter(t=>t.outs.includes(o)); });
+  jobs.forEach(j=>{ j.themes=themes.filter(t=>t.job===j.id); j.loose=j.themes.length?j.outs.filter(o=>!o.themes.length):[]; });
+  // the overview: the sentences the assistant wrote for each core job; the view computes the rest
+  const ovr = !v1 && raw.overview && typeof raw.overview==="object" ? raw.overview : {};
+  const overs = Object.fromEntries((Array.isArray(ovr.jobs)?ovr.jobs:[]).filter(o=>o && o.job && o.bottom_line).map(o=>[String(o.job),o]));
+  jobs.forEach(j=>{ j.over=overs[j.id]||null; });
   const quotes = steps.reduce((a,s)=>a+s.ev.length,0)+outs.reduce((a,o)=>a+o.ev.length,0)
     + sols.reduce((a,s)=>a+s.uses.reduce((b,u)=>b+u.ev.length,0),0)
     + ivs.reduce((a,i)=>a+i.whoEv.length+i.goalEv.length+[...i.related,...i.emotional,...i.social].reduce((b,j)=>b+(j.evidence||[]).length,0),0);
@@ -4367,6 +4552,8 @@ function build(raw){
     ivs, ivById, allSteps:steps, allOuts:outs, steps, outs, quotes,
     solList:sols, solById:Object.fromEntries(sols.map(s=>[s.id,s])), groups, groupById:Object.fromEntries(groups.map(g=>[g.id,g])),
     hasSols:sols.length>0, solAll:solScope(sols, groups, null), sols:null,
+    hasOver:jobs.length>0 && ivs.length>0, overStale:!!ovr.stale, over:null,
+    hasThemes:themes.length>0, themesStale:!!vt.stale, themeAll:themes, themes:themes, loose:[],
     proposals:(raw.proposed_changes||[]).filter(p=>p.status==="pending"),
     changelog:raw.changelog||[], segments:raw.clusters||{}};
 }
@@ -4377,6 +4564,7 @@ function chooseJob(id){
   M.steps = j ? j.steps : M.allSteps; M.outs = j ? j.outs : M.allOuts;
   M.goal = j ? j.statement : ""; M.goalStatus = j ? j.status : ""; M.executor = j ? j.executor : "";
   M.sols = j ? j.sols : M.solAll;
+  M.themes = j ? j.themes : M.themeAll; M.loose = j ? j.loose : []; M.over = j ? j.over : null;
 }
 const many = () => M.jobs.length>1;
 const doers = n => n===1 ? "1 person does it" : `${n} people do it`;
@@ -4387,6 +4575,8 @@ function setJob(id, keep){
   if(!keep){ personHL=null; solHL=null; closeDrawer(); }
   renderHeader(); renderJobs(); renderPeople(); renderNext(); updatePill(); render(); fit(true);
   if(solMode) renderSolView();
+  if(themeMode) renderThemeView();
+  if(overMode) renderOverView();
 }
 
 /* ---------- header, strip, sidebar ---------- */
@@ -4485,6 +4675,8 @@ function humanLog(c){
   if(c.action==="init") return "Study started.";
   if(c.action==="decide") return "Team decision: "+(c.summary||"");
   if(c.action==="migrate" || c.action==="edit") return c.summary||"File maintenance.";
+  if(c.action==="rebuild" && c.layer==="overview") return `Overview written${c.job&&many()?` for ${jobName(c.job)}`:""}.`;
+  if(c.action==="rebuild") return c.layer==="value_themes" ? `Value themes written${Array.isArray(c.themes)?` (${c.themes.length})`:""}${c.job&&many()?` for ${jobName(c.job)}`:""}.` : (c.summary||"A derived layer was rebuilt.");
   if(Array.isArray(c.added_interviews) || typeof c.outcome_quotes==="number" || Array.isArray(c.new_solutions)){
     // structured changelog entries, written by kb_tool.py 0.2 and later
     const iv=c.added_interviews||[], no=(c.new_outcomes||[]).length, q=c.outcome_quotes||0, ns=(c.new_solutions||[]).length;
@@ -4525,7 +4717,7 @@ function renderNext(){
 const COL = {root:0, stage:310, step:520, out:880};
 const WID = {root:260, stage:150, step:300, out:320, sol:230};
 let expanded = new Set(), selected=null, personHL=null, searchHL=null;
-let showSols = false, solHL = null, solMode = false; // solHL: {kind:"sol"|"group", id}
+let showSols = false, solHL = null, solMode = false, themeMode = false, overMode = false; // solHL: {kind:"sol"|"group", id}
 const solOn = sol => !!solHL && (solHL.kind==="group" ? sol.group===solHL.id : sol.id===solHL.id);
 let view = {x:40,y:40,k:1};
 function wrap(text, chars){
@@ -4754,36 +4946,48 @@ function pickSol(id){
   const s=M.solById[id]; if(!s) return;
   if(many() && !s.jobs.includes(M.job) && s.jobs.length) setJob(s.jobs[0], true);
   solHL={kind:"sol", id}; updatePill(); openSolution(id);
-  if(solMode) renderSolView(); else { render(); fitHits(); }
+  if(solMode) renderSolView(); else { render(); if(!themeMode && !overMode) fitHits(); }
 }
 function pickGroup(id){
   const g=M.groupById[id]; if(!g) return;
   solHL={kind:"group", id}; updatePill(); openGroup(id);
-  if(solMode) renderSolView(); else { render(); fitHits(); }
+  if(solMode) renderSolView(); else { render(); if(!themeMode && !overMode) fitHits(); }
 }
 function syncSolControls(){
   const b=document.getElementById("bSols"); b.hidden=!M.hasSols; b.setAttribute("aria-pressed", String(showSols && M.hasSols));
-  document.getElementById("viewsw").hidden=!M.hasSols;
+  document.getElementById("viewsw").hidden=!M.hasSols && !M.hasThemes && !M.hasOver;
+  document.getElementById("vOver").hidden=!M.hasOver;
+  document.getElementById("vSol").hidden=!M.hasSols; document.getElementById("vThemes").hidden=!M.hasThemes;
 }
-const stageEl=document.getElementById("stage"), solview=document.getElementById("solview"), toolbar=document.getElementById("toolbar");
-function padSolView(){ if(solMode) solview.style.setProperty("--soltop", (toolbar.offsetTop+toolbar.offsetHeight+14)+"px"); }
+const stageEl=document.getElementById("stage"), solview=document.getElementById("solview"), themeview=document.getElementById("themeview"), toolbar=document.getElementById("toolbar");
+function padSolView(){ if(solMode || themeMode || overMode) [solview,themeview,overview].forEach(el=>el.style.setProperty("--soltop", (toolbar.offsetTop+toolbar.offsetHeight+14)+"px")); }
+const VIEWS = [["over","vOver"],["map","vMap"],["sol","vSol"],["themes","vThemes"]];
+const viewNow = () => overMode ? "over" : solMode ? "sol" : themeMode ? "themes" : "map";
 /* The Solutions view is an overlay inside the stage, so the drawer still opens beside it and the map keeps its size underneath. */
-function setView(sol, keepMap){
-  const on = !!sol && !!M && M.hasSols;
-  if(on===solMode && (!on || !solview.hidden)) return;
-  solMode = on; hideTip();
-  stageEl.classList.toggle("solmode", on); document.querySelector("main").classList.toggle("wide", on);
-  solview.hidden = !on; svg.toggleAttribute("inert", on);
-  document.getElementById("vMap").setAttribute("aria-selected", String(!on)); document.getElementById("vSol").setAttribute("aria-selected", String(on));
-  document.getElementById("vMap").tabIndex = on?-1:0; document.getElementById("vSol").tabIndex = on?0:-1;
-  if(on){ renderSolView(); padSolView(); solview.scrollTop=0; }
+function setView(want, keepMap){
+  // "over", "map", "sol" or "themes"; true and false are the older calls for the Solutions view and the map
+  let v = want===true ? "sol" : (want || "map");
+  if((v==="sol" && !(M && M.hasSols)) || (v==="themes" && !(M && M.hasThemes)) || (v==="over" && !(M && M.hasOver))) v = "map";
+  const panel = v==="sol" ? solview : v==="themes" ? themeview : v==="over" ? overview : null;
+  if(v===viewNow() && (!panel || !panel.hidden)) return;
+  solMode = v==="sol"; themeMode = v==="themes"; overMode = v==="over"; hideTip();
+  const over = !!panel;
+  stageEl.classList.toggle("solmode", over); document.querySelector("main").classList.toggle("wide", over);
+  solview.hidden = !solMode; themeview.hidden = !themeMode; overview.hidden = !overMode; svg.toggleAttribute("inert", over);
+  VIEWS.forEach(([name,id])=>{ const b=document.getElementById(id); b.setAttribute("aria-selected", String(name===v)); b.tabIndex = name===v?0:-1; });
+  if(solMode) renderSolView();
+  if(themeMode) renderThemeView();
+  if(overMode) renderOverView();
+  if(panel){ padSolView(); panel.scrollTop=0; }
   else if(!keepMap) requestAnimationFrame(()=>fit(true));
 }
-document.getElementById("vMap").onclick=()=>setView(false);
-document.getElementById("vSol").onclick=()=>setView(true);
+VIEWS.forEach(([name,id])=>{ document.getElementById(id).onclick=()=>setView(name); });
 document.getElementById("viewsw").addEventListener("keydown",e=>{
   if(e.key!=="ArrowLeft" && e.key!=="ArrowRight") return;
-  e.preventDefault(); setView(!solMode); document.getElementById(solMode?"vSol":"vMap").focus();
+  e.preventDefault();
+  const shown = VIEWS.filter(([,id])=>!document.getElementById(id).hidden), at = shown.findIndex(([name])=>name===viewNow());
+  const next = shown[(at+(e.key==="ArrowRight"?1:shown.length-1))%shown.length];
+  setView(next[0]); document.getElementById(next[1]).focus();
 });
 function renderSolView(){
   const sc=M.sols, job=many()?` for ${jobName(M.job)}`:"";
@@ -4821,7 +5025,221 @@ solview.addEventListener("click",e=>{
   const b=e.target.closest("[data-sol]"); if(b){ pickSol(b.dataset.sol); return; }
   const tr=e.target.closest("tr[data-row]"); if(tr) pickSol(tr.dataset.row);
 });
+/* ---------- Value themes view ---------- */
+const HL_KINDS = [["pain","Pain"],["struggle","Struggle"],["desire","Desire"]];
+function themeCard(t){
+  const total = scopeTotal();
+  const outRow = o => { const also=o.themes.filter(x=>x!==t);
+    return `<button class="oitem" type="button" data-go="${esc(o.id)}"><span>${esc(o.text)}${also.length?`<small>Also in: ${esc(also.map(x=>x.label).join(", "))}</small>`:""}</span>${dots(o.people.length)}</button>`; };
+  const solRow = u => `<button class="oitem" type="button" data-sol="${esc(u.sol.id)}"><span>${esc(u.sol.name)}</span><span class="meta">${ktag(u.sol.kind)}<span>${u.cur.length?`${u.cur.length} use it`:"no one now"}${u.stop.length?`, ${u.stop.length} stopped`:""}</span></span></button>`;
+  const quote = h => { const iv=M.ivById[h.interview], src=SRC[h.source];
+    return `<blockquote class="${h.source==="interviewer_notes"?"para":""}">“${esc(h.quote)}”<span class="src"><button type="button" class="linkbtn" data-person="${esc(h.interview)}">${esc(iv?.name||h.name||("Interview "+h.interview))}</button>${src?` · ${esc(src[0])}`:""}</span></blockquote>`; };
+  const said = HL_KINDS.map(([k,l])=>{ const hs=t.hl.filter(h=>h.kind===k); return hs.length?`<div class="hlk"><span class="tag">${l}</span>${hs.map(quote).join("")}</div>`:""; }).join("");
+  return `<article class="tcard" aria-labelledby="th-${esc(t.id)}">
+    <div><h3 id="th-${esc(t.id)}">${esc(t.label)}</h3>${t.need?`<p class="tneed">${esc(t.need)}</p>`:""}</div>
+    <div class="tsig">${meter(t.people.length, total)}
+      <span>${plural(t.quotes,"quote")} on ${plural(t.outs.length,"measure")} of success${t.dropped.length?` · ${plural(t.dropped.length,"person","people")} dropped a solution here`:""}</span>
+      <small>Counted from these conversations. Not a survey score.</small></div>
+    ${t.people.length===1?`<div class="flag">This theme rests on one person so far.</div>`:""}
+    ${t.why?`<p class="twhy">${esc(t.why)}</p>`:""}
+    <div><div class="sect">Measures of success it groups (${t.outs.length})</div><div class="olist">${t.outs.map(outRow).join("")||`<p class="hint">None of its measures are on the map any more.</p>`}</div></div>
+    <div><div class="sect">What people use today for this (${t.using.length})</div><div class="olist">${t.using.map(solRow).join("")||`<p class="hint">No one named a solution for these steps yet.</p>`}</div></div>
+    ${said?`<div><div class="sect">In their words</div>${said}</div>`:""}
+  </article>`;
+}
+function renderThemeView(){
+  const job=many()?` for ${jobName(M.job)}`:"";
+  themeview.innerHTML = `<div class="solin">
+    <h2>Value themes${esc(job)}</h2>
+    <p class="hint" style="margin:0">A few needs, in the customers' words, that gather the measures of success serving the same judgment. Use them to sort ideas: every idea should serve one theme. The numbers show how many people raised a theme in these conversations. They show how well it is supported, not how much it matters across the market.</p>
+    ${M.themesStale?`<div class="flag">These themes are out of date: conversations or measures of success were added or changed after they were written. Ask your assistant to update the value themes.</div>`:""}
+    ${M.themes.length?`<div class="tgrid">${M.themes.map(themeCard).join("")}</div>`:`<p class="hint">No value themes for this core job yet.${many()?" Pick another core job above.":""}</p>`}
+    ${M.loose.length?`<h3>In no theme yet (${M.loose.length})</h3><p class="hint" style="margin:0">Measures of success that fit none of the themes, or were added after the themes were written.</p>
+      <div class="olist" style="max-width:720px">${M.loose.map(o=>`<button class="oitem" type="button" data-go="${esc(o.id)}"><span>${esc(o.text)}</span>${dots(o.people.length)}</button>`).join("")}</div>`:""}
+  </div>`;
+}
+themeview.addEventListener("click",e=>{
+  const o=e.target.closest("[data-go]"); if(o){ setView("map", true); focusNode(o.dataset.go); return; }
+  const b=e.target.closest("[data-sol]"); if(b){ pickSol(b.dataset.sol); return; }
+  const p=e.target.closest("[data-person]"); if(p) openPerson(p.dataset.person);
+});
 function ktag(k){ const [l,v]=kindOf(k); return `<span class="ktag"><i style="background:var(${v})"></i>${esc(l)}</span>`; }
+
+/* ---------- Overview view ---------- */
+/* The study as a short story: who, their goal, today, the gaps, the needs, the focus. The sentences come from the
+   KB's overview layer, written by the assistant; the counts, the needs and the themes are computed here. */
+const overview=document.getElementById("overview");
+let nextOpen=false, overSpy=null;
+const OV_STEPS = [["The people","who you listened to"],["Their goal","what they try to get done"],["Today","how they do it now"],
+  ["The gaps","where that falls short"],["The needs","what they want to get better"],["The focus","where a new solution should aim"]];
+const OV_SURE = ["A hunch","Early signal","Clear pattern","Confirmed by a survey"];
+/* what to do next: [track name, {status:[label, color]}, [[field, label]]] */
+const OV_NEXT = {
+  learn:["Keep learning",{now:["Do this now","go"],enough:["Enough for now","wait"]},[["why","Why"],["ask","Ask"],["tip","Tip"]]],
+  prototype:["Prototype",{ready:["Ready to sketch","try"],early:["Too early to sketch","wait"]},[["why","Why"],["test","Test it"],["later","Leave for later"]]],
+  market:["Go to market",{ready:["Ready to test","try"],early:["Too early to sell","wait"]},[["who","Who first"],["words","Their words"],["unknown","Not known yet"]]]
+};
+const OV_GAP = {pain:"Hurts today", struggle:"The fix did not work"};
+const lowerFirst = s => { s=String(s||""); return /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase()+s.slice(1) : s; };
+const fullStop = s => { s=String(s||"").trim(); return s && !/[.!?]$/.test(s) ? s+"." : s; };
+function overScope(){ const j=M.jobById[M.job]; return (many() && j ? j.people : M.ivs.map(i=>i.id)).map(id=>M.ivById[id]).filter(Boolean); }
+/* How sure: fewer than 3 conversations is a hunch; a clear pattern needs 8 or more, with the last 2 adding at most 2 new needs. */
+function overSure(scope){
+  const order=[...scope].sort((a,b)=>(a.date||"").localeCompare(b.date||"")||a.id.localeCompare(b.id,undefined,{numeric:true}));
+  const n=order.length, last=new Set(order.slice(-2).map(i=>i.id)), early=new Set(order.slice(0,-2).map(i=>i.id));
+  const fresh=M.outs.filter(o=>o.people.some(p=>last.has(p)) && !o.people.some(p=>early.has(p))).length;
+  const level = n<3 ? 1 : (n>=8 && fresh<=2) ? 3 : 2;
+  const text = level===1 ? `Only ${plural(n,"conversation")} so far. Read this page as a first guess, and talk to at least 3 people before you act on it.`
+    : level===2 ? `${plural(n,"conversation")} so far. The last 2 still brought ${plural(fresh,"need")} nobody had named before${fresh>2?", so you have not heard everything yet":""}. The pattern is clear once about 8 conversations stop bringing new needs.`
+    : `${plural(n,"conversation")}, and the last 2 brought ${fresh?plural(fresh,"new need"):"no new needs"}. The picture is stable. A survey of a larger group can now show how much each need matters.`;
+  return {level, text};
+}
+/* Key unmet needs: the needs most people raised, ahead where today's solutions at that step are weak
+   (someone gave one up, or nobody uses a product for it). */
+function overNeeds(){
+  const uniq = a => [...new Set(a)];
+  return M.outs.map(o=>{
+    const st=M.steps.find(s=>s.key===o.step), at=st?st.sols:[], cur=at.filter(x=>x.cur.length), kinds=new Set(cur.map(x=>x.sol.kind));
+    const stopped=uniq(at.flatMap(x=>x.stop)), product=cur.find(x=>x.sol.kind==="product"), hand=cur.length>0 && !product;
+    const why=[];
+    if(product) why.push(`They use ${product.sol.name}.`);
+    else if(hand) why.push(kinds.has("own_method")||kinds.has("everyday_tool") ? "Done by hand." : "They ask other people.");
+    else if(!stopped.length) why.push("Nothing named yet.");
+    if(stopped.length) why.push(`${plural(stopped.length,"person","people")} gave up a solution here.`);
+    return {o, why:why.join(" "), weak:(stopped.length?2:0)+(hand?1:0)};
+  }).sort((a,b)=>b.o.people.length-a.o.people.length || b.weak-a.weak || b.o.ev.length-a.o.ev.length).slice(0,5);
+}
+const ovHeard = (n,total) => `<span class="ov-heard"><i style="--w:${Math.round(100*n/Math.max(1,total))}%"></i>${n} of ${total}</span>`;
+const ovQuote = q => { if(!q || !q.quote) return ""; const iv=M.ivById[String(q.interview)], src=SRC[q.source];
+  return `<blockquote class="${q.source==="interviewer_notes"?"para":""}">“${esc(q.quote)}”<span class="src"><button type="button" class="linkbtn" data-person="${esc(String(q.interview))}">${esc(iv?.name||q.name||("Interview "+q.interview))}</button>${src?` · ${esc(src[0])}`:""}</span></blockquote>`; };
+const ovStep = (n,ask,answer,body) => `<section class="ov-blk ov-step" id="ov-s${n}"><p class="ov-ask"><b>${n}</b>${ask}</p><h2 class="ov-ans">${esc(fullStop(answer))}</h2>${body}</section>`;
+const ovText = t => t ? `<p class="ov-body">${esc(t)}</p>` : "";
+const OV_ASK = `Ask your assistant to "write the overview".`;
+
+function ovLead(ov, scope){
+  const sure=overSure(scope);
+  return `<section class="ov-blk ov-lead">
+    <p class="ov-note">The bottom line so far${many()?` for ${esc(jobName(M.job))}`:""}</p>
+    ${ov ? `<h2 class="ov-bl">${esc(fullStop(ov.bottom_line))}</h2>
+      ${ov.why||ov.opening?`<p class="ov-body">${esc(fullStop(ov.why))} ${ov.opening?`<b>The opening:</b> ${esc(lowerFirst(fullStop(ov.opening)))}`:""}</p>`:""}
+      ${M.overStale?`<div class="flag">These findings were written before the latest conversations. Ask your assistant to update the overview.</div>`:""}`
+      : `<div class="ov-todo"><b>No written findings yet.</b> ${OV_ASK} The counts on this page come straight from the conversations.</div>`}
+    <div class="ov-sure"><p class="ov-note">How sure is this?</p>
+      <ol class="ov-gauge" aria-label="${esc(OV_SURE[sure.level-1])}, level ${sure.level} of 4">${OV_SURE.map((l,i)=>`<li class="${i+1<sure.level?"done":i+1===sure.level?"now":""}">${l}</li>`).join("")}</ol>
+      <p class="ov-note">${esc(sure.text)}</p></div>
+  </section>`;
+}
+function ovNext(ov){
+  const nx=ov && ov.next && typeof ov.next==="object" ? ov.next : null;
+  const tracks=nx ? Object.keys(OV_NEXT).filter(k=>nx[k] && nx[k].action).map(k=>{ const [name,st,fields]=OV_NEXT[k], t=nx[k], [lbl,cls]=st[t.status]||["",""];
+    return {k, name, t, fields, pill:lbl?`<b class="ov-pill ${cls}">${lbl}</b>`:""}; }) : [];
+  if(!tracks.length) return `<section class="ov-blk ov-next" id="ov-next"><div class="ov-nexttog"><span class="ov-ntitle"><b>What to do next</b></span></div><div class="ov-todo"><b>No suggestions yet.</b> ${OV_ASK}</div></section>`;
+  const val = (f,v) => Array.isArray(v) ? v.map(x=>f==="ask"||f==="words"?`<q>${esc(x)}</q>`:esc(x)).join(" ") : esc(v);
+  const link = {learn:`<button type="button" class="ov-lk" data-ov-view="next">See what to ask next</button>`,
+    prototype:M.hasThemes?`<button type="button" class="ov-lk" data-ov-view="themes">See the value themes</button>`:""};
+  const card = x => `<div class="ov-track"><p class="ov-tname">${x.name} ${x.pill}</p><h3>${esc(fullStop(x.t.action))}</h3>
+    <dl>${x.fields.filter(([f])=>x.t[f] && x.t[f].length).map(([f,l])=>`<div><dt>${l}</dt><dd>${val(f,x.t[f])}</dd></div>`).join("")}</dl>${link[x.k]||""}</div>`;
+  return `<section class="ov-blk ov-next" id="ov-next">
+    <button type="button" class="ov-nexttog" id="ovNextTog" aria-expanded="${nextOpen}" aria-controls="ovNextBody">
+      <span class="ov-ntitle"><b>What to do next</b><span class="ov-nsum">${tracks.map(x=>`<span>${x.name} ${x.pill}</span>`).join("")}</span></span>
+      <span class="ov-ncta"><span id="ovNextLbl">${nextOpen?"Hide the next steps":`Show your ${tracks.length} next ${tracks.length===1?"step":"steps"}`}</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 6l5 5 5-5"/></svg></span>
+    </button>
+    <div class="ov-nextbody" id="ovNextBody"${nextOpen?"":" hidden"}><div class="ov-tracks">${tracks.map(card).join("")}</div>
+      <p class="ov-note">Suggestions from your assistant, based on the findings below. They are advice, not findings.</p></div>
+  </section>`;
+}
+function ovPeople(ov, scope){
+  const sec=ov && ov.people || {}, first=scope.find(i=>i.whoEv.length);
+  const quote=sec.quote || (first ? {...first.whoEv[0], interview:first.id} : null);
+  const dates=scope.map(i=>i.date).filter(Boolean).sort();
+  const answer=sec.answer || `${plural(scope.length,"conversation")} with ${M.executor?lowerFirst(M.executor):"people who do this job"}`;
+  return ovStep(1,"Who did you listen to?",answer,`${ovText(sec.text)}
+    <div class="ov-people">${scope.map(i=>`<button type="button" class="ov-person" data-person="${esc(i.id)}"><i>${esc((i.name||"?").trim()[0]||"?")}</i>${esc(i.name)} <small>${plural(i.quoteCount,"quote")}</small></button>`).join("")}</div>
+    ${ovQuote(quote)}
+    <div class="ov-foot"><p class="ov-note">${plural(scope.length,"conversation")}${dates.length?` between ${fmtDate(dates[0])} and ${fmtDate(dates[dates.length-1])}`:""}. Every finding on this page rests on their exact words.</p><button type="button" class="ov-lk" data-ov-view="people">See what each person said</button></div>`);
+}
+function ovGoal(){
+  const part = ([key,label,tip]) => { const steps=M.steps.filter(s=>s.stage===key), n=new Set(steps.flatMap(s=>s.allPeople)).size;
+    return `<div class="ov-part ${n<3?"c0":n<4?"c1":n<6?"c2":"c3"}" title="${esc(tip)}"><i></i><b>${label}</b><span>${!steps.length?"no step yet":n<3?"ask next":plural(n,"person","people")}</span></div>`; };
+  return ovStep(2,"What are they trying to get done?",M.goal,`
+    <p class="ov-body">This goal stays the same whatever tool they use. Almost any goal has eight parts, from planning it to wrapping it up. The bar shows how much you know about each part so far.</p>
+    <div class="ov-parts">${STAGES.map(part).join("")}</div>
+    <div class="ov-foot"><p class="ov-note">A stronger green means more people talked about that part. "Ask next" means fewer than 3 did.</p><button type="button" class="ov-lk" data-ov-view="map">Open the map of all ${plural(M.steps.length,"step")}</button></div>`);
+}
+function ovToday(ov){
+  const sec=ov && ov.today || {}, sc=M.sols, groups=sc?sc.groups.slice(0,4):[];
+  const row = g => { const kinds={}; g.items.forEach(x=>{ kinds[x.sol.kind]=(kinds[x.sol.kind]||0)+1; });
+    const kind=Object.keys(KINDS).filter(k=>kinds[k]).sort((a,b)=>kinds[b]-kinds[a])[0]||"", gone=new Set(sc.gone.filter(x=>x.sol.group===g.g.id).flatMap(x=>x.stop)).size;
+    return `<tr><th scope="row"><button type="button" class="ov-lk" data-group="${esc(g.g.id)}">${esc(g.g.name)}</button></th><td class="sm">${esc(g.items.slice(0,4).map(x=>x.sol.name).join(", "))}${g.items.length>4?` and ${g.items.length-4} more`:""}</td>
+      <td class="sm">${ktag(kind)}</td><td class="num">${g.people.length} use one${gone?`<div class="sm">${gone} stopped using one</div>`:""}</td></tr>`; };
+  const answer=sec.answer || (sc && sc.inUse ? `${plural(sc.inUse,"solution")} in use today, in ${plural(sc.groups.length,"group")}` : "Nobody named what they use today yet");
+  return ovStep(3,"How do they do it today?",answer,`${ovText(sec.text)}
+    ${groups.length?`<table class="ov-tbl"><thead><tr><th scope="col">The work</th><th scope="col">What they use for it</th><th scope="col">Mostly</th><th scope="col">People</th></tr></thead><tbody>${groups.map(row).join("")}</tbody></table>
+    <div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="sol">See all ${plural(sc.items.length,"solution")}</button></div>`
+    :`<p class="ov-note">Products, everyday tools, other people and own methods show up here once a conversation names them.</p>`}`);
+}
+function ovGaps(ov){
+  const sec=ov && ov.gaps || {}, items=Array.isArray(sec.items)?sec.items.filter(g=>g && g.label):[], sc=M.sols;
+  const stopped=sc?new Set(sc.gone.flatMap(x=>x.stop)).size:0;
+  const gap = g => { const sols=(Array.isArray(g.solutions)?g.solutions:[]).map(id=>M.solById[String(id)]).filter(Boolean).map(s=>s.name);
+    return `<div class="ov-fall"><div><h3>${esc(g.label)}</h3><p>${esc(g.text||"")}</p><p class="ov-with">${esc(OV_GAP[g.kind]||"")}${sols.length?`${OV_GAP[g.kind]?": ":""}${esc(sols.join(", "))}`:""}</p></div>${ovQuote(g.quote)}</div>`; };
+  const answer=sec.answer || (stopped ? `${plural(stopped,"person","people")} stopped using a solution and said why` : "Not written yet");
+  return ovStep(4,"Where does that fall short?",answer, items.length
+    ? `<div><div class="ov-cols"><span>What goes wrong</span><span>In their words</span></div>${items.map(gap).join("")}</div>`
+    : `<div class="ov-todo">The gaps are not written yet. ${OV_ASK}</div>${stopped?`<div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="sol">See what people stopped using</button></div>`:""}`);
+}
+function ovNeeds(ov, total){
+  const sec=ov && ov.needs || {}, rows=overNeeds();
+  const answer=sec.answer || (rows.length ? `Above all: ${lowerFirst(rows[0].o.plain)}` : "No needs heard yet");
+  return ovStep(5,"What do they most want to get better?",answer,`${ovText(sec.text)}
+    <p class="ov-note">The needs the most people raised, with what they use today at that step. On the map they are called measures of success. Counted from these conversations. Not a survey score.</p>
+    ${rows.length?`<table class="ov-tbl"><thead><tr><th scope="col">What they want</th><th scope="col">Today, at that step</th><th scope="col">Heard from</th></tr></thead><tbody>${rows.map(r=>
+      `<tr><th scope="row"><button type="button" class="ov-lk" data-go="${esc(r.o.id)}">${esc(r.o.plain)}</button></th><td class="sm">${esc(r.why)}</td><td>${ovHeard(r.o.people.length,total)}</td></tr>`).join("")}</tbody></table>
+    <div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="map">See all ${plural(M.outs.length,"need")} on the map</button></div>`:""}`);
+}
+function ovFocus(ov, total){
+  const sec=ov && ov.focus || {}, themes=M.themes.slice(0,5);
+  const answer=sec.answer || (themes.length ? `The best supported theme: ${lowerFirst(themes[0].label)}` : "No value themes yet");
+  return ovStep(6,"Where should a new solution focus?",answer,`${ovText(sec.text)}
+    ${themes.length?`<p class="ov-note">The needs sum up into ${plural(M.themes.length,"theme")}, each in the customers' voice. Pick one to build for first. Every idea should serve one of them.${M.themesStale?" The themes are out of date.":""}</p>
+    <div>${themes.map((t,i)=>`<button type="button" class="ov-theme${i?"":" first"}" data-theme="${esc(t.id)}"><span class="tl">${esc(t.label)}</span>${t.need?`<span class="tn">${esc(t.need)}</span>`:""}${ovHeard(t.people.length,total)}</button>`).join("")}</div>
+    <div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="themes">See the themes with their needs and quotes</button></div>`
+    :`<div class="ov-todo">Value themes group the needs into a few directions to build for. Ask your assistant to "build the value themes".</div>`}`);
+}
+function renderOverView(){
+  const ov=M.over, scope=overScope(), total=Math.max(1,scope.length);
+  overview.innerHTML = `<div class="ov-page">
+    <nav class="ov-rail" aria-label="How the story builds"><p>Each finding builds on the one before it.</p>
+      <ol>${OV_STEPS.map(([a,b],i)=>`<li><button type="button" data-ov-go="ov-s${i+1}"><b>${i+1}</b><span>${a}<small>${b}</small></span></button></li>`).join("")}</ol>
+      ${ov && ov.next?`<button type="button" class="ov-railnext" data-ov-next>What to do next</button>`:""}</nav>
+    <article class="ov-sheet">${ovLead(ov,scope)}${ovNext(ov)}${ovPeople(ov,scope)}${ovGoal()}${ovToday(ov)}${ovGaps(ov)}${ovNeeds(ov,total)}${ovFocus(ov,total)}
+      ${ov && ov.next?`<button type="button" class="ov-end" data-ov-next><span>That is the story so far.</span><b>See what to do next</b></button>`:""}</article></div>`;
+  if(overSpy) overSpy.disconnect();
+  if("IntersectionObserver" in window){
+    overSpy=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting) overview.querySelectorAll("[data-ov-go]").forEach(b=>b.classList.toggle("on", b.dataset.ovGo===e.target.id)); }),{root:overview, rootMargin:"-25% 0px -65% 0px"});
+    overview.querySelectorAll(".ov-step").forEach(s=>overSpy.observe(s));
+  }
+}
+function setNextOpen(open){
+  nextOpen=open; const tog=document.getElementById("ovNextTog"); if(!tog) return;
+  tog.setAttribute("aria-expanded", String(open)); document.getElementById("ovNextBody").hidden=!open;
+  const n=overview.querySelectorAll(".ov-track").length;
+  document.getElementById("ovNextLbl").textContent = open ? "Hide the next steps" : `Show your ${n} next ${n===1?"step":"steps"}`;
+}
+function showTab(name){ const t=document.querySelector(`.tab[data-tab="${name}"]`); if(t) t.click(); }
+overview.addEventListener("click",e=>{
+  const at = sel => e.target.closest(sel);
+  let b;
+  if(at("#ovNextTog")){ setNextOpen(!nextOpen); return; }
+  if(at("[data-ov-next]")){ setNextOpen(true); const tog=document.getElementById("ovNextTog"); if(tog){ document.getElementById("ov-next").scrollIntoView({block:"center"}); tog.focus({preventScroll:true}); } return; }
+  if((b=at("[data-ov-go]"))){ const s=document.getElementById(b.dataset.ovGo); if(s) s.scrollIntoView({block:"start"}); return; }
+  if((b=at("[data-person]"))){ openPerson(b.dataset.person); return; }
+  if((b=at("[data-go]"))){ setView("map", true); focusNode(b.dataset.go); return; }
+  if((b=at("[data-group]"))){ setView("sol"); pickGroup(b.dataset.group); return; }
+  if((b=at("[data-theme]"))){ setView("themes"); const c=document.getElementById("th-"+b.dataset.theme); if(c) c.scrollIntoView({block:"start"}); return; }
+  if((b=at("[data-ov-view]"))){ const v=b.dataset.ovView;
+    if(v==="people" || v==="next"){ setView("map"); showTab(v); } else setView(v); }
+});
 
 /* ---------- details drawer ---------- */
 const drawer=document.getElementById("drawer");
@@ -4952,6 +5370,7 @@ document.getElementById("btnRead").onclick=()=>openModal(`
   <h2 id="mTitle">How to read this map</h2>
   <p>The map shows what customers are trying to get done and how they judge whether it went well. It reads left to right.</p>
   <dl class="gloss">
+    ${M.hasOver?`<dt>Overview</dt><dd>The study as a short story in six steps: the people, their goal, how they do it today, where that falls short, what they want to get better, and where a new solution should focus. Each step links to the view that holds the detail. Start there.</dd>`:""}
     <dt>The main goal</dt><dd>The blue box. What these customers are trying to get done, with no product named.</dd>
     ${many()?`<dt>Core jobs</dt><dd>These people do ${M.jobs.length} different jobs, so the study has ${M.jobs.length} main goals, A, B and so on. Each has its own map. Pick one with the buttons under the title.</dd>`:""}
     <dt>Stages</dt><dd>The light blue labels: Plan, Gather, Set up, Check, Do it, Watch, Adjust, Wrap up. Almost any job moves through these.</dd>
@@ -4961,6 +5380,7 @@ document.getElementById("btnRead").onclick=()=>openModal(`
     <dt>Amber dot</dt><dd>Fewer than 3 people talked about this step. It needs more conversations.</dd>
     ${M.hasSols?`<dt>Solutions in use today</dt><dd>The products, everyday tools, other people and own methods people rely on now to get a step done. They are grouped by the work they compete for, and each group says why. Turn on Show solutions to see them beside each step, or open the Solutions view for the full list.</dd>
     <dt>Stopped using</dt><dd>Something people used for a step and then dropped. On the map it has a dashed outline. Why they stopped is often a clue to what matters.</dd>`:""}
+    ${M.hasThemes?`<dt>Value themes</dt><dd>A few needs, each written as "Help me…", that gather the measures of success serving the same judgment, often across several steps. Open the Value themes view to see each theme with its measures, what people use today and what they said. Sort ideas into them.</dd>`:""}
   </dl>
   <p>Click any box to read the exact quotes behind it. Pick a person on the left to see what their conversation added.</p>`);
 document.getElementById("btnBuilt").onclick=()=>openModal(`
@@ -4987,7 +5407,7 @@ addEventListener("drop",e=>{ e.preventDefault(); dragDepth=0; dropEl.hidden=true
 
 function load(raw){
   M=build(raw); chooseJob(null); expanded=new Set(); selected=null; personHL=null; searchHL=null; solHL=null; showSols=false; closeDrawer();
-  setView(false, true); syncSolControls();
+  nextOpen=false; syncSolControls(); setView(M.hasOver?"over":"map", true); if(overMode) renderOverView();
   renderHeader(); renderJobs(); renderPeople(); renderProgress(); renderNext(); updatePill();
   render(); requestAnimationFrame(()=>fit(true));
 }

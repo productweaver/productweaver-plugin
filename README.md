@@ -12,9 +12,24 @@ evidence. It grows with every batch of interviews. When the people you
 interviewed do different jobs, it finds each core job and keeps track of who
 does which. It also collects what people use today to get each step done, and
 what they stopped using: their current solutions, grouped by the work they
-compete for.
+compete for. When you are ready for ideas, it groups the outcomes into a few
+value themes, such as "Help me order what the week will really need", so a
+team can sort ideas into a handful of needs.
 
 ## Install
+
+**Claude desktop app (Cowork)**, no terminal needed:
+
+1. Open **Customize**, then **Plugins**.
+2. Choose **Add marketplace** and enter `productweaver/productweaver-plugin`.
+3. Install `productweaver` from the list.
+4. Start a task in **Cowork**, choose the folder with your transcripts, and
+   ask in plain words.
+
+If you use claude.ai in a browser, run the plugin in the desktop app: it works
+with the files on your computer. You can add it on the web with the same steps
+at [claude.ai/customize/plugins](https://claude.ai/customize/plugins); Claude
+saves it to your account, so it is ready in Cowork.
 
 **Claude Code** (version 2.1.292 or later), in a terminal:
 
@@ -28,7 +43,7 @@ Or inside a Claude Code session:
 /plugin install productweaver --marketplace productweaver/productweaver-plugin
 ```
 
-**Codex** (CLI and ChatGPT desktop app):
+**ChatGPT and Codex** (Codex CLI and the ChatGPT desktop app):
 
 ```sh
 codex plugin marketplace add productweaver/productweaver-plugin
@@ -103,13 +118,14 @@ moves it into `.pw-kb/` the first time you use it, and keeps a backup.
 
 ## Where it works
 
-- Claude Code: terminal, VS Code, JetBrains and the desktop app.
+- Cowork in the Claude desktop app.
+- Claude Code: terminal, VS Code, JetBrains and the Code tab of the desktop
+  app.
 - Codex CLI and the ChatGPT desktop app. The Codex IDE extension does not
   load plugins.
 - GitHub Copilot CLI and VS Code.
 
-Claude.ai and Claude Cowork will follow once the plugin is listed in
-Anthropic's plugin directory.
+Chat on claude.ai in a browser is not tested yet. Use the desktop app for now.
 
 ## Support
 

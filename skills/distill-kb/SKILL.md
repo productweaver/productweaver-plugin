@@ -1,6 +1,6 @@
 ---
 name: distill-kb
-description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a YAML knowledge base that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "YAML". From Product Weaver (productweaver.com).
+description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a YAML knowledge base that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, the outcomes grouped into a few value themes to guide ideation, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "YAML". From Product Weaver (productweaver.com).
 ---
 
 # distill-kb: fold interviews into an ODI knowledge base
@@ -26,7 +26,7 @@ Work where the files live: if the transcripts and the KB are on the user's compu
 
 - **Writes (evidence layers):** interviews, job executor, core functional job, related, emotional and social jobs per interview, and each new interview's links to the study's core jobs; new evidence on existing job steps and outcomes; new outcomes; current solutions (what people use today for each step, and what they stopped using), with their groups.
 - **Proposes, never applies:** anything that changes the shared structure. That covers a new core job, a new job step, a reworded step, outcome or core job, a merge of two outcomes, a moved outcome or step, a changed link of an earlier interview, a new segment, two solutions that are one, a solution in the wrong group, or a renamed solution or group. These go to `proposed_changes` with status `pending`. The user decides, then `kb_tool apply` acts.
-- **Flags, never rewrites:** derived layers (`survey`, `simulation`, `value_themes`, `use_cases`). The script marks them `stale: true` with a reason. They are rebuilt on request, not on every run.
+- **Flags, never rewrites:** derived layers (`survey`, `simulation`, `value_themes`, `overview`, `use_cases`). The script marks them `stale: true` with a reason. They are rebuilt on request, not on every run. Value themes are written with `kb_tool themes`, see "When asked for value themes". The overview is written with `kb_tool overview`, see "Write the overview".
 
 The exception is a brand-new KB with no core job yet. Then the run proposes the core job or jobs and their job maps as a `bootstrap`, marked `status: proposed`, so the user can review them. The merge also files one `confirm_core_job` decision per core job, saying how many people back it. Approving it marks the job approved.
 
@@ -136,10 +136,12 @@ kb_tool map .pw-kb/pw-kb.yaml
 
 Run both after every merge or approved proposal, so reviewers never open a stale picture.
 
+After a merge that added interviews, write the overview between the two commands, as "Write the overview" describes. The map opens on it, and a merge marks the old one out of date.
+
 Add `--open` to `map` when it writes the study's first map, and whenever the user asks to see the map: the tool then shows it in the user's default browser. Do not ask first. Leave `--open` out on later rebuilds, so the user does not get a new tab after every merge.
 
 - `.pw-kb/review.md` is a plain sheet listing decisions waiting, what is new since the last merge, the job map by stage with interview counts and the steps to ask about next.
-- `.pw-kb/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It is one file with the KB inside: it opens in any browser and works offline.
+- `.pw-kb/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It opens on an Overview view, the study as a short story with what to do next; see "Write the overview". When the study has value themes, it has a Value themes view: one card per theme with its outcomes, what people use today and the quotes. It is one file with the KB inside: it opens in any browser and works offline.
 
 A folder whose name starts with a dot is hidden in Finder and in most file dialogs, so the user cannot easily find the map by hand. `map` prints a `link:` line with a `file://` address. Give the user that address, exactly as printed, every time you point to the map, and give the full path of `review.md`.
 
@@ -163,6 +165,7 @@ The reader may be a founder or a domain expert, not an ODI specialist, so write 
 - decisions waiting: what and why in one line each, and how to answer ("approve P1")
 - current solutions, briefly: each new group in one line with its why and its most used solutions, then what people stopped using and why. Point to the Solutions view in the map for the full list
 - what to ask about next: per core job, the steps that fewest people support, at most 5, as `review.md` lists them under "Ask about these next"; and which derived layers are now out of date
+- the overview's bottom line and its three next steps, one line each, marked as advice
 - a pointer to `review.md` and the map's `file://` link, with the note that the map holds the interviewees' names and quotes
 
 **After a first batch** everything is new, so that list would be the whole study. Report this instead, and leave the rest to `review.md` and the map:
@@ -194,13 +197,108 @@ Run `context` and read the people → jobs list. Ask "why?" of each person's own
 
 Run `context` and read the CURRENT SOLUTIONS block, or point the user to the Solutions view in the map. Groups grow batch by batch, so they drift. When a group holds solutions that do different work, or two groups do the same work, write a patch that proposes `move_solution` for each solution that should move. Add a new group in the same patch when none fits. Propose `reword_solution_group` when a group's name or why no longer fits its members, and `merge_solutions` when two solutions are the same thing under two names. Tell the user why each group holds what it holds. Never edit the KB by hand for it.
 
-## When asked to rebuild a derived layer
+## Write the overview
 
-Value themes, surveys and use cases are rebuilt only on request. When the study has several core jobs, build them per core job: a survey asks one job's executors about that job's outcomes. When you rebuild them, the reviewer rules still apply:
-- theme names are verb-first and at most 6 words ("Know your numbers cold")
-- each theme states its need in one sentence of at most 25 words
-- each outcome is shown with its text, never as an ID alone
-Then clear that layer's `stale` flag and add a changelog entry with `action: rebuild`.
+The discovery map opens on its Overview view: the study as a short story in six steps, with a "What to do next" block on top. It is made for a person who does not know the method, often a founder starting discovery. The map counts what it can from the KB. The sentences are yours, and without them the view says "No written findings yet".
+
+Write the overview for each core job that got new evidence, at the end of every run that merged interviews, after `review` and before `map`. Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules.
+
+1. Run `kb_tool.py context .pw-kb/pw-kb.yaml` for the outcomes, the solutions and who stopped using them, and the value themes. `context` prints no quotes and does not say who said what. For those, read `.pw-kb/pw-kb.yaml` itself: the `evidence` lists of the steps, the outcomes, the solution uses and each person's own statements.
+2. Write `.pw-kb/patches/<YYYY-MM-DD>-overview-<job>.yaml`:
+
+```yaml
+job: A
+bottom_line: Owners throw away food every week because they order by gut feeling.
+why: The stock apps they tried need a count nobody has time to do.
+opening: Tell the owner what the week will need before the order goes out.
+people:
+  answer: Five owners of small restaurants who place the orders themselves.
+  text: They order twice a week, between services, with no one to check the numbers.   # optional
+  quote: {interview: "02", quote: "I order on Sunday night, half asleep."}                # optional
+today:
+  answer: By memory, with a paper stock sheet.
+  text: The sheet is filled in when there is time, so the order rests on what the owner remembers.
+gaps:
+  answer: It breaks in two places.
+  items:
+    - label: The stock sheet is wrong by Wednesday
+      text: Nobody updates it during service, so the second order of the week is a guess.
+      kind: struggle            # pain: it hurts today. struggle: a fix they tried did not work
+      solutions: ["S2"]         # optional: the solutions it concerns
+      quote: {interview: "03", quote: "We threw out two cases of fish that week."}
+needs:
+  answer: Above all, less food thrown away at the end of the week.
+focus:
+  answer: On ordering the right amount.
+next:
+  learn:
+    status: now                 # now or enough
+    action: Talk to four more owners, two of them with more than one site.
+    why: Every owner so far runs one site, and the last two still named new needs.
+    ask: ["Tell me about the last time you ran out of something. What did you do?"]
+    tip: Ask what they did last time, not what they would like.
+  prototype:
+    status: ready               # ready or early
+    action: Sketch one thing, an order list built from last week's sales.
+    why: All five raised it, and two paid for a stock app and gave it up.
+    test: Ask two owners to place one real order from the sketch.
+    later: Anything about staff rotas.
+  market:
+    status: early               # ready or early
+    action: Keep a list of the owners who asked to see it.
+    who: Owners who place the orders themselves.
+    words: ["half asleep"]      # their own words, each part of a quote in the KB
+    unknown: What they would pay.
+```
+
+3. Check it, then write it:
+
+```
+kb_tool.py overview .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml --dry-run
+kb_tool.py overview .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml
+```
+
+A clean dry run ends with "dry run OK". The tool refuses a quote or a solution the KB does not hold, a sentence over its word limit, a percentage or a score word, and a missing part. It replaces that core job's overview and leaves other core jobs alone. Then run `kb_tool.py map .pw-kb/pw-kb.yaml`.
+
+4. In your report, give the bottom line and the three next steps in one line each, and point to the Overview view. The next steps are advice: say so. Never call a count a score.
+
+The user changes the overview by telling you ("the bottom line is too strong", "we are ready to prototype"). Edit the file and run `overview` again; there is no proposal step.
+
+## When asked for value themes
+
+Value themes turn a long list of outcomes into a few needs a team can sort ideas into, such as "Help me order what the week will really need". Build them only on request, one core job at a time. Read `references/pw-rules.md`, "Value themes", first: it holds the method.
+
+1. Run `context`. It prints every outcome with its ID and, once themes exist, the VALUE THEMES block with the outcomes in no theme yet.
+2. Write `.pw-kb/patches/<date>-themes-<job>.yaml` with the full set of themes for that core job:
+
+```yaml
+job: A
+themes:
+  - id: A.T1                      # only for a theme that already exists; leave it out for a new one
+    label: Order the right amount
+    need: Help me order what the week will really need
+    why: Each one decides how close the order comes to what gets sold.
+    outcomes: ["A.2.1", "A.4.2", "A.6.3"]
+    highlights:
+      - {kind: pain, interview: "03", quote: "We threw out two cases of fish that week."}
+```
+
+3. Check it, then write it:
+
+```
+kb_tool themes .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml --dry-run
+kb_tool themes .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml
+```
+
+The tool refuses a theme that cites an outcome or a quote the KB does not hold, and warns about a set that is too large, too small or overlapping. Fix what it refuses; weigh what it warns about. It replaces that core job's themes, keeps their IDs, leaves other core jobs alone and prints what changed. Then run `review` and `map`.
+
+4. Report each theme with its label, its need and its outcomes in words, how many people voiced them, and the outcomes left in no theme. Point to the Value themes view in the map. The counts are a signal from interviews, not an opportunity score: say so, and never call them a score.
+
+The user changes themes by telling you ("merge these two", "rename that one"). Edit the file and run `themes` again; there is no proposal step. When new interviews arrive, the themes are marked out of date. Update them only when asked, and keep the labels and groupings the team already uses.
+
+## When asked to rebuild another derived layer
+
+Surveys and use cases are rebuilt only on request. When the study has several core jobs, build them per core job: a survey asks one job's executors about that job's outcomes. Show each outcome with its text, never as an ID alone. Then clear that layer's `stale` flag and add a changelog entry with `action: rebuild`.
 
 ## Study-specific writing rules
 
@@ -240,7 +338,7 @@ The KB's fields are explained one by one in `references/kb-schema.md`. Read it b
 
 ## Files in this skill
 
-- `scripts/kb_tool.py`: init, context, merge (with format, quote, reference and clarity checks), apply, review, map, validate and migrate (which also moves a study made by an earlier version into `.pw-kb/`). Needs PyYAML, plus python-docx or pypdf for .docx or .pdf transcripts. Carries its own dependency list, so `uv run --locked` needs no setup.
+- `scripts/kb_tool.py`: init, context, merge (with format, quote, reference and clarity checks), apply, themes, review, map, validate and migrate (which also moves a study made by an earlier version into `.pw-kb/`). Needs PyYAML, plus python-docx or pypdf for .docx or .pdf transcripts. Carries its own dependency list, so `uv run --locked` needs no setup.
 - `scripts/kb_tool.py.lock`: the exact package versions `uv run --locked` installs. Keep it next to the script.
 - `assets/discovery-map-template.html`: the interactive map viewer. `map` fills it with the KB. Opened on its own, it lets anyone load a KB file.
 - `references/pw-rules.md`: how to write each kind of statement, with examples and common mistakes. Read it before extracting.

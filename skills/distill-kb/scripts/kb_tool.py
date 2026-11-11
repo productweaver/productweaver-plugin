@@ -22,6 +22,10 @@ Commands
   review    <kb.yaml> [--since DATE] [--out FILE]             write review.md, a plain sheet for human reviewers
   map       <kb.yaml> [--template FILE] [--out FILE] [--open] write discovery-map.html, the interactive map, KB inside;
                                                               --open also shows it in the default browser
+  themes    <kb.yaml> <themes.yaml> [--dry-run] [--json]      check one core job's value themes and write them:
+                                                              few needs that group the outcomes, for ideation
+  overview  <kb.yaml> <overview.yaml> [--dry-run] [--json]  check one core job's overview and write it: the
+                                                              study as a short story, with what to do next
   validate  <kb.yaml> [--structure-only] [--schema FILE] [--rehash]
                                                               check the structure, then every quote and transcript hash
   migrate   <kb.yaml> [--to .pw-kb/pw-kb.yaml] [--transcripts DIR ...]
@@ -69,14 +73,14 @@ try:
 except ImportError:  # pragma: no cover - depends on the machine
     _jsonschema = None
 
-__version__ = "0.6.0"
+__version__ = "0.8.0"
 SCHEMA_VERSION = 2
 
 BRAND = "Product Weaver"
 SITE = "https://productweaver.com"
 MADE_WITH = f"Made with {BRAND} · productweaver.com"
 
-DERIVED = ["survey", "simulation", "value_themes", "use_cases"]
+DERIVED = ["survey", "simulation", "value_themes", "overview", "use_cases"]
 SOURCES = ("transcript", "quoted_in_notes", "interviewer_notes")
 STAGES = ["define", "locate", "prepare", "confirm", "execute", "monitor", "modify", "conclude"]
 PROPOSAL_TYPES = ["new_step", "reword_step", "reword_outcome", "reword_core_job",
@@ -102,6 +106,24 @@ STEP_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+$")
 OUTCOME_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+\.[0-9]+$")
 BARE_OUTCOME_ID = re.compile(r"^[0-9]+\.[0-9]+$")  # schema 1, before IDs carried the core job's letter
 SOLUTION_ID = re.compile(r"^S[0-9]+$")
+THEME_ID = re.compile(r"^[A-Z]{1,2}\.T[0-9]+$")
+HIGHLIGHT_KINDS = ["pain", "struggle", "desire"]
+THEME_KEYS = ("id", "label", "need", "why", "outcomes", "highlights")
+THEME_COUNT = (5, 9)       # value themes per core job
+THEME_MIN_OUTCOMES = 3     # outcomes a theme should gather, and outcomes a core job needs per theme
+THEME_MAX_SHARE = 3        # no theme should hold more than one in this many of the job's outcomes
+THEME_MAX_PER_OUTCOME = 2  # themes one outcome may sit in
+THEME_HIGHLIGHTS = 6       # quotes picked for one theme, at most
+OVERVIEW_KEYS = ("job", "bottom_line", "why", "opening", "people", "today", "gaps", "needs", "focus", "next")
+GAP_KINDS = ["pain", "struggle"]  # what goes wrong today, and a fix that did not work
+GAP_MAX = 5                # gaps an overview should show, at most
+# what to do next: the statuses each track may have, and the fields it holds besides status and action
+NEXT_TRACKS = {"learn": (("now", "enough"), ("why", "ask", "tip")),
+               "prototype": (("ready", "early"), ("why", "test", "later")),
+               "market": (("ready", "early"), ("who", "words", "unknown"))}
+NEXT_LISTS = {"ask": 2, "words": 3}  # fields that are lists, and how many items each may hold
+SCORE_WORDS = re.compile(r"\d\s?%|\bpercent\b|\b(opportunity|importance|satisfaction) (score|rating)s?\b",
+                         re.IGNORECASE)
 GROUP_KEY = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 TRANSCRIPT_EXTS = (".md", ".markdown", ".txt", ".docx", ".pdf")
 KEEP_BACKUPS = 20
@@ -175,6 +197,7 @@ def kb_summary(path: str) -> Json | None:
             "outcomes": len([o for o in outcomes if not o.get("merged_into")]),
             "pending_proposals": len([p for p in proposals if p.get("status") == "pending"]),
             "solutions": len(live_solutions(kb)), "solution_groups": len(groups_of(kb)),
+            "themes": len(themes_of(kb)), "overviews": len(overviews_of(kb)),
             "stale": [k for k in DERIVED if isinstance(kb.get(k), dict) and kb[k].get("stale")]}
 
 
@@ -243,7 +266,8 @@ class Run:
         for key, value in sorted(vars(args).items()):
             if key in hidden or value in (None, False):
                 continue
-            public[key] = self.relative(value) if key in ("patch", "out", "template", "schema", "to") else value
+            paths = ("patch", "themes", "out", "template", "schema", "to")
+            public[key] = self.relative(value) if key in paths else value
         roots = getattr(args, "transcripts", None) or []
         if roots:  # a root that is a single file would name an interviewee; log folders only
             public["transcripts"] = [self.relative(r) if os.path.isdir(r) else "<file>" for r in roots]
@@ -742,6 +766,8 @@ def recount(kb: Json) -> None:
         outcome["quote_count"] = len(outcome.get("evidence", []))
     _recount_jobs(kb)
     _recount_solutions(kb, names)
+    _recount_themes(kb, names)
+    _recount_overview(kb, names)
     kb["meta"]["interview_count"] = len(kb["interviews"])
     dates = sorted(str(record["date"]) for record in kb["interviews"] if record.get("date"))
     if dates:
@@ -898,6 +924,90 @@ def _rename_use_refs(kb: Json, renamed: dict[str, str]) -> None:
             for use in uses_of(solution):
                 use["step"] = renamed.get(str(use.get("step")), use.get("step"))
             solution["uses"] = folded_uses(solution)
+
+
+# ---------- value themes ----------
+# A value theme is a need in the customer's words that gathers the outcomes serving one judgment, across job steps.
+# `themes` writes the layer, one core job at a time. A theme with no ID was written by hand before that command
+# existed: it is kept as it is, never counted and never checked, until `themes` replaces it.
+def themes_of(kb: Json, job: str | None = None) -> list[Json]:
+    layer = kb.get("value_themes")
+    items = layer.get("themes") if isinstance(layer, dict) else None
+    found = [t for t in items if isinstance(t, dict) and THEME_ID.match(str(t.get("id", "")))] \
+        if isinstance(items, list) else []
+    return [t for t in found if job is None or str(t.get("job")) == job]
+
+
+def theme_outcomes(theme: Json) -> list[str]:
+    items = theme.get("outcomes")
+    return [str(o) for o in items] if isinstance(items, list) else []
+
+
+def theme_number(theme: Json) -> int:
+    return int(str(theme["id"]).rsplit("T", 1)[1])
+
+
+def unassigned_outcomes(kb: Json) -> list[str]:
+    """Live outcomes that sit in no theme, for the core jobs that have themes."""
+    themes = themes_of(kb)
+    jobs = {str(t.get("job")) for t in themes}
+    used = {o for t in themes for o in theme_outcomes(t)}
+    return [str(o["id"]) for o in kb["desired_outcomes"]["outcomes"]
+            if not o.get("merged_into") and job_of(o.get("step", "")) in jobs and str(o["id"]) not in used]
+
+
+def _recount_themes(kb: Json, names: dict[str, str]) -> None:
+    themes, layer = themes_of(kb), kb.get("value_themes")
+    if not themes:
+        if isinstance(layer, dict):
+            layer.pop("unassigned", None)
+        return
+    outcomes = outcomes_by_id(kb)
+    for theme in themes:
+        members = [outcomes[o] for o in theme_outcomes(theme) if o in outcomes]
+        ids = sorted({i for o in members for i in o.get("interviews", [])})
+        theme["interviews"], theme["interview_count"] = ids, len(ids)
+        theme["quote_count"] = sum(o.get("quote_count", 0) for o in members)
+        for item in theme.get("highlights") or []:
+            if isinstance(item, dict):
+                item["name"] = names.get(str(item.get("interview")), item.get("name", ""))
+    layer["unassigned"] = unassigned_outcomes(kb)
+
+
+def _rename_theme_refs(kb: Json, renamed: dict[str, str]) -> None:
+    """Point themes at an outcome's new ID after it moved or was merged. An outcome that left the theme's core job
+    leaves the theme."""
+    for theme in themes_of(kb):
+        moved = dict.fromkeys(renamed.get(o, o) for o in theme_outcomes(theme))
+        theme["outcomes"] = [o for o in moved if job_of(o) == str(theme.get("job"))]
+
+
+def _theme_problems(kb: Json, jobs: dict[str, Json], outcomes: dict[str, Json]) -> list[str]:
+    """Cross-references of the value_themes layer that the schema cannot express."""
+    themes = themes_of(kb)
+    problems = [f"value theme id {dup} is used more than once" for dup in _duplicates([str(t["id"]) for t in themes])]
+    for theme in themes:
+        tid, job = str(theme["id"]), str(theme.get("job"))
+        if job not in jobs:
+            problems.append(f"value theme {tid}: core job {job} does not exist")
+        if job_of(tid) != job:
+            problems.append(f"value theme {tid}: its ID does not match core job {job}")
+        problems += [f"value theme {tid}: {key} is missing" for key in ("label", "need")
+                     if not str(theme.get(key) or "").strip()]
+        for oid in theme_outcomes(theme):
+            problems += _theme_link_problems(tid, job, oid, outcomes)
+    return problems
+
+
+def _theme_link_problems(tid: str, job: str, oid: str, outcomes: dict[str, Json]) -> list[str]:
+    target = outcomes.get(oid)
+    if not target:
+        return [f"value theme {tid}: outcome {oid} does not exist"]
+    if target.get("merged_into"):
+        return [f"value theme {tid}: outcome {oid} was merged into {target['merged_into']}; use that one"]
+    if job_of(oid) != job:
+        return [f"value theme {tid}: outcome {oid} belongs to core job {job_of(oid)}, not {job}"]
+    return []
 
 
 # ---------- schema ----------
@@ -1102,7 +1212,8 @@ def structure_problems(kb: Json, schema_path: str | None = None) -> list[str]:
             problems.append(f"outcome {outcome['id']}: merged_into {target} does not exist")
     iv_ids = [str(r["id"]) for r in kb["interviews"]]
     problems += [f"interview id {dup} is used more than once" for dup in _duplicates(iv_ids)]
-    return problems + _link_problems(kb, jobs) + _solution_problems(kb, steps)
+    return problems + _link_problems(kb, jobs) + _solution_problems(kb, steps) + _theme_problems(kb, jobs, outcomes) \
+        + _overview_problems(kb, jobs)
 
 
 # ---------- clarity ----------
@@ -1116,7 +1227,8 @@ class Style:
 
     limits: dict[str, int] = field(default_factory=lambda: {
         "executor": 16, "job": 10, "step": 10, "outcome": 16, "feeling": 12, "rationale": 30,
-        "solution": 6, "group": 6})
+        "solution": 6, "group": 6, "theme": 6, "need": 25,
+        "headline": 20, "finding": 50, "action": 20})
     banned: list[str] = field(default_factory=lambda: list(BANNED_NAMES))
     idioms: list[str] = field(default_factory=lambda: ["bread and butter", "in and out"])
     acronyms: list[str] = field(default_factory=lambda: ["OTR", "US", "UK", "EU"])
@@ -2339,6 +2451,7 @@ def _apply_merge_outcomes(kb: Json, proposal: Json) -> str:
     keep, drop = outcomes[str(proposal["target"])], outcomes[str(proposal["merge"])]
     add_evidence(keep, drop.get("evidence", []))
     drop["merged_into"] = keep["id"]
+    _rename_theme_refs(kb, {str(drop["id"]): str(keep["id"])})
     for other in kb["desired_outcomes"]["outcomes"]:  # anything that pointed at the dropped one now points at keep
         if other.get("merged_into") == drop["id"] and other is not drop:
             other["merged_into"] = keep["id"]
@@ -2349,12 +2462,13 @@ REF_FIELDS = ("target", "merge", "to_step")
 
 
 def rename_refs(kb: Json, renamed: dict[str, str]) -> None:
-    """Point every reference to a renamed step or outcome at its new ID: merged_into, solution uses and pending
-    proposals."""
+    """Point every reference to a renamed step or outcome at its new ID: merged_into, solution uses, value themes
+    and pending proposals."""
     for outcome in kb["desired_outcomes"]["outcomes"]:
         if outcome.get("merged_into") in renamed:
             outcome["merged_into"] = renamed[outcome["merged_into"]]
     _rename_use_refs(kb, renamed)
+    _rename_theme_refs(kb, renamed)
     for proposal in kb["proposed_changes"]:
         if proposal.get("status") == "pending":
             for key in REF_FIELDS:
@@ -2553,6 +2667,652 @@ def cmd_apply(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------- themes ----------
+@dataclass
+class ThemeChecks:
+    """What the checks of one core job's value themes need at hand."""
+
+    kb: Json
+    job: str
+    outcomes: dict[str, Json]
+    style: Style
+    report: Report
+    solutions: list[str]  # names of the live solutions: a theme names a need, never one of these
+
+
+def read_themes_file(path: str, kb: Json) -> tuple[str, list[Any]]:
+    data = load_yaml(path)
+    if not isinstance(data, dict) or not isinstance(data.get("themes"), list) or not data.get("job"):
+        raise KbError(f"{path} must hold `job` (a core job ID such as A) and `themes` (a list: the full set of value "
+                      "themes for that core job)", code="themes_file")
+    unknown = sorted(str(key) for key in set(data) - {"job", "themes"})
+    if unknown:
+        raise KbError(f"{path}: unknown key {', '.join(unknown)}; the file holds `job` and `themes` only",
+                      code="themes_file")
+    job = str(data["job"])
+    if job not in jobs_by_id(kb):
+        raise KbError(f"{path}: core job {job} is not in the KB", code="themes_file")
+    return job, data["themes"]
+
+
+def _clean_highlights(items: Any, label: str, width: int, report: Report) -> list[Json]:
+    if items is None:
+        return []
+    if not isinstance(items, list):
+        report.error(f"{label}: highlights must be a list", code="theme_shape")
+        return []
+    clean = []
+    for item in items:
+        if not (isinstance(item, dict) and item.get("kind") in HIGHLIGHT_KINDS and item.get("interview") is not None
+                and str(item.get("quote") or "").strip()):
+            report.error(f"{label}: each highlight needs kind ({', '.join(HIGHLIGHT_KINDS)}), interview and quote",
+                         code="theme_shape")
+            continue
+        ref = item["interview"]
+        clean.append({"kind": item["kind"], "interview": str(ref).zfill(width) if _is_int(ref) else str(ref),
+                      "quote": str(item["quote"])})
+    return clean
+
+
+def _clean_theme(item: Any, label: str, width: int, report: Report) -> Json | None:
+    """One theme of the file in a known shape, or None when it is not a mapping."""
+    if not isinstance(item, dict):
+        report.error(f"{label}: must be a mapping with label, need, why and outcomes", code="theme_shape")
+        return None
+    unknown = sorted(str(key) for key in set(item) - set(THEME_KEYS))
+    if unknown:
+        report.error(f"{label}: unknown key {', '.join(unknown)}; a theme holds {', '.join(THEME_KEYS)}",
+                     code="theme_shape")
+    theme: Json = {"id": str(item.get("id") or "")}
+    for key in ("label", "need", "why"):
+        theme[key] = str(item.get(key) or "").strip()
+        if not theme[key]:
+            report.error(f"{label}: {key} is missing", code="theme_shape")
+    outcomes = item.get("outcomes")
+    if not isinstance(outcomes, list) or not outcomes:
+        report.error(f"{label}: outcomes must be a list of outcome IDs, at least one", code="theme_shape")
+        outcomes = []
+    theme["outcomes"] = list(dict.fromkeys(str(o) for o in outcomes))
+    theme["highlights"] = _clean_highlights(item.get("highlights"), label, width, report)
+    return theme
+
+
+def _number_themes(themes: list[Json], before: list[Json], job: str, report: Report) -> None:
+    """Keep the IDs the file gives, give a theme with an unchanged label the ID it had, and number the rest."""
+    known = {str(t["id"]) for t in before}
+    by_label = {str(t.get("label", "")).lower(): str(t["id"]) for t in before}
+    given = [t["id"] for t in themes if t["id"]]
+    for tid in sorted(set(given)):
+        if tid not in known:
+            report.error(f"value theme {tid} is not a theme of core job {job}; leave `id` out for a new theme",
+                         code="theme_id")
+        if given.count(tid) > 1:
+            report.error(f"value theme id {tid} is used more than once", code="theme_id")
+    taken = set(given)
+    for theme in themes:
+        same = by_label.get(theme["label"].lower())
+        if not theme["id"] and same and same not in taken:
+            theme["id"] = same
+            taken.add(same)
+    number = max([theme_number(t) for t in before], default=0)
+    for theme in themes:
+        if not theme["id"]:
+            number += 1
+            theme["id"] = f"{job}.T{number}"
+
+
+def _check_theme_links(ctx: ThemeChecks, theme: Json, label: str) -> None:
+    for oid in theme["outcomes"]:
+        target = ctx.outcomes.get(oid)
+        if not target:
+            ctx.report.error(f"{label}: outcome {oid} is not in the KB; take IDs from `context`",
+                             code="theme_outcome")
+        elif target.get("merged_into"):
+            ctx.report.error(f"{label}: outcome {oid} was merged into {target['merged_into']}; use that one",
+                             code="theme_outcome")
+        elif job_of(oid) != ctx.job:
+            ctx.report.error(f"{label}: outcome {oid} belongs to core job {job_of(oid)}; a theme groups the "
+                             f"outcomes of one core job, here {ctx.job}", code="theme_outcome")
+
+
+def _check_theme_text(ctx: ThemeChecks, theme: Json, label: str) -> None:
+    clarity(theme["label"], "theme", f"{label} label", ctx.style, ctx.report)
+    clarity(theme["need"], "need", f"{label} need", ctx.style, ctx.report)
+    clarity(theme["why"], "rationale", f"{label} why", ctx.style, ctx.report)
+    if theme["need"] and not theme["need"].startswith("Help me "):
+        ctx.report.error(f"{label}: the need must start with 'Help me', in the customer's voice: '{theme['need']}'",
+                         code="theme_need_form")
+    text = f"{theme['label']} {theme['need']}".lower()
+    named = [name for name in ctx.solutions if name.lower() in text]
+    if named:
+        ctx.report.warn(f"{label} names a current solution ({', '.join(named)}); a theme states a need, so that "
+                        "ideas stay open", code="theme_names_solution")
+
+
+def _highlight_pool(kb: Json, outcome_ids: list[str]) -> dict[tuple[str, str], Json]:
+    """The quotes a theme may show: those on its outcomes, and on the solutions used at its outcomes' steps."""
+    outcomes = outcomes_by_id(kb)
+    members = [outcomes[o] for o in outcome_ids if o in outcomes]
+    steps = {str(o.get("step")) for o in members}
+    items = [e for o in members for e in o.get("evidence", [])]
+    items += [e for s in live_solutions(kb) for use in uses_of(s) if str(use.get("step")) in steps
+              for e in use.get("evidence", [])]
+    return {evidence_key(e): e for e in items}
+
+
+def _check_highlights(ctx: ThemeChecks, theme: Json, label: str) -> None:
+    """Every highlight must be a quote the KB already holds, so a theme never shows words nobody said."""
+    pool = _highlight_pool(ctx.kb, theme["outcomes"])
+    kept = []
+    for item in theme["highlights"]:
+        found = pool.get(evidence_key(item))
+        if not found:
+            ctx.report.error(f'{label}: highlight quote from interview {item["interview"]} is not on one of its '
+                             f'outcomes, nor on a solution used at their steps: "{short(item["quote"])}"',
+                             code="theme_highlight")
+            continue
+        kept.append({"kind": item["kind"], "interview": str(found["interview"]), "source": found["source"],
+                     "quote": found["quote"]})
+    theme["highlights"] = kept
+    if not theme["highlights"] or len(kept) > THEME_HIGHLIGHTS:
+        ctx.report.warn(f"{label} shows {len(kept)} quotes; pick 3 to {THEME_HIGHLIGHTS} that show the pain, the "
+                        "struggle and the desire", code="theme_quotes")
+
+
+def _check_theme_count(ctx: ThemeChecks, themes: list[Json], live: int) -> None:
+    low, high = THEME_COUNT
+    count, most = len(themes), max(live // THEME_MIN_OUTCOMES, 1)
+    if count > most:
+        ctx.report.warn(f"{count} value themes for {plural(live, 'outcome')} in core job {ctx.job}: keep at most one "
+                        f"theme per {THEME_MIN_OUTCOMES} outcomes, here {most}", code="theme_count")
+    elif count > high or (count < low and live >= low * THEME_MIN_OUTCOMES):
+        ctx.report.warn(f"{count} value themes in core job {ctx.job}: aim for {low} to {high}, few enough to hold in "
+                        "mind and enough to tell needs apart", code="theme_count")
+
+
+def _check_theme_sizes(ctx: ThemeChecks, themes: list[Json], live: int) -> None:
+    for theme in themes:
+        size, label = len(theme["outcomes"]), f"theme {theme['id']} '{theme['label']}'"
+        if size < THEME_MIN_OUTCOMES:
+            ctx.report.warn(f"{label} gathers {plural(size, 'outcome')}; a theme with fewer than "
+                            f"{THEME_MIN_OUTCOMES} is often one outcome reworded", code="theme_size")
+        elif live >= THEME_COUNT[0] * THEME_MIN_OUTCOMES and size * THEME_MAX_SHARE > live:
+            ctx.report.warn(f"{label} gathers {size} of the job's {live} outcomes; split a theme that holds more "
+                            f"than one in {THEME_MAX_SHARE}", code="theme_size")
+        people = {i for o in theme["outcomes"] for i in ctx.outcomes.get(o, {}).get("interviews", [])}
+        if len(people) == 1:
+            ctx.report.warn(f"{label} rests on one person; say so when you present it", code="theme_one_person")
+
+
+def _check_theme_overlap(ctx: ThemeChecks, themes: list[Json]) -> None:
+    homes: dict[str, list[str]] = {}
+    for theme in themes:
+        for oid in theme["outcomes"]:
+            homes.setdefault(oid, []).append(theme["id"])
+    for oid, where in homes.items():
+        if len(where) > THEME_MAX_PER_OUTCOME:
+            ctx.report.warn(f"outcome {oid} sits in {len(where)} themes ({', '.join(where)}); keep it in at most "
+                            f"{THEME_MAX_PER_OUTCOME}", code="theme_overlap")
+    for theme in themes:
+        if theme["outcomes"] and all(len(homes[o]) > 1 for o in theme["outcomes"]):
+            ctx.report.warn(f"theme {theme['id']} '{theme['label']}' has no outcome of its own; merge it into the "
+                            "themes that share its outcomes", code="theme_overlap")
+
+
+def _check_theme_set(ctx: ThemeChecks, themes: list[Json]) -> None:
+    labels = [theme["label"].lower() for theme in themes if theme["label"]]
+    for dup in _duplicates(labels):
+        ctx.report.error(f"two value themes of core job {ctx.job} share the label '{dup}'", code="theme_duplicate")
+    live = len([o for o in ctx.outcomes.values() if not o.get("merged_into") and job_of(o["id"]) == ctx.job])
+    if themes:
+        _check_theme_count(ctx, themes, live)
+    _check_theme_sizes(ctx, themes, live)
+    _check_theme_overlap(ctx, themes)
+
+
+def build_themes(kb: Json, job: str, items: list[Any], before: list[Json], report: Report) -> list[Json]:
+    """Check the file's themes against the KB and return them as the KB stores them."""
+    solutions = [str(s.get("name")) for s in live_solutions(kb) if s.get("name")]
+    ctx = ThemeChecks(kb, job, outcomes_by_id(kb), style_of(kb), report, solutions)
+    width = id_width(kb)
+    cleaned = [_clean_theme(item, f"themes[{index}]", width, report) for index, item in enumerate(items)]
+    themes = [theme for theme in cleaned if theme]
+    _number_themes(themes, before, job, report)
+    added = {str(t["id"]): t.get("added") for t in before}
+    for theme in themes:
+        label = f"theme {theme['id']} '{theme['label']}'"
+        _check_theme_links(ctx, theme, label)
+        _check_theme_text(ctx, theme, label)
+        _check_highlights(ctx, theme, label)
+    _check_theme_set(ctx, themes)
+    return [{"id": t["id"], "job": job, "label": t["label"], "need": t["need"], "why": t["why"],
+             "outcomes": t["outcomes"], "highlights": t["highlights"], "added": added.get(t["id"]) or today()}
+            for t in themes]
+
+
+def store_themes(kb: Json, job: str, themes: list[Json]) -> int:
+    """Replace the core job's themes, keep those of other core jobs and clear the layer's stale flag. Returns how
+    many themes written by hand, with no ID, were dropped."""
+    layer = kb.get("value_themes") if isinstance(kb.get("value_themes"), dict) else {}
+    old = layer.get("themes") if isinstance(layer.get("themes"), list) else []
+    kept = [t for t in themes_of(kb) if str(t.get("job")) != job]
+    rest = {k: v for k, v in layer.items() if k not in ("stale", "stale_reasons", "themes", "unassigned")}
+    merged = sorted(kept + themes, key=lambda t: (job_index(str(t["job"])), theme_number(t)))
+    kb["value_themes"] = {"stale": False, "themes": merged, **rest}
+    return len(old) - len(themes_of({"value_themes": layer}))
+
+
+def theme_changes(before: list[Json], after: list[Json]) -> list[str]:
+    """What a new set changes, in words: themes added, removed and reworded, and outcomes that joined or left."""
+    old, new = {str(t["id"]): t for t in before}, {str(t["id"]): t for t in after}
+    lines = [f"added {tid} {theme['label']}" for tid, theme in new.items() if tid not in old]
+    for tid, theme in new.items():
+        was = old.get(tid)
+        if not was:
+            continue
+        if any(str(was.get(key, "")) != theme[key] for key in ("label", "need", "why")):
+            renamed = f" (was '{was.get('label', '')}')" if was.get("label") != theme["label"] else ""
+            lines.append(f"reworded {tid} {theme['label']}{renamed}")
+        joined = [o for o in theme["outcomes"] if o not in theme_outcomes(was)]
+        left = [o for o in theme_outcomes(was) if o not in theme["outcomes"]]
+        if joined or left:
+            lines.append(f"{tid} {theme['label']}:" + (f" added {', '.join(joined)}" if joined else "")
+                         + (f" removed {', '.join(left)}" if left else ""))
+    return lines + [f"removed {tid} {theme.get('label', '')}" for tid, theme in old.items() if tid not in new]
+
+
+def _themes_text(kb: Json, job: str, themes: list[Json], result: Json) -> list[str]:
+    outcomes = outcomes_by_id(kb)
+    lines = [f"VALUE THEMES for core job {job}: {jobs_by_id(kb)[job]['statement']}"]
+    for theme in themes:
+        lines.append(f"{theme['id']} {theme['label']}: {theme['need']}  "
+                     f"({plural(len(theme['outcomes']), 'outcome')}, people {theme.get('interview_count', 0)})")
+        lines += [f"   {oid:>7}  {outcomes[oid]['statement']}" for oid in theme["outcomes"] if oid in outcomes]
+    if result["unassigned"]:
+        lines.append(f"IN NO THEME ({len(result['unassigned'])})")
+        lines += [f"   {oid:>7}  {outcomes[oid]['statement']}" for oid in result["unassigned"]]
+    if result["changes"]:
+        lines += ["CHANGES"] + [f"  {line}" for line in result["changes"]]
+    if result["legacy_dropped"]:
+        lines.append(f"dropped {plural(result['legacy_dropped'], 'theme')} written by hand before this command "
+                     "existed; the backup still has them")
+    if result["other_jobs"]:
+        lines.append(f"themes of core job {', '.join(result['other_jobs'])} were not touched; update them too if "
+                     "they are out of date")
+    return lines
+
+
+def _themes_finish(args: argparse.Namespace, report: Report, result: Json, lines: list[str]) -> int:
+    result.update({"warnings": report.warnings, "errors": report.errors})
+    args.run.add_report(report)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        return 0 if result["ok"] else 1
+    lines = lines + [f"WARN {w}" for w in report.warnings]
+    if report.errors:
+        lines.append(f"\n{len(report.errors)} problem(s); nothing written:")
+        lines += [f"  - {e}" for e in report.errors]
+    print("\n".join(lines))
+    return 0 if result["ok"] else 1
+
+
+def cmd_themes(args: argparse.Namespace) -> int:
+    """Check one core job's value themes and write them. The dry run and the real run share every step up to the
+    write."""
+    kb = load_kb(args.kb)
+    report = Report()
+    job, items = read_themes_file(args.themes, kb)
+    args.run.note(dry_run=bool(args.dry_run), job=job)
+    candidate = copy.deepcopy(kb)
+    before = themes_of(kb, job)
+    built = build_themes(candidate, job, items, before, report)
+    result: Json = {"ok": False, "dry_run": bool(args.dry_run), "job": job, "written": False, "run_id": args.run.id}
+    if report.errors:
+        return _themes_finish(args, report, result, [])
+    legacy = store_themes(candidate, job, built)
+    recount(candidate)
+    themes = themes_of(candidate, job)
+    unassigned = [o for o in candidate["value_themes"].get("unassigned", []) if job_of(o) == job]
+    summary = f"value themes of core job {job}: {', '.join(t['id'] for t in themes) or 'none'}"
+    candidate["changelog"].append(changelog_entry(args.run, "rebuild", layer="value_themes", job=job,
+                                                  themes=[t["id"] for t in themes], summary=summary))
+    problems = structure_problems(candidate)
+    if problems:
+        raise KbError("these themes would break the KB structure; nothing written:\n  - " + "\n  - ".join(problems),
+                      code="structure")
+    result.update({"ok": True, "themes": themes, "unassigned": unassigned, "legacy_dropped": legacy,
+                   "changes": theme_changes(before, themes),
+                   "other_jobs": sorted({str(t["job"]) for t in themes_of(candidate)} - {job})})
+    args.run.note(counts={"themes": len(themes), "theme_outcomes": len({o for t in themes for o in t["outcomes"]}),
+                          "unassigned": len(unassigned)})
+    lines = _themes_text(candidate, job, themes, result)
+    if args.dry_run:
+        lines.append("dry run OK: every outcome and every quote is in the KB; nothing written")
+    else:
+        result["backup"] = backup(args.kb)
+        save_kb(candidate, args.kb)
+        result["written"] = True
+        args.run.note(written=True, backup=args.run.relative(result["backup"]))
+        lines += [f"wrote {summary}", f"backup: {result['backup']}"]
+    return _themes_finish(args, report, result, lines)
+
+
+# ---------- overview ----------
+# The overview tells one core job's study as a short story for someone new to the method: a bottom line, the
+# people, how they work today, where that falls short, and what to do next. `overview` writes it, one core job at a
+# time. The map counts the unmet needs and ranks the themes itself; this layer holds only the sentences the
+# assistant writes, and every quote in it is one the KB already holds.
+@dataclass
+class OverviewChecks:
+    """What the checks of one core job's overview need at hand."""
+
+    kb: Json
+    job: str
+    style: Style
+    report: Report
+    pool: dict[tuple[str, str], Json]  # every quote the KB holds for this core job
+    width: int
+
+
+def overviews_of(kb: Json, job: str | None = None) -> list[Json]:
+    layer = kb.get("overview")
+    items = layer.get("jobs") if isinstance(layer, dict) else None
+    found = [o for o in items if isinstance(o, dict) and o.get("job")] if isinstance(items, list) else []
+    return [o for o in found if job is None or str(o["job"]) == job]
+
+
+def _own_statements(record: Json) -> list[Json]:
+    lists = [record.get(key) or [] for key in ("related_jobs", "emotional_jobs", "social_jobs")]
+    items = [record.get("job_executor"), record.get("core_functional_job")] + [s for group in lists for s in group]
+    return [s for s in items if isinstance(s, dict)]
+
+
+def _overview_pool(kb: Json, job: str) -> dict[tuple[str, str], Json]:
+    """The quotes an overview may show: those on the core job's steps, outcomes and solution uses, and what the
+    people linked to it said about themselves."""
+    steps = [s for s in kb["job_map"]["steps"] if str(s["job"]) == job]
+    keys = {step_key(s) for s in steps}
+    items = [e for s in steps for e in s.get("evidence", [])]
+    items += [e for o in kb["desired_outcomes"]["outcomes"]
+              if not o.get("merged_into") and job_of(o["step"]) == job for e in o.get("evidence", [])]
+    items += [e for s in live_solutions(kb) for use in uses_of(s) if str(use.get("step")) in keys
+              for e in use.get("evidence", [])]
+    for record in kb["interviews"]:
+        if main_job(record) == job or job in related_links(record):
+            items += [{**e, "interview": str(record["id"])} for s in _own_statements(record)
+                      for e in s.get("evidence") or [] if isinstance(e, dict)]
+    return {evidence_key(e): e for e in items if isinstance(e, dict)}
+
+
+def read_overview_file(path: str, kb: Json) -> tuple[str, Json]:
+    data = load_yaml(path)
+    if not isinstance(data, dict) or not data.get("job"):
+        raise KbError(f"{path} must be a mapping with `job` (a core job ID such as A) and the overview of that core "
+                      f"job: {', '.join(OVERVIEW_KEYS[1:])}", code="overview_file")
+    unknown = sorted(str(key) for key in set(data) - set(OVERVIEW_KEYS))
+    if unknown:
+        raise KbError(f"{path}: unknown key {', '.join(unknown)}; the file holds {', '.join(OVERVIEW_KEYS)}",
+                      code="overview_file")
+    job = str(data["job"])
+    if job not in jobs_by_id(kb):
+        raise KbError(f"{path}: core job {job} is not in the KB", code="overview_file")
+    return job, data
+
+
+def _ov_text(ctx: OverviewChecks, data: Any, key: str, kind: str, label: str, *,
+             required: bool = True) -> str:
+    """One sentence of the overview, checked against the writing rules."""
+    value = data.get(key) if isinstance(data, dict) else None
+    text = str(value).strip() if isinstance(value, (str, int, float)) else ""
+    if not text:
+        if required:
+            ctx.report.error(f"{label}: {key} is missing", code="overview_shape")
+        return ""
+    clarity(text, kind, f"{label} {key}", ctx.style, ctx.report)
+    _ov_no_score(ctx, text, f"{label} {key}")
+    return text
+
+
+def _ov_no_score(ctx: OverviewChecks, text: str, label: str) -> None:
+    """Interviews show what people said, not how much it matters: an overview carries no score and no percentage."""
+    if SCORE_WORDS.search(text):
+        ctx.report.error(f"{label}: no percentages and no score words in an overview; say how many people said it: "
+                         f"'{text}'", code="overview_score")
+
+
+def _ov_mapping(ctx: OverviewChecks, data: Any, key: str, allowed: tuple[str, ...], label: str) -> Json:
+    section = data.get(key) if isinstance(data, dict) else None
+    if not isinstance(section, dict):
+        ctx.report.error(f"{label}: {key} must be a mapping with {', '.join(allowed)}", code="overview_shape")
+        return {}
+    unknown = sorted(str(k) for k in set(section) - set(allowed))
+    if unknown:
+        ctx.report.error(f"{label}: {key} has unknown key {', '.join(unknown)}; it holds {', '.join(allowed)}",
+                         code="overview_shape")
+    return section
+
+
+def _ov_quote(ctx: OverviewChecks, item: Any, label: str) -> Json | None:
+    """A quote of the overview as the KB holds it, so the overview never shows words nobody said."""
+    if not (isinstance(item, dict) and item.get("interview") is not None and str(item.get("quote") or "").strip()):
+        ctx.report.error(f"{label}: quote needs interview and quote", code="overview_shape")
+        return None
+    ref = item["interview"]
+    key = {"interview": str(ref).zfill(ctx.width) if _is_int(ref) else str(ref), "quote": str(item["quote"])}
+    found = ctx.pool.get(evidence_key(key))
+    if not found:
+        ctx.report.error(f'{label}: the quote from interview {key["interview"]} is not in the KB for core job '
+                         f'{ctx.job}; copy one from a step, an outcome, a solution or the person: '
+                         f'"{short(key["quote"])}"', code="overview_quote")
+        return None
+    return {"interview": str(found["interview"]), "source": found.get("source", "transcript"),
+            "quote": found["quote"]}
+
+
+def _ov_section(ctx: OverviewChecks, data: Json, key: str, quote: bool = False) -> Json:
+    """A step of the story: the answer in one sentence, an optional explanation, and for the people a quote."""
+    allowed = ("answer", "text", "quote") if quote else ("answer", "text")
+    section = _ov_mapping(ctx, data, key, allowed, "overview")
+    out: Json = {"answer": _ov_text(ctx, section, "answer", "headline", key)}
+    text = _ov_text(ctx, section, "text", "finding", key, required=False)
+    if text:
+        out["text"] = text
+    if quote and section.get("quote") is not None:
+        found = _ov_quote(ctx, section["quote"], key)
+        if found:
+            out["quote"] = found
+    return out
+
+
+def _ov_gap_solutions(ctx: OverviewChecks, item: Json, label: str) -> list[str]:
+    given = item.get("solutions")
+    if given is None:
+        return []
+    if not isinstance(given, list):
+        ctx.report.error(f"{label}: solutions must be a list of solution IDs such as S3", code="overview_shape")
+        return []
+    known = {str(s.get("id")) for s in live_solutions(ctx.kb)}
+    ids = list(dict.fromkeys(str(s) for s in given))
+    for sid in ids:
+        if sid not in known:
+            ctx.report.error(f"{label}: solution {sid} is not a solution in use in the KB; take IDs from `context`",
+                             code="overview_solution")
+    return [sid for sid in ids if sid in known]
+
+
+def _ov_gap(ctx: OverviewChecks, item: Any, label: str) -> Json | None:
+    keys = ("label", "text", "kind", "solutions", "quote")
+    if not isinstance(item, dict):
+        ctx.report.error(f"{label}: must be a mapping with {', '.join(keys)}", code="overview_shape")
+        return None
+    unknown = sorted(str(k) for k in set(item) - set(keys))
+    if unknown:
+        ctx.report.error(f"{label}: unknown key {', '.join(unknown)}; a gap holds {', '.join(keys)}",
+                         code="overview_shape")
+    gap: Json = {"label": _ov_text(ctx, item, "label", "theme", label),
+                 "text": _ov_text(ctx, item, "text", "rationale", label), "kind": str(item.get("kind") or "")}
+    if gap["kind"] not in GAP_KINDS:
+        ctx.report.error(f"{label}: kind must be one of {', '.join(GAP_KINDS)}", code="overview_shape")
+    gap["solutions"] = _ov_gap_solutions(ctx, item, label)
+    quote = _ov_quote(ctx, item.get("quote"), label)
+    if quote:
+        gap["quote"] = quote
+    return gap
+
+
+def _ov_gaps(ctx: OverviewChecks, data: Json) -> Json:
+    section = _ov_mapping(ctx, data, "gaps", ("answer", "items"), "overview")
+    items = section.get("items")
+    if not isinstance(items, list) or not items:
+        ctx.report.error("gaps: items must be a list with at least one gap", code="overview_shape")
+        items = []
+    gaps = [g for g in (_ov_gap(ctx, item, f"gaps.items[{index}]") for index, item in enumerate(items)) if g]
+    if len(gaps) > GAP_MAX:
+        ctx.report.warn(f"{len(gaps)} gaps; keep at most {GAP_MAX}, the ones most people described",
+                        code="overview_count")
+    for dup in _duplicates([g["label"].lower() for g in gaps if g["label"]]):
+        ctx.report.error(f"two gaps share the label '{dup}'", code="overview_shape")
+    return {"answer": _ov_text(ctx, section, "answer", "headline", "gaps"), "items": gaps}
+
+
+def _ov_list(ctx: OverviewChecks, track: Json, key: str, label: str) -> list[str]:
+    given = track.get(key)
+    if not isinstance(given, list) or not given or not all(isinstance(x, str) and x.strip() for x in given):
+        ctx.report.error(f"{label}: {key} must be a list of 1 to {NEXT_LISTS[key]} sentences", code="overview_shape")
+        return []
+    items = [x.strip() for x in given]
+    if len(items) > NEXT_LISTS[key]:
+        ctx.report.error(f"{label}: {key} holds {len(items)} items; keep at most {NEXT_LISTS[key]}",
+                         code="overview_count")
+    for text in items:
+        clarity(text, "rationale", f"{label} {key}", ctx.style, ctx.report)
+        _ov_no_score(ctx, text, f"{label} {key}")
+    return items
+
+
+def _ov_words(ctx: OverviewChecks, words: list[str], label: str) -> None:
+    """The customers' words to reuse in messaging must be words a customer said."""
+    said = [norm(str(e.get("quote", ""))).lower() for e in ctx.pool.values()]
+    for text in words:
+        needle = norm(text).lower().strip(" .!?\"'")
+        if not any(needle in quote for quote in said):
+            ctx.report.error(f'{label}: "{short(text)}" is not part of a quote in the KB for core job {ctx.job}; '
+                             "use the customers' exact words", code="overview_quote")
+
+
+def _ov_track(ctx: OverviewChecks, data: Json, name: str) -> Json:
+    statuses, fields = NEXT_TRACKS[name]
+    label = f"next.{name}"
+    track = _ov_mapping(ctx, data, name, ("status", "action", *fields), "next")
+    out: Json = {"status": str(track.get("status") or ""), "action": _ov_text(ctx, track, "action", "action", label)}
+    if out["status"] not in statuses:
+        ctx.report.error(f"{label}: status must be one of {', '.join(statuses)}", code="overview_shape")
+    for key in fields:
+        out[key] = _ov_list(ctx, track, key, label) if key in NEXT_LISTS else \
+            _ov_text(ctx, track, key, "rationale", label)
+    if out.get("words"):
+        _ov_words(ctx, out["words"], label)
+    return out
+
+
+def build_overview(kb: Json, job: str, data: Json, report: Report) -> Json:
+    """Check the file's overview against the KB and return it as the KB stores it."""
+    ctx = OverviewChecks(kb, job, style_of(kb), report, _overview_pool(kb, job), id_width(kb))
+    entry: Json = {"job": job, "bottom_line": _ov_text(ctx, data, "bottom_line", "headline", "overview"),
+                   "why": _ov_text(ctx, data, "why", "rationale", "overview"),
+                   "opening": _ov_text(ctx, data, "opening", "rationale", "overview"),
+                   "people": _ov_section(ctx, data, "people", quote=True), "today": _ov_section(ctx, data, "today"),
+                   "gaps": _ov_gaps(ctx, data), "needs": _ov_section(ctx, data, "needs"),
+                   "focus": _ov_section(ctx, data, "focus")}
+    steps = _ov_mapping(ctx, data, "next", tuple(NEXT_TRACKS), "overview")
+    entry["next"] = {name: _ov_track(ctx, steps, name) for name in NEXT_TRACKS}
+    entry["written"] = today()
+    return entry
+
+
+def store_overview(kb: Json, entry: Json) -> None:
+    """Replace the core job's overview, keep those of other core jobs and clear the layer's stale flag."""
+    layer = kb.get("overview") if isinstance(kb.get("overview"), dict) else {}
+    kept = [o for o in overviews_of(kb) if str(o["job"]) != entry["job"]]
+    rest = {k: v for k, v in layer.items() if k not in ("stale", "stale_reasons", "jobs")}
+    kb["overview"] = {"stale": False, "jobs": sorted(kept + [entry], key=lambda o: job_index(str(o["job"]))),
+                      **rest}
+
+
+def _recount_overview(kb: Json, names: dict[str, str]) -> None:
+    for entry in overviews_of(kb):
+        gaps = entry.get("gaps") if isinstance(entry.get("gaps"), dict) else {}
+        people = entry.get("people") if isinstance(entry.get("people"), dict) else {}
+        holders = [people] + [g for g in gaps.get("items") or [] if isinstance(g, dict)]
+        for quote in [h.get("quote") for h in holders]:
+            if isinstance(quote, dict):
+                quote["name"] = names.get(str(quote.get("interview")), quote.get("name", ""))
+
+
+def _overview_problems(kb: Json, jobs: dict[str, Json]) -> list[str]:
+    """Cross-references of the overview layer that the schema cannot express."""
+    entries = overviews_of(kb)
+    problems = [f"overview of core job {dup} is there more than once"
+                for dup in _duplicates([str(o["job"]) for o in entries])]
+    for entry in entries:
+        job = str(entry["job"])
+        if job not in jobs:
+            problems.append(f"overview: core job {job} does not exist")
+        if not str(entry.get("bottom_line") or "").strip():
+            problems.append(f"overview of core job {job}: bottom_line is missing")
+    return problems
+
+
+def _overview_text(kb: Json, entry: Json, result: Json) -> list[str]:
+    job = entry["job"]
+    lines = [f"OVERVIEW for core job {job}: {jobs_by_id(kb)[job]['statement']}",
+             f"bottom line: {entry['bottom_line']}", f"opening: {entry['opening']}"]
+    lines += [f"{key}: {entry[key]['answer']}" for key in ("people", "today", "gaps", "needs", "focus")]
+    lines += [f"   gap ({g['kind']}): {g['label']}" for g in entry["gaps"]["items"]]
+    lines += [f"next, {name} ({track['status']}): {track['action']}" for name, track in entry["next"].items()]
+    if result["other_jobs"]:
+        lines.append(f"the overview of core job {', '.join(result['other_jobs'])} was not touched; update it too if "
+                     "it is out of date")
+    if result["missing_jobs"]:
+        lines.append(f"core job {', '.join(result['missing_jobs'])} has no overview yet")
+    return lines
+
+
+def cmd_overview(args: argparse.Namespace) -> int:
+    """Check one core job's overview and write it. The dry run and the real run share every step up to the write."""
+    kb = load_kb(args.kb)
+    report = Report()
+    job, data = read_overview_file(args.overview, kb)
+    args.run.note(dry_run=bool(args.dry_run), job=job)
+    candidate = copy.deepcopy(kb)
+    entry = build_overview(candidate, job, data, report)
+    result: Json = {"ok": False, "dry_run": bool(args.dry_run), "job": job, "written": False, "run_id": args.run.id}
+    if report.errors:
+        return _themes_finish(args, report, result, [])
+    store_overview(candidate, entry)
+    recount(candidate)
+    summary = f"overview of core job {job}"
+    candidate["changelog"].append(changelog_entry(args.run, "rebuild", layer="overview", job=job, summary=summary))
+    problems = structure_problems(candidate)
+    if problems:
+        raise KbError("this overview would break the KB structure; nothing written:\n  - " + "\n  - ".join(problems),
+                      code="structure")
+    written = {str(o["job"]) for o in overviews_of(candidate)}
+    result.update({"ok": True, "overview": overviews_of(candidate, job)[0], "other_jobs": sorted(written - {job}),
+                   "missing_jobs": sorted(set(jobs_by_id(candidate)) - written)})
+    args.run.note(counts={"overview_gaps": len(entry["gaps"]["items"]), "overviews": len(written)})
+    lines = _overview_text(candidate, entry, result)
+    if args.dry_run:
+        lines.append("dry run OK: every quote and every solution is in the KB; nothing written")
+    else:
+        result["backup"] = backup(args.kb)
+        save_kb(candidate, args.kb)
+        result["written"] = True
+        args.run.note(written=True, backup=args.run.relative(result["backup"]))
+        lines += [f"wrote {summary}", f"backup: {result['backup']}"]
+    return _themes_finish(args, report, result, lines)
+
+
 # ---------- init, context ----------
 def cmd_init(args: argparse.Namespace) -> int:
     if not at_home(args.kb):
@@ -2611,7 +3371,9 @@ def context_data(kb: Json) -> Json:
             "pending_proposals": [{"id": p["id"], "type": p["type"], "target": p.get("target") or p.get("job") or "",
                                    "proposal": p.get("proposal", "")}
                                   for p in kb["proposed_changes"] if p.get("status") == "pending"],
-            "current_solutions": solutions_data(kb),
+            "current_solutions": solutions_data(kb), "value_themes": themes_data(kb),
+            "overview": [{"job": str(o["job"]), "bottom_line": o.get("bottom_line", ""),
+                          "written": o.get("written", "")} for o in overviews_of(kb)],
             "stale": stale_layers(kb), "schema_version": kb["meta"].get("schema_version"),
             "tool_version": __version__}
 
@@ -2624,6 +3386,34 @@ def solutions_data(kb: Json) -> Json:
                   "group": s.get("group", ""), "steps": solution_steps(s), "interviews": s.get("interviews", []),
                   "stopped_by": s.get("stopped_by", [])} for s in live_solutions(kb)]
     return {"groups": groups, "solutions": solutions}
+
+
+def themes_data(kb: Json) -> Json:
+    """The value themes with the text of their outcomes, and the outcomes that sit in no theme yet."""
+    outcomes = outcomes_by_id(kb)
+
+    def texts(ids: list[str]) -> list[Json]:
+        return [{"id": oid, "statement": outcomes[oid]["statement"]} for oid in ids if oid in outcomes]
+
+    themes = [{"id": str(t["id"]), "job": str(t.get("job")), "label": t.get("label", ""), "need": t.get("need", ""),
+               "why": t.get("why", ""), "outcomes": texts(theme_outcomes(t)),
+               "interview_count": t.get("interview_count", 0)} for t in themes_of(kb)]
+    return {"themes": themes, "unassigned": texts(unassigned_outcomes(kb))}
+
+
+def _print_themes(data: Json, stale: bool) -> None:
+    if not data["themes"]:
+        return
+    print("\nVALUE THEMES" + (" [out of date]" if stale else "")
+          + " (when you update them, keep each ID, label and need unless there is a reason to change it)")
+    for theme in data["themes"]:
+        print(f"{theme['id']} {theme['label']}: {theme['need']}  (people {theme['interview_count']})")
+        for outcome in theme["outcomes"]:
+            print(f"   {outcome['id']:>7}  {outcome['statement']}")
+    if data["unassigned"]:
+        print("IN NO THEME YET")
+        for outcome in data["unassigned"]:
+            print(f"   {outcome['id']:>7}  {outcome['statement']}")
 
 
 def _person_line(person: Json) -> str:
@@ -2669,6 +3459,11 @@ def cmd_context(args: argparse.Namespace) -> int:
         return 0
     _print_jobs(data)
     _print_solutions(data["current_solutions"])
+    _print_themes(data["value_themes"], "value_themes" in data["stale"])
+    if data["overview"]:
+        print("\nOVERVIEW" + (" [out of date]" if "overview" in data["stale"] else ""))
+        for entry in data["overview"]:
+            print(f"{entry['job']} written {entry['written']}: {entry['bottom_line']}")
     if data["segments"]:
         print("\nSEGMENTS: " + "; ".join(f"{k}={v}" for k, v in data["segments"].items()))
     if data["people"]:
@@ -2817,6 +3612,32 @@ def _review_solutions(kb: Json) -> list[str]:
     return lines
 
 
+def _review_themes(kb: Json) -> list[str]:
+    themes = themes_of(kb)
+    if not themes:
+        return []
+    outcomes = outcomes_by_id(kb)
+
+    def rows(ids: list[str]) -> list[str]:
+        return [f"- {outcomes[o]['statement']} ({o}) [{outcomes[o].get('interview_count', 0)}]"
+                for o in ids if o in outcomes]
+
+    stale = " They are out of date: outcomes were added or changed since." if "value_themes" in stale_layers(kb) \
+        else ""
+    lines = ["## Value themes", "", "Needs that group the outcomes, to sort ideas into. Numbers in brackets show how "
+             f"many people voiced a theme's outcomes: a signal from interviews, not a survey score.{stale}", ""]
+    many = len(kb["core_jobs"]) > 1
+    for theme in sorted(themes, key=lambda t: (job_index(str(t["job"])), -t.get("interview_count", 0))):
+        where = f" (core job {theme['job']})" if many else ""
+        lines += [f"### {theme.get('label', '')} [{theme.get('interview_count', 0)}]{where}", "",
+                  f"*{theme.get('need', '')}*", ""]
+        lines += ([theme["why"], ""] if theme.get("why") else []) + rows(theme_outcomes(theme)) + [""]
+    left = unassigned_outcomes(kb)
+    if left:
+        lines += ["### In no theme yet", ""] + rows(left) + [""]
+    return lines
+
+
 def _review_people(kb: Json) -> list[str]:
     jobs = jobs_by_id(kb)
     named = [r for r in kb["interviews"] if main_job(r) or related_links(r)] if len(jobs) > 1 else []
@@ -2877,8 +3698,8 @@ def review_lines(kb: Json, since: str) -> list[str]:
     live_outcomes = [o for o in kb["desired_outcomes"]["outcomes"] if not o.get("merged_into")]
     new_outcomes = {o["id"] for o in kb["desired_outcomes"]["outcomes"] if since and str(o.get("added", "")) >= since}
     return (_review_head(kb, live_outcomes) + _review_decisions(kb) + _review_new(kb, since, new_outcomes)
-            + _review_map(kb, live_outcomes, new_outcomes) + _review_solutions(kb) + _review_people(kb)
-            + _review_tail(kb))
+            + _review_map(kb, live_outcomes, new_outcomes) + _review_solutions(kb) + _review_themes(kb)
+            + _review_people(kb) + _review_tail(kb))
 
 
 def cmd_review(args: argparse.Namespace) -> int:
@@ -2955,6 +3776,10 @@ def cmd_map(args: argparse.Namespace) -> int:
     """Rebuild the interactive discovery map with the current KB embedded, so it opens with no setup."""
     kb = load_kb(args.kb)
     data = {key: kb[key] for key in MAP_KEYS if key in kb}
+    if themes_of(kb):  # a KB with no themes gives the map it always gave
+        data["value_themes"] = kb["value_themes"]
+    if overviews_of(kb):  # the written findings of the Overview view; the map counts the rest itself
+        data["overview"] = kb["overview"]
     payload = json.dumps(data, default=str, ensure_ascii=False)
     payload = payload.replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
     template_path = skill_file("assets", "discovery-map-template.html", args.template)
@@ -3037,6 +3862,12 @@ def _check_solution_quotes(kb: Json, checker: QuoteChecker, report: Report) -> N
                 checker.check(use["evidence"], f"solution {solution.get('id')} at step {use.get('step')}", report)
 
 
+def _check_theme_quotes(kb: Json, checker: QuoteChecker, report: Report) -> None:
+    for theme in themes_of(kb):
+        if theme.get("highlights"):
+            checker.check(theme["highlights"], f"value theme {theme['id']}", report)
+
+
 def check_stored_quotes(kb: Json, transcripts: Transcripts, report: Report) -> dict[str, str]:
     """Re-check every quote in the KB against its transcript. Returns the transcripts whose content changed."""
     texts, drifted = _transcript_texts(kb, transcripts, report)
@@ -3052,6 +3883,7 @@ def check_stored_quotes(kb: Json, transcripts: Transcripts, report: Report) -> d
     _check_own_quotes(kb, texts, checker, report)
     _check_shared_quotes(kb, checker, report)
     _check_solution_quotes(kb, checker, report)
+    _check_theme_quotes(kb, checker, report)
     return drifted
 
 
@@ -3335,6 +4167,14 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--out")
     sp.add_argument("--open", action="store_true",
                     help="also show the map in the default browser; set KB_TOOL_OPEN=0 to never do so")
+    sp = command("themes", cmd_themes, "check one core job's value themes and write them")
+    sp.add_argument("themes", help="path to a YAML file with `job` and `themes`, the full set for that core job")
+    sp.add_argument("--dry-run", action="store_true", help="run every check, write nothing")
+    sp.add_argument("--json", action="store_true", help="print the result as one JSON object")
+    sp = command("overview", cmd_overview, "check one core job's overview and write it")
+    sp.add_argument("overview", help="path to a YAML file with `job` and the overview of that core job")
+    sp.add_argument("--dry-run", action="store_true", help="run every check, write nothing")
+    sp.add_argument("--json", action="store_true", help="print the result as one JSON object")
     sp = command("validate", cmd_validate, f"check the KB's structure, then its quotes against {KB_FOLDER}/{COPIES}/")
     sp.add_argument("--structure-only", action="store_true", help="check the structure, not the quotes")
     sp.add_argument("--schema", help="path to kb-schema.json, if it is not next to the script")

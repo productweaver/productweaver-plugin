@@ -3,6 +3,45 @@
 Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning.
 
+## 0.4.0 — 2026-11-11
+
+- **An Overview view in the discovery map, and the map opens on it.** It tells
+  the study as a short story in six steps, for a person who does not know the
+  method: who you listened to, what they try to get done, how they do it
+  today, where that falls short, what they most want to get better, and where
+  a new solution should focus. Each step has a question, a one-sentence answer
+  and a link to the view with the detail.
+- **What to do next.** On top of the story, a block that opens on a click
+  gives three next steps: keep learning, prototype, and go to market. Each has
+  a status, such as "Ready to sketch" or "Too early to sell", and the evidence
+  it rests on. They are advice from the assistant, not findings.
+- The view also shows how sure the findings are, on four levels from "A hunch"
+  to "Confirmed by a survey", and the needs the most people raised with what
+  they use today at that step. These are counted from the conversations. They
+  are not a survey score.
+- The assistant now writes the overview at the end of each run, with the new
+  `kb_tool overview` command. It refuses a quote or a solution the knowledge
+  base does not hold. New interviews mark the overview out of date.
+- **Value themes.** Ask the assistant for value themes and it groups a core
+  job's desired outcomes into a few needs in the customer's voice, such as
+  "Help me order what the week will really need". A theme may gather outcomes
+  from several job steps, and an outcome may sit in two themes. Use the themes
+  to sort ideas into.
+- The new `kb_tool themes` command checks and writes one core job's themes. It
+  refuses an outcome or a quote the knowledge base does not hold, keeps each
+  theme's ID when you reword it, and prints what changed. Themes follow an
+  outcome when it moves or is merged.
+- **A Value themes view in the discovery map.** One card per theme shows its
+  outcomes, how many people voiced them, what people use today for it and who
+  stopped, and quotes for the pain, the struggle and the desire. The counts are
+  a signal from interviews, not a survey score.
+- New interviews mark the themes out of date and list the new outcomes as "in
+  no theme yet". The assistant updates the themes when you ask, and keeps your
+  labels and groupings.
+- `kb_tool` 0.8.0. `context`, `review.md` and `validate` cover value themes,
+  and `context` and `validate` cover the overview.
+  The knowledge base schema stays 2.
+
 ## 0.3.1 — 2026-11-10
 
 - **The first discovery map opens by itself.** `kb_tool map --open` shows the

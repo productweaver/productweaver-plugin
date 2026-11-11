@@ -24,7 +24,11 @@ current_solutions:    # what people use today for each step, optional
   solutions: []
 proposed_changes: []  # structural changes waiting for a decision
 changelog: []         # what happened to the KB, and when
-survey / simulation / value_themes / use_cases:   # derived layers, rebuilt on request
+value_themes:         # a few needs that group the outcomes, optional, built on request
+  themes: []
+overview:             # the study as a short story with what to do next, optional
+  jobs: []
+survey / simulation / use_cases:   # other derived layers, rebuilt on request
 ```
 
 Required at the top level: `meta`, `core_jobs`, `interviews`, `job_map`, `desired_outcomes`.
@@ -81,7 +85,7 @@ The letter is there even when the study has one core job (`A.6.3`), so no ID cha
 
 | Field | Type | Meaning |
 |---|---|---|
-| `limits` | mapping of kind to integer | Maximum words per kind of statement: `executor` (16), `job` (10), `step` (10), `outcome` (16), `feeling` (12), `rationale` (30, also a solution group's `why`), `solution` (6, a solution's name), `group` (6, a solution group's name) |
+| `limits` | mapping of kind to integer | Maximum words per kind of statement: `executor` (16), `job` (10), `step` (10), `outcome` (16), `feeling` (12), `rationale` (30, also a solution group's `why`), `solution` (6, a solution's name), `group` (6, a solution group's name), `theme` (6, a value theme's label), `need` (25, a value theme's need) |
 | `banned` | list of strings | Tokens a statement may not contain. Default: `(`, `;`, `e.g.`, `i.e.`, ` and/or `, `/` |
 | `idioms` | list of strings | Phrases with "and" or "or" that are one idea. Default: `bread and butter`, `in and out` |
 | `acronyms` | list of strings | Abbreviations every reviewer in this market knows. Default: `OTR`, `US`, `UK`, `EU` |
@@ -233,7 +237,7 @@ A person quoted on both a current and a stopped use counts as a current user. So
 
 ## `changelog[]`
 
-One entry per thing that happened to the KB. Every entry has `date`, `action` and usually `summary`, a sentence for people. `action` is one of `init`, `merge`, `decide`, `rebuild`, `edit` or `migrate`. The script logs `init`, `merge`, `decide`, `migrate` and `edit` (when `validate --rehash` accepts changed transcripts). Log `rebuild` when a derived layer is rebuilt and `edit` after a hand edit.
+One entry per thing that happened to the KB. Every entry has `date`, `action` and usually `summary`, a sentence for people. `action` is one of `init`, `merge`, `decide`, `rebuild`, `edit` or `migrate`. The script logs `init`, `merge`, `decide`, `migrate`, `edit` (when `validate --rehash` accepts changed transcripts) and `rebuild` (when `themes` writes value themes). Log `rebuild` yourself when another derived layer is rebuilt, and `edit` after a hand edit.
 
 Entries the script writes also carry `ts`, the time with timezone, and `run_id`, the ID of the run in `logs/kb_tool.jsonl` (see `run-log.md`), so a change can be traced to its log line and its backup. A `merge` entry may carry `provenance`, copied from the patch: `assistant`, `model`, `started`, `transcripts_read` (as KB interview IDs) and `notes`.
 
@@ -253,12 +257,79 @@ A `merge` entry also carries structured fields, so tools do not have to parse th
 | `proposals` | list of `P<n>` | Proposals this merge filed |
 | `bootstrap` | boolean | Present and true when the merge created the core jobs and job map |
 
-A `decide` entry carries `proposal` (the ID) and `decision` (`approved` or `rejected`).
+A `decide` entry carries `proposal` (the ID) and `decision` (`approved` or `rejected`). A `rebuild` entry written by `themes` carries `layer` (`value_themes`), `job` (the core job) and `themes` (the IDs of that job's themes after the run).
 
 ## Backups
 
 Every write except `init` first copies the KB to `backups/` next to it, as `<name>.<date>-<time>-<microseconds>.yaml`. The newest 20 copies are kept.
 
-## Derived layers
+## `value_themes`
 
-`survey`, `simulation`, `value_themes` and `use_cases` are built from the layers above, on request. Their content is free-form, but each may carry `stale: true` and `stale_reasons`. The script sets these when new evidence arrives, and a rebuild clears them.
+A few needs, in the customer's voice, that group the desired outcomes of a core job so a team can sort ideas into them. The layer is optional and built on request. `kb_tool.py themes` writes it, one core job at a time, and checks it. The method is in `pw-rules.md`, "Value themes".
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `stale` | boolean | no | True when interviews, outcomes or approved proposals arrived after the themes were written. `themes` clears it |
+| `stale_reasons` | list of strings | no | Why, one line per change, with its date |
+| `themes` | list of themes | no | The themes of every core job, in ID order |
+| `unassigned` | list of outcome IDs | no | *Computed.* Live outcomes that sit in no theme, for the core jobs that have themes |
+
+**`value_themes.themes[]`**
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `id` | `"<job>.T<n>"` | yes | `A.T2` is the second theme of core job A. It stays the same when the theme is reworded |
+| `job` | core job ID | yes | The core job whose outcomes it groups |
+| `label` | string | yes | Starts with a verb. At most 6 words |
+| `need` | string | yes | One sentence that starts with "Help me". At most 25 words |
+| `why` | string | no | What binds the outcomes, in one sentence of at most 30 words |
+| `outcomes` | list of outcome IDs | yes | The outcomes it groups, all from its core job. An outcome may sit in two themes. When an outcome moves or is merged, the script updates the ID here |
+| `highlights` | list | no | Quotes picked to show the need: `{kind, interview, source, quote, name}`. `kind` is `pain`, `struggle` or `desire`. Each is a copy of a quote on one of the theme's outcomes or on a solution used at their steps; `source` and `name` are filled in by the script |
+| `added` | date | no | *Computed.* When the theme entered the KB |
+| `interviews`, `interview_count`, `quote_count` | | no | *Computed.* Who is quoted on its outcomes, how many people that is, and how many quotes those outcomes hold |
+
+The counts are a signal from interviews, not a survey score. A theme with no `id` was written by hand before the `themes` command existed. The script keeps it, does not check or count it, and drops it the first time `themes` writes that layer.
+
+## `overview`
+
+The study told as a short story for someone new to the method, with what to do next. It feeds the Overview view of the discovery map. The layer is optional. `kb_tool.py overview` writes it, one core job at a time, and checks it. The writing rules are in `pw-rules.md`, "Overview".
+
+The layer holds only the sentences the assistant writes. The map counts the rest itself: how sure the findings are, the parts of the job, the solutions in use, the key unmet needs and the ranking of the value themes.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `stale` | boolean | no | True when interviews, outcomes or approved proposals arrived after an overview was written. `overview` clears it |
+| `stale_reasons` | list of strings | no | Why, one line per change, with its date |
+| `jobs` | list of overviews | no | One overview per core job, in job order |
+
+**`overview.jobs[]`**
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `job` | core job ID | yes | The core job the overview is about |
+| `bottom_line` | string | yes | The main finding, in one sentence of at most 20 words |
+| `why` | string | yes | Why the problem is still there. At most 30 words |
+| `opening` | string | yes | Where a new solution fits. At most 30 words |
+| `people` | mapping | yes | Who was listened to: `answer` (at most 20 words), optional `text` (at most 50 words) and optional `quote` |
+| `today` | mapping | yes | How they get the job done today: `answer`, optional `text`. Every `answer` is at most 20 words and every `text` at most 50 |
+| `gaps` | mapping | yes | Where today's way falls short: `answer` and `items`, 1 to 5 gaps |
+| `needs` | mapping | yes | What they most want to get better: `answer`, optional `text`. The map lists the needs |
+| `focus` | mapping | yes | Where a new solution should focus: `answer`, optional `text`. The map lists the themes |
+| `next` | mapping | yes | What to do next, in three tracks: `learn`, `prototype`, `market`. Advice, not findings |
+| `written` | date | no | *Computed.* When this overview was written |
+
+**A gap** (`gaps.items[]`) holds `label` (at most 6 words), `text` (at most 30 words), `kind` (`pain`: it hurts today; `struggle`: a fix they tried did not work), optional `solutions` (IDs of the solutions it concerns) and `quote`.
+
+**A quote** is `{interview, quote}`. It must be a quote the KB already holds for that core job: on one of its steps, outcomes or solution uses, or in what a person linked to it said about themselves. The script fills in `source` and `name`.
+
+**A track** of `next` holds `status`, `action` (at most 20 words) and three more fields, each at most 30 words:
+
+| Track | `status` | Other fields |
+|---|---|---|
+| `learn` | `now` or `enough` | `why`, `ask` (1 or 2 questions for the next conversations), `tip` |
+| `prototype` | `ready` or `early` | `why`, `test` (how to try it with real people), `later` (what to leave out for now) |
+| `market` | `ready` or `early` | `who` (whom to approach first), `words` (1 to 3 phrases in the customers' own words, each part of a quote in the KB), `unknown` (what is not known yet) |
+
+## Other derived layers
+
+`survey`, `simulation` and `use_cases` are built from the layers above, on request. Their content is free-form, but each may carry `stale: true` and `stale_reasons`. The script sets these when new evidence arrives, and a rebuild clears them.

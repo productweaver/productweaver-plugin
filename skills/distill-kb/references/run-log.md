@@ -17,7 +17,7 @@ Every line has these fields. The order is stable, so lines are easy to compare.
 | `run_id` | 12 hex characters, unique per run. Changelog entries the script writes carry the same value |
 | `ts` | When the run started, ISO 8601 with timezone |
 | `duration_ms` | How long the run took |
-| `command` | `init`, `context`, `merge`, `apply`, `review`, `map`, `validate` or `migrate` |
+| `command` | `init`, `context`, `merge`, `apply`, `themes`, `overview`, `review`, `map`, `validate` or `migrate` |
 | `args` | The options given, with paths relative to the KB folder. `--note`, `--project`, `--interviewer` and the KB path are left out. `transcripts` lists the roots; a root that is a file shows as `<file>` |
 | `exit_code` | 0 success, 1 refused or failed with a message, 2 crashed |
 | `written` | True when the run changed the KB file |
@@ -25,19 +25,22 @@ Every line has these fields. The order is stable, so lines are easy to compare.
 | `python`, `os` | Python version and platform |
 | `agent` | The assistant running the tool: `KB_TOOL_AGENT` if set, else `claude-code` or `gemini-cli` when their environment marker is present, else the terminal program, else null |
 | `kb_sha256_before`, `kb_sha256_after` | Hash of the KB file before and after. Equal means nothing changed; a change between two runs means a hand edit |
-| `kb` | Size of the KB after the run: `interviews`, `core_jobs`, `unlinked_interviews` (linked to no core job), `steps`, `thin_steps`, `outcomes` (live ones), `pending_proposals`, `solutions` (live ones), `solution_groups` and the `stale` derived layers |
+| `kb` | Size of the KB after the run: `interviews`, `core_jobs`, `unlinked_interviews` (linked to no core job), `steps`, `thin_steps`, `outcomes` (live ones), `pending_proposals`, `solutions` (live ones), `solution_groups`, `themes` (value themes), `overviews` (core jobs with an overview) and the `stale` derived layers |
 | `errors`, `warnings` | Codes with counts, such as `{"quote_not_found": 3}`. See Codes below |
 
 Commands add their own fields:
 
 | Field | Command | Meaning |
 |---|---|---|
-| `dry_run`, `nothing_new` | merge | Whether it was a dry run, and whether the patch had nothing new |
+| `dry_run`, `nothing_new` | merge, themes, overview | Whether it was a dry run, and for merge whether the patch had nothing new |
 | `patch_sha256` | merge | Hash of the patch file, so retries of the same patch can be counted |
 | `bootstrap` | merge | True when the merge created the core job and job map |
 | `counts` | merge | `interviews_added`, `interviews_skipped`, `outcomes_added`, `step_quotes`, `outcome_quotes`, `proposals_filed`, `transcripts_copied` (new transcripts copied into `.pw-kb/transcripts/`), `solutions_added`, `solution_groups_added`, `solution_quotes` (quotes added to solutions already in the KB) |
+| `counts` | themes | `themes` (that core job's themes after the run), `theme_outcomes` (outcomes in at least one of them), `unassigned` (that job's outcomes in no theme) |
+| `counts` | overview | `overview_gaps` (gaps in the overview just written), `overviews` (core jobs that have an overview after the run) |
 | `provenance` | merge | The patch's provenance block without `notes`: `assistant`, `model`, `started`, `transcripts_read` as KB IDs |
-| `backup` | merge, apply, validate, migrate | The backup made before the write, relative to the KB folder |
+| `backup` | merge, apply, themes, overview, validate, migrate | The backup made before the write, relative to the KB folder |
+| `job` | themes, overview | The core job whose value themes or overview the run was about |
 | `proposal`, `proposal_type`, `decision` | apply | What was decided on and how. Logged even when the apply is refused |
 | `out`, `since` | review, map | The file written; for review, the date new items are counted from |
 | `browser` | map | Only with `--open`: `opened`, `failed` (no browser could be started), `no_display` (a remote session or no display, so it did not try) or `off` (`KB_TOOL_OPEN=0`) |
@@ -89,6 +92,31 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `proposal_ref` | A proposal points at a step, outcome, core job, interview, segment, solution or solution group that does not fit |
 | `structure` | The KB that would result, or the KB as it stands, breaks `kb-schema.json` or its cross-references |
 
+### Errors that refuse an overview
+
+`overview` reports these, together with the `clarity_` errors above for a sentence that is too long. Nothing is written.
+
+| Code | Meaning |
+|---|---|
+| `overview_shape` | A part of the overview is missing or not in the right shape: a sentence, a section, a gap's kind or quote, a track's status, or an unknown key |
+| `overview_quote` | A quote is not one the KB holds for that core job, or a phrase in `words` is not part of such a quote |
+| `overview_solution` | A gap names a solution that is not a solution in use in the KB |
+| `overview_count` | `ask` or `words` holds more items than allowed |
+| `overview_score` | A sentence holds a percentage or a score word, such as "opportunity score" |
+
+### Errors that refuse value themes
+
+`themes` reports these, together with the `clarity_` errors above for a label, a need or a `why` that is too long. Nothing is written.
+
+| Code | Meaning |
+|---|---|
+| `theme_shape` | A theme is not a mapping, lacks its label, need, `why` or outcomes, holds an unknown key, or has a highlight without kind, interview and quote |
+| `theme_id` | A theme's `id` is not a theme of that core job, or two themes give the same `id` |
+| `theme_outcome` | A theme cites an outcome that is not in the KB, was merged into another, or belongs to another core job |
+| `theme_need_form` | A theme's need does not start with "Help me" |
+| `theme_duplicate` | Two themes of one core job share a label |
+| `theme_highlight` | A highlight quote is not on one of the theme's outcomes, nor on a solution used at their steps |
+
 ### Warnings
 
 | Code | Meaning |
@@ -107,6 +135,13 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `clarity_acronym` | A statement uses an abbreviation not on the study's list. Solution names are not checked, because product names keep their letters |
 | `provenance_ref` | `provenance.transcripts_read` names something that is not an interview ID or a patch key |
 | `solution_group_repeated` | A new solution group is already in the KB with the same name and reason; ignored |
+| `theme_count` | A core job has more than one value theme per 3 outcomes, or a count outside 5 to 9 |
+| `theme_size` | A theme gathers fewer than 3 outcomes, or more than a third of the job's outcomes |
+| `theme_one_person` | Every outcome of a theme was voiced by the same one person |
+| `theme_overlap` | An outcome sits in more than two themes, or a theme has no outcome of its own |
+| `theme_names_solution` | A theme's label or need contains the name of a current solution |
+| `theme_quotes` | A theme shows no highlight quotes, or more than 6 |
+| `overview_count` | An overview lists more than 5 gaps |
 
 ### Errors that stop a command
 
@@ -118,6 +153,8 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `kb_exists` | `init` refused to overwrite an existing KB, or `migrate` found a study in `.pw-kb/` already |
 | `kb_location` | The KB is not `.pw-kb/pw-kb.yaml`. A study made by an earlier version is moved there with `migrate` |
 | `move_conflict` | `migrate` would overwrite a file in `.pw-kb/`; nothing was moved |
+| `overview_file` | The file given to `overview` is not a mapping with `job`, holds an unknown key, or names a core job the KB does not have |
+| `themes_file` | The file given to `themes` does not hold `job` and `themes`, holds another key, or names a core job the KB does not have |
 | `patch_empty` | The patch file is empty |
 | `patch_shape` | The patch is not a YAML mapping |
 | `schema_version` | The KB's schema version is not a number or is newer than the tool knows |

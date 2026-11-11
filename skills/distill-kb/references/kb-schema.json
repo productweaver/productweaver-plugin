@@ -742,6 +742,21 @@
           },
           "provenance": {
             "$ref": "#/$defs/provenance"
+          },
+          "layer": {
+            "type": "string",
+            "description": "rebuild: the derived layer that was rebuilt, such as value_themes."
+          },
+          "job": {
+            "type": "string",
+            "description": "rebuild: the core job whose value themes were written."
+          },
+          "themes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "rebuild: IDs of that core job's value themes after the run."
           }
         }
       }
@@ -753,7 +768,53 @@
       "$ref": "#/$defs/derived"
     },
     "value_themes": {
-      "$ref": "#/$defs/derived"
+      "type": "object",
+      "description": "Value themes: a few needs in the customer's words that group the desired outcomes of a core job, to sort ideas into. Written by `kb_tool.py themes`.",
+      "properties": {
+        "stale": {
+          "type": "boolean"
+        },
+        "stale_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "themes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/value_theme"
+          }
+        },
+        "unassigned": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Computed. Live outcomes that sit in no theme, for the core jobs that have themes."
+        }
+      }
+    },
+    "overview": {
+      "type": "object",
+      "description": "The study told as a short story for someone new to the method, one entry per core job, with what to do next. Written by `kb_tool.py overview`. The map counts unmet needs and ranks themes itself.",
+      "properties": {
+        "stale": {
+          "type": "boolean"
+        },
+        "stale_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/overview_job"
+          }
+        }
+      }
     },
     "use_cases": {
       "$ref": "#/$defs/derived"
@@ -1022,6 +1083,461 @@
           "items": {
             "$ref": "#/$defs/evidence"
           }
+        }
+      }
+    },
+    "value_theme": {
+      "type": "object",
+      "description": "One value theme. A theme with no id was written by hand before `kb_tool.py themes` existed; the script keeps it and does not check it.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z]{1,2}\\.T[0-9]+$"
+        },
+        "job": {
+          "type": "string",
+          "pattern": "^[A-Z]{1,2}$"
+        },
+        "label": {
+          "type": "string",
+          "description": "Verb-first name of at most 6 words."
+        },
+        "need": {
+          "type": "string",
+          "description": "The need in the customer's voice: one sentence that starts with 'Help me', at most 25 words."
+        },
+        "why": {
+          "type": "string",
+          "description": "What binds the outcomes, in one sentence of at most 30 words."
+        },
+        "outcomes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "IDs of the outcomes the theme groups. An outcome may sit in two themes."
+        },
+        "highlights": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/highlight"
+          }
+        },
+        "added": {
+          "type": "string"
+        },
+        "interviews": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interview_id"
+          }
+        },
+        "interview_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "quote_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "highlight": {
+      "type": "object",
+      "description": "A quote picked to show a theme's pain, struggle or desire. It is a copy of a quote on one of the theme's outcomes or on a solution used at their steps.",
+      "required": [
+        "kind",
+        "interview",
+        "source",
+        "quote"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "pain",
+            "struggle",
+            "desire"
+          ]
+        },
+        "interview": {
+          "$ref": "#/$defs/interview_id"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "transcript",
+            "quoted_in_notes",
+            "interviewer_notes"
+          ]
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "overview_quote": {
+      "type": "object",
+      "description": "A quote the KB already holds for the core job.",
+      "required": [
+        "interview",
+        "quote"
+      ],
+      "properties": {
+        "interview": {
+          "$ref": "#/$defs/interview_id"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "transcript",
+            "quoted_in_notes",
+            "interviewer_notes"
+          ]
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Computed."
+        }
+      }
+    },
+    "overview_job": {
+      "type": "object",
+      "description": "One core job's overview.",
+      "required": [
+        "job",
+        "bottom_line"
+      ],
+      "properties": {
+        "job": {
+          "type": "string",
+          "pattern": "^[A-Z]{1,2}$"
+        },
+        "bottom_line": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The main finding, in one sentence."
+        },
+        "why": {
+          "type": "string",
+          "description": "Why the problem is still there."
+        },
+        "opening": {
+          "type": "string",
+          "description": "Where a new solution fits."
+        },
+        "people": {
+          "type": "object",
+          "required": [
+            "answer"
+          ],
+          "properties": {
+            "answer": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The answer to the step's question, in one sentence."
+            },
+            "text": {
+              "type": "string",
+              "description": "Optional. One or two sentences that explain the answer."
+            },
+            "quote": {
+              "$ref": "#/$defs/overview_quote"
+            }
+          },
+          "description": "Who was listened to."
+        },
+        "today": {
+          "type": "object",
+          "required": [
+            "answer"
+          ],
+          "properties": {
+            "answer": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The answer to the step's question, in one sentence."
+            },
+            "text": {
+              "type": "string",
+              "description": "Optional. One or two sentences that explain the answer."
+            },
+            "quote": {
+              "$ref": "#/$defs/overview_quote"
+            }
+          },
+          "description": "How they get the job done today."
+        },
+        "gaps": {
+          "type": "object",
+          "description": "Where today's way falls short.",
+          "properties": {
+            "answer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "label",
+                  "kind"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "pain",
+                      "struggle"
+                    ]
+                  },
+                  "solutions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^S[0-9]+$"
+                    }
+                  },
+                  "quote": {
+                    "$ref": "#/$defs/overview_quote"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "needs": {
+          "type": "object",
+          "required": [
+            "answer"
+          ],
+          "properties": {
+            "answer": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The answer to the step's question, in one sentence."
+            },
+            "text": {
+              "type": "string",
+              "description": "Optional. One or two sentences that explain the answer."
+            },
+            "quote": {
+              "$ref": "#/$defs/overview_quote"
+            }
+          },
+          "description": "What they most want to get better. The list is counted by the map."
+        },
+        "focus": {
+          "type": "object",
+          "required": [
+            "answer"
+          ],
+          "properties": {
+            "answer": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The answer to the step's question, in one sentence."
+            },
+            "text": {
+              "type": "string",
+              "description": "Optional. One or two sentences that explain the answer."
+            },
+            "quote": {
+              "$ref": "#/$defs/overview_quote"
+            }
+          },
+          "description": "Where a new solution should focus. The themes are ranked by the map."
+        },
+        "next": {
+          "type": "object",
+          "description": "What to do next: advice, not findings.",
+          "properties": {
+            "learn": {
+              "type": "object",
+              "required": [
+                "status",
+                "action"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "now",
+                    "enough",
+                    "ready",
+                    "early"
+                  ]
+                },
+                "action": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The one thing to do, as an instruction."
+                },
+                "why": {
+                  "type": "string"
+                },
+                "tip": {
+                  "type": "string"
+                },
+                "test": {
+                  "type": "string"
+                },
+                "later": {
+                  "type": "string"
+                },
+                "who": {
+                  "type": "string"
+                },
+                "unknown": {
+                  "type": "string"
+                },
+                "ask": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Questions for the next conversations."
+                },
+                "words": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Customers' own words to reuse, each part of a quote in the KB."
+                }
+              }
+            },
+            "prototype": {
+              "type": "object",
+              "required": [
+                "status",
+                "action"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "now",
+                    "enough",
+                    "ready",
+                    "early"
+                  ]
+                },
+                "action": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The one thing to do, as an instruction."
+                },
+                "why": {
+                  "type": "string"
+                },
+                "tip": {
+                  "type": "string"
+                },
+                "test": {
+                  "type": "string"
+                },
+                "later": {
+                  "type": "string"
+                },
+                "who": {
+                  "type": "string"
+                },
+                "unknown": {
+                  "type": "string"
+                },
+                "ask": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Questions for the next conversations."
+                },
+                "words": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Customers' own words to reuse, each part of a quote in the KB."
+                }
+              }
+            },
+            "market": {
+              "type": "object",
+              "required": [
+                "status",
+                "action"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "now",
+                    "enough",
+                    "ready",
+                    "early"
+                  ]
+                },
+                "action": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The one thing to do, as an instruction."
+                },
+                "why": {
+                  "type": "string"
+                },
+                "tip": {
+                  "type": "string"
+                },
+                "test": {
+                  "type": "string"
+                },
+                "later": {
+                  "type": "string"
+                },
+                "who": {
+                  "type": "string"
+                },
+                "unknown": {
+                  "type": "string"
+                },
+                "ask": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Questions for the next conversations."
+                },
+                "words": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Customers' own words to reuse, each part of a quote in the KB."
+                }
+              }
+            }
+          }
+        },
+        "written": {
+          "type": "string",
+          "description": "Computed. Date the overview was written."
         }
       }
     }

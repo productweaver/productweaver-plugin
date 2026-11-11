@@ -15,8 +15,11 @@ The people who check this KB are founders, product managers, domain experts and 
 | Current solution or solution group name | 6 | what people call it, or the work the group competes for |
 | Proposal rationale | 30 | one sentence: what the evidence shows and how many interviews show it |
 | Solution group's `why` | 30 | one sentence: what the members share and what that tells the reader |
+| Value theme label | 6 | a verb first, then what the person wants to get right |
+| Value theme need | 25 | one sentence that starts with "Help me", aim for 8 to 14 words |
+| Value theme `why` | 30 | one sentence: what binds the theme's outcomes |
 
-The merge enforces these limits and blocks the batch until every new statement fits.
+The merge enforces these limits and blocks the batch until every new statement fits. `themes` does the same for value themes.
 
 - **One idea per statement.** If you need "and", it is probably two statements.
 - **No asides.** Leave out brackets, "e.g.", "i.e.", semicolons, slashes and "etc.". An example belongs in the evidence, and a detail such as years in business belongs in `tags`.
@@ -159,6 +162,86 @@ A current solution is what someone uses today to get a step done or to reach an 
 | Solution "Spreadsheet/ordering app" | Two solutions: "Ordering spreadsheet" and "Supplier's ordering app" |
 | Group "Software tools", why "They are all apps." | Group "Ways to count stock", why "Each tells the owner what is left, and most owners trust paper over the app." |
 
+## Value themes
+
+A value theme is a need in the customer's own voice that gathers the desired outcomes serving one judgment or one kind of progress. A team that wants ideas cannot hold 70 outcomes in mind. It can hold seven themes, sort every idea into one of them, and still reach the outcomes underneath when it needs the detail. Build themes only when the user asks, one core job at a time.
+
+**How to find them:**
+1. Run `context` and read every outcome of the core job, with its step and how many people voiced it. Read the current solutions used at those steps too.
+2. For each outcome ask: "Why does this person want this? What bigger judgment or progress does it serve?" Put together the outcomes whose answers meet. Ignore which step they come from. A theme that crosses steps is often the most useful one, because no step shows it.
+3. Test each group, and fix or drop the ones that fail:
+   - **It is not a step.** If the theme says what one job step says, go one level up or merge it into another theme.
+   - **It names no solution.** No product, tool or feature in the label or the need. "Help me see my stock on my phone" is an idea, not a need.
+   - **It is one need.** If "and" joins two things a person could want separately, it is two themes.
+   - **It opens ideas.** Ask "how might we help them with this?" A good theme suggests several different answers. One that suggests a single feature is too narrow.
+   - **It has outcomes of its own.** An outcome may sit in two themes when it truly serves both, never in more. A theme whose outcomes all sit elsewhere too is not a theme.
+   - **It is neither tiny nor huge.** At least 3 outcomes. No more than a third of the job's outcomes.
+4. Aim for 5 to 9 themes per core job. With few outcomes use fewer: never more than one theme per 3 outcomes. Say why when you land outside the range.
+5. Leave an outcome in no theme when it fits none. Do not force it. The tool lists these, and the user can see them.
+
+**How to write one:**
+- `label`: starts with a verb, at most 6 words. It is what the team will say in a meeting: "Order the right amount".
+- `need`: one sentence of at most 25 words that starts with "Help me", in words the interviewees would use: "Help me order what the week will really need".
+- `why`: one sentence of at most 30 words on what binds the outcomes: "Each one decides how close the order comes to what gets sold."
+- `outcomes`: the outcome IDs, copied from `context`.
+- `highlights`: 3 to 6 quotes that make the need felt, each with a `kind`:
+  - `pain`: something that went wrong or cost them. A quote on a solution they stopped using is the best kind.
+  - `struggle`: the effort or the workaround it takes today.
+  - `desire`: what they wish were true.
+
+  Copy each quote, with its interview ID, from an outcome of the theme or from a solution used at one of its outcomes' steps. The tool refuses any other quote, so a theme never shows words nobody said.
+
+**What the numbers mean.** The tool counts how many people voiced a theme's outcomes, and the map shows who uses and who dropped each solution there. That is a signal from interviews. It is not an opportunity score: only a survey can say how important and how badly served a need is across a market. Never present the counts as a score, and say so when a theme rests on one person.
+
+**Updating themes.** New interviews add outcomes, and approved proposals move and merge them. The themes are then marked out of date, and `context` lists the outcomes in no theme yet. When asked to update:
+- Keep each theme's `id`, label, need and outcomes unless the evidence gives a reason to change them. People have used these labels in meetings.
+- Place each new outcome where it fits. Add a theme only when several outcomes share a need that no theme covers.
+- Tell the user what changed, as the tool prints it.
+
+| Before | After |
+|---|---|
+| Label "Count stock" | That is a job step. One level up: "Know what is on hand" |
+| Need "Help me order through one app for all suppliers" | It names a solution. "Help me place the week's orders without chasing each supplier" |
+| Need "Help me cut waste and keep staff happy" | Two needs, so two themes |
+| Label "Inventory management optimization" | No verb, and nobody says it. "Order the right amount" |
+| A theme with one outcome | Leave the outcome in no theme, or find the need it shares with others |
+
+## Overview
+
+The overview is the first thing a person sees in the discovery map. Its reader is often a founder who has just started discovery and does not know the method. It tells one core job's study as a short story in six steps, each a question with a one-sentence answer: who you listened to, what they try to get done, how they do it today, where that falls short, what they most want to get better, and where a new solution should focus. Above the story sit the bottom line and what to do next.
+
+You write the sentences. The map counts everything else from the KB, so do not repeat its counts: how many people use a solution, how many raised a need, how many quotes there are. Saying how many people a claim rests on is different, and welcome: "one owner so far".
+
+**How to write it:**
+1. Run `context`. Read the outcomes with how many people voiced each, the current solutions with who stopped using them, and the value themes when there are some.
+2. Write the six answers first. Read them in order: they must make sense as one story, each building on the one before.
+3. Then write the bottom line: the one thing a busy person must remember. Then `why` (why the problem is still there) and `opening` (where a new solution fits, with no feature named).
+4. Write the gaps from what people said went wrong, and from the reasons they stopped using a solution. Each gap needs a quote.
+5. Write `next` last. It is advice, so it may go beyond the evidence, but each track names the evidence it rests on, in `why` or `who`, and says what is not known.
+6. When the core job has no value themes yet, `focus` names the need with the most support, and its `text` says the themes are not built.
+
+**Rules for every sentence:**
+- **Plain words.** No method words: write "what they want to get better", not "desired outcome"; "the goal", not "core job".
+- **One sentence, one idea.** The word limits are in `kb-schema.md`. The tool refuses longer sentences.
+- **No claim without a quote behind it.** A gap, and the quote under the people, must be quotes the KB holds. The tool refuses others.
+- **No score words.** Never write "opportunity score", "importance score" or "satisfaction score", and no percentages. The tool refuses them. Six interviews show what people said, not how much it matters.
+- **Say how thin it is, in the sentence itself.** When a claim rests on one person, write "one owner", not "owners". When the study has fewer than 3 conversations, the bottom line is a first signal, not a finding: write it about the people you heard ("One owner threw out two cases of fish in a week"), and say in `why` or in `learn` that it is a first guess. Do not write "above all" or "it breaks in two places" when each point has one voice.
+- **Do not join two people into one story.** `context` does not show who said what. Check in the KB whether the person with the problem is also the person who tried the fix. If not, say "one owner" and "another owner".
+- **A need that is already met is not a gap.** "I know my costs to the cent" shows something that works. Leave it out of the gaps.
+
+**What to do next:**
+- `learn`: `now` while new conversations still bring new needs, or some part of the job has fewer than 3 people. Name how many more people, and which kind. The questions in `ask` are about what the person did last time, never about what they would like or would pay.
+- `prototype`: `ready` only when most people raised the same need and at least one tried to solve it. Name one thing to sketch, how to test it with people from the study, and what to leave for later. When it is `early`, `action` says what must be true first ("Wait until three owners describe the same problem"), `test` says how you would try it once that is true, and `later` still names what to leave out.
+- `market`: `early` until someone has agreed to try or pay. Its evidence goes in `who` and `unknown`. `words` are phrases to reuse in messages, copied from the customers' quotes. `unknown` says what the interviews do not tell, such as price.
+
+| Before | After |
+|---|---|
+| Bottom line "There is a significant opportunity in inventory management" | It says nothing a person can picture. "Owners throw away food every week because they order by gut feeling" |
+| Opening "Build an app that predicts orders" | It names a feature. "Tell the owner what the week will need before the order goes out" |
+| Gap "Poor tooling" | "The stock sheet is wrong by Wednesday" |
+| Ask "Would you pay for a tool that plans your orders?" | It asks for an opinion. "Tell me about the last time you ran out of something. What did you do?" |
+| Today "80% use spreadsheets" | The map shows the counts. "Mostly by hand, with a paper stock sheet" |
+
 ## Evidence
 
 - Quotes are verbatim and contiguous, and each one comes from that person's transcript.
@@ -197,3 +280,5 @@ One interview rarely justifies changing the core job. Say how many interviews su
 - Swapping IDs: always copy step and outcome IDs from `context` output, never from memory, and keep the job letter (`A.6.3`, not `6.3`).
 - Adding a new solution that `context` already lists under another name. Cite it by its ID instead.
 - Recording a step as a solution, or a solution as a step. The step is what they do; the solution is what they do it with.
+- Naming a value theme after a job step or a feature. A theme is the need behind several outcomes, in the person's voice.
+- Renaming or regrouping value themes on every update. Keep what the team already uses, and add to it.
