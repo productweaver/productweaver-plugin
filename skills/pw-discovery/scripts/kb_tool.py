@@ -5,7 +5,7 @@
 # ///
 """kb_tool.py - keep an ODI knowledge base (one YAML file) growing from interview transcripts.
 
-Part of the Product Weaver distill-kb skill · https://productweaver.com
+Part of the Product Weaver pw-discovery skill · https://productweaver.com
 
 A study lives in one folder, .pw-kb/ at the root of the workspace: the KB .pw-kb/pw-kb.yaml, and next to it
 patches/, backups/, logs/, transcripts/ (a copy of every transcript the KB cites), review.md and discovery-map.html.
@@ -594,7 +594,7 @@ def check_version(kb: Json, path: str) -> int:
         raise KbError(f"{path}: meta.schema_version must be a whole number, found {version!r}", code="schema_version")
     if version > SCHEMA_VERSION:
         raise KbError(f"{path} uses KB schema version {version}, but this tool (v{__version__}) knows version "
-                      f"{SCHEMA_VERSION}. Update the distill-kb skill, then try again.", code="schema_version")
+                      f"{SCHEMA_VERSION}. Update the pw-discovery skill, then try again.", code="schema_version")
     return version
 
 

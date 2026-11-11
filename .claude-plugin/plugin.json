@@ -1,8 +1,8 @@
 {
   "name": "productweaver",
   "displayName": "Product Weaver",
-  "version": "0.4.0",
-  "description": "Product management skills for your AI assistant, from Product Weaver. The first skill, distill-kb, turns customer interview transcripts into an Outcome-Driven Innovation knowledge base, with every quote checked against its transcript.",
+  "version": "0.5.0",
+  "description": "Product management skills for your AI assistant, from Product Weaver. The first skill, pw-discovery, turns customer interview transcripts into an Outcome-Driven Innovation knowledge base, with every quote checked against its transcript.",
   "author": { "name": "Product Weaver", "url": "https://www.productweaver.com" },
   "homepage": "https://github.com/productweaver/productweaver-plugin",
   "documentationUrl": "https://github.com/productweaver/productweaver-plugin",

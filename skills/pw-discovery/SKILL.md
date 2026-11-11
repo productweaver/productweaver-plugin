@@ -1,9 +1,9 @@
 ---
-name: distill-kb
+name: pw-discovery
 description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a YAML knowledge base that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, the outcomes grouped into a few value themes to guide ideation, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "YAML". From Product Weaver (productweaver.com).
 ---
 
-# distill-kb: fold interviews into an ODI knowledge base
+# pw-discovery: fold interviews into an ODI knowledge base
 
 *A free skill from [Product Weaver](https://productweaver.com).*
 

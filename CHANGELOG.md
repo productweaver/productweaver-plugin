@@ -3,6 +3,13 @@
 Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning.
 
+## 0.5.0 — 2026-11-11
+
+- **The skill is now called pw-discovery** (it was distill-kb). In Claude
+  Code, call it with `/productweaver:pw-discovery`; in Copilot CLI, with
+  `/pw-discovery`; in Codex, type `$` and pick pw-discovery. Asking in plain
+  words works as before. Studies in `.pw-kb/` need no change.
+
 ## 0.4.0 — 2026-11-11
 
 - **An Overview view in the discovery map, and the map opens on it.** It tells

@@ -3,7 +3,7 @@
 Product management skills for the AI assistant you already use, from
 [Product Weaver](https://www.productweaver.com).
 
-The first skill, **distill-kb**, turns customer interview transcripts into an
+The first skill, **pw-discovery**, turns customer interview transcripts into an
 Outcome-Driven Innovation (ODI) knowledge base: the jobs your customers are
 trying to get done, the steps of each job, and the outcomes they measure
 success by, each backed by verbatim quotes. Every quote is checked against its
@@ -15,6 +15,8 @@ what they stopped using: their current solutions, grouped by the work they
 compete for. When you are ready for ideas, it groups the outcomes into a few
 value themes, such as "Help me order what the week will really need", so a
 team can sort ideas into a handful of needs.
+
+Before version 0.5.0 this skill was called distill-kb.
 
 ## Install
 

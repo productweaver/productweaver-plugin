@@ -21,8 +21,8 @@ claude plugin update productweaver@productweaver-plugin
 
 This helps you judge the impact of a problem:
 
-- The `distill-kb` skill runs one local Python script,
-  `skills/distill-kb/scripts/kb_tool.py`, which reads the interview files you
+- The `pw-discovery` skill runs one local Python script,
+  `skills/pw-discovery/scripts/kb_tool.py`, which reads the interview files you
   give it and writes the knowledge base, review sheet and discovery map next
   to them.
 - The plugin makes no network calls of its own. The only download is the
