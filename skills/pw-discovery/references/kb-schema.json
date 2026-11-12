@@ -1221,6 +1221,63 @@
           "type": "string",
           "pattern": "^[A-Z]{1,2}$"
         },
+        "executor": {
+          "type": "object",
+          "required": [
+            "label",
+            "text",
+            "icon"
+          ],
+          "properties": {
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A short name for the people the study is about, such as \"Small-firm bookkeeper\"."
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Who they are and what they do, in one sentence."
+            },
+            "icon": {
+              "type": "string",
+              "enum": [
+                "person",
+                "office",
+                "finance",
+                "shop",
+                "sales",
+                "support",
+                "manager",
+                "developer",
+                "designer",
+                "driver",
+                "warehouse",
+                "builder",
+                "repair",
+                "cook",
+                "health",
+                "care",
+                "teacher",
+                "student",
+                "farmer",
+                "legal",
+                "parent"
+              ],
+              "description": "The icon the map draws for them; person when none fits."
+            },
+            "others": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Optional. Up to 3 other people who appear in the story but are not its focus."
+            }
+          },
+          "additionalProperties": false,
+          "description": "Who the study is about. Optional, because overviews written before it existed have none."
+        },
         "bottom_line": {
           "type": "string",
           "minLength": 1,

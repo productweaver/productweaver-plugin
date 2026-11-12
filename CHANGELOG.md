@@ -3,6 +3,48 @@
 Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning.
 
+## 0.6.0 — 2026-11-12
+
+- **The Overview now starts with who the study is about.** A card at the top
+  shows an icon, a short name such as "Small-firm bookkeeper", one sentence
+  about them, the people you talked to, and who else appears in the story but
+  is not its focus (for example "their clients"). The same name stays in view
+  on the left while you scroll. The assistant writes it with the overview and
+  picks the icon from 21 built in ones. An overview written before this
+  version shows the core job's executor instead, and the assistant rewrites it
+  on its next run.
+- **Plainer words in the Overview.** The map's own labels are easier to read
+  on first try: "The main finding so far", "What goes wrong for them today?",
+  "What should you build for first?", "6 people" instead of "6 use one", and
+  "the last 2 added no new needs" instead of "brought 0 needs nobody had
+  named before". A gap that names a tool no longer reads "Hurts today: Client
+  portal".
+- **The map says when it was made, and by which version.** A small note at
+  the end of the Overview reads, for example, "This file was made by the
+  Product Weaver plugin 0.6.0 on Nov 12, 2026, 9:30 AM PST". The version
+  comes from the plugin's own manifest.
+- **Links to productweaver.com carry fixed tags.** The links in the map and
+  in the review sheet tell the site which file and which link a visit came
+  from (`utm_source=productweaver-plugin`, `utm_medium=discovery-map` or
+  `review-sheet`, `utm_content` for the place). They never hold anything from
+  your study. A map shown on productweaver.com itself links without them.
+- The YAML reader the map uses (js-yaml) now ships as its own file,
+  `assets/js-yaml.js`, so the map template stays under the plugin
+  directory's size limit. `map` puts it inside each map as before: a map is
+  still one file that works offline, and maps look the same. If you copied
+  the tool into `.pw-kb/tools/`, copy `js-yaml.js` with the template.
+- `kb_tool` 0.9.0. `overview` needs the new `executor` part, refuses words of
+  the method such as "core job" or "desired outcome", and warns on vague words
+  such as "pain point" or "workflow", each with a plain word to use. New
+  writing rules ("The first-read test") in `pw-rules.md`.
+- The plugin's home and documentation links now point to
+  [productweaver.com/plugin](https://www.productweaver.com/plugin), with the
+  install guide, an example study and a guide to analyzing customer
+  interviews. New keywords (customer discovery, user research, interview
+  analysis, JTBD, voice of the customer) help people find the plugin in
+  directories.
+- The README opens with one sentence that says what the plugin does.
+
 ## 0.5.1 — 2026-11-11
 
 - **Calmer navigation in the discovery map.** Scrolling with a trackpad or a

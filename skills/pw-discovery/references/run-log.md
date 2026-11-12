@@ -98,11 +98,12 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 
 | Code | Meaning |
 |---|---|
-| `overview_shape` | A part of the overview is missing or not in the right shape: a sentence, a section, a gap's kind or quote, a track's status, or an unknown key |
+| `overview_shape` | A part of the overview is missing or not in the right shape: a sentence, a section, a gap's kind or quote, a track's status, who the study is about or its icon, or an unknown key |
 | `overview_quote` | A quote is not one the KB holds for that core job, or a phrase in `words` is not part of such a quote |
 | `overview_solution` | A gap names a solution that is not a solution in use in the KB |
-| `overview_count` | `ask` or `words` holds more items than allowed |
+| `overview_count` | `ask`, `words` or the executor's `others` holds more items than allowed |
 | `overview_score` | A sentence holds a percentage or a score word, such as "opportunity score" |
+| `overview_method_word` | A sentence holds a word of the method that readers do not know, such as "core job" or "desired outcome" |
 
 ### Errors that refuse value themes
 
@@ -142,6 +143,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `theme_names_solution` | A theme's label or need contains the name of a current solution |
 | `theme_quotes` | A theme shows no highlight quotes, or more than 6 |
 | `overview_count` | An overview lists more than 5 gaps |
+| `overview_jargon` | A sentence of the overview holds a vague word, such as "pain point" or "workflow"; keep it only when it is the customers' own word |
 
 ### Errors that stop a command
 

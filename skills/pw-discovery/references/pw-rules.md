@@ -208,20 +208,35 @@ A value theme is a need in the customer's own voice that gathers the desired out
 
 ## Overview
 
-The overview is the first thing a person sees in the discovery map. Its reader is often a founder who has just started discovery and does not know the method. It tells one core job's study as a short story in six steps, each a question with a one-sentence answer: who you listened to, what they try to get done, how they do it today, where that falls short, what they most want to get better, and where a new solution should focus. Above the story sit the bottom line and what to do next.
+The overview is the first thing a person sees in the discovery map. Its reader is often a founder who has just started discovery and does not know the method. It tells one core job's study as a short story in six steps, each a question with a one-sentence answer: who you listened to, what they try to get done, how they do it today, where that falls short, what they most want to get better, and where a new solution should focus. Above the story sit who the study is about, the bottom line and what to do next.
 
 You write the sentences. The map counts everything else from the KB, so do not repeat its counts: how many people use a solution, how many raised a need, how many quotes there are. Saying how many people a claim rests on is different, and welcome: "one owner so far".
 
 **How to write it:**
 1. Run `context`. Read the outcomes with how many people voiced each, the current solutions with who stopped using them, and the value themes when there are some.
-2. Write the six answers first. Read them in order: they must make sense as one story, each building on the one before.
-3. Then write the bottom line: the one thing a busy person must remember. Then `why` (why the problem is still there) and `opening` (where a new solution fits, with no feature named).
-4. Write the gaps from what people said went wrong, and from the reasons they stopped using a solution. Each gap needs a quote.
-5. Write `next` last. It is advice, so it may go beyond the evidence, but each track names the evidence it rests on, in `why` or `who`, and says what is not known.
-6. When the core job has no value themes yet, `focus` names the need with the most support, and its `text` says the themes are not built.
+2. Write `executor` first: who the study is about. Every sentence after it is about these people.
+3. Write the six answers. Read them in order: they must make sense as one story, each building on the one before.
+4. Then write the bottom line: the one thing a busy person must remember. Then `why` (why the problem is still there) and `opening` (where a new solution fits, with no feature named).
+5. Write the gaps from what people said went wrong, and from the reasons they stopped using a solution. Each gap needs a quote.
+6. Write `next` last. It is advice, so it may go beyond the evidence, but each track names the evidence it rests on, in `why` or `who`, and says what is not known.
+7. When the core job has no value themes yet, `focus` names the need with the most support, and its `text` says the themes are not built.
+8. Read the whole overview once as a stranger would (see "The first-read test"), and rewrite every sentence that needs a second read.
+
+**Who the study is about** (`executor`). The map shows it first, with an icon, so readers know whose story this is:
+- `label`: what these people would call themselves, in at most 4 words, singular: "Small-restaurant owner", not "Restaurant operators" or "Food-service decision maker". Add one detail only when it tells them apart from others in the story ("Small-restaurant owner", because the story also has chefs).
+- `text`: one sentence a stranger can picture: who they are and what they do, in everyday words. "An owner who runs one restaurant and places every supplier order themselves."
+- `icon`: the closest of the map's icons (the list is in `kb-schema.md`): a cook for restaurant owners who cook, a shop for owners who run the front, a driver for delivery. Use `person` when none fits. Never pick an icon for the customers they serve.
+- `others`: the people who appear in the story but are not its focus, so nobody reads the study as theirs: "their suppliers", "the chef". Leave it out when there are none.
+
+**The first-read test.** The reader has never seen the interviews and does not know the method. Every sentence must make sense on first read:
+- **Name who does what.** The bottom line starts with the people, using the label's noun: "Owners throw away…", not "The hard part is…".
+- **Spell out shorthand from the interviews.** People say "the close", "the order", "the board". A stranger does not know what they mean. Write "the month-end close of a client's books" once, then the short form.
+- **Things you can picture.** An action, an object, a moment: "on Sunday night", "two cases of fish". Not "the supply side", "visibility", "inefficiencies".
+- **One idea per sentence.** No colon that joins two findings in the bottom line. If you need "and" twice, split it.
+- **Short, common words.** "Use", not "leverage"; "how they work", not "workflow"; "problem", not "pain point". The tool refuses words of the method and warns on these words, each with a plain one to use. Keep a warned word only when it is the customers' own word, and quote it.
 
 **Rules for every sentence:**
-- **Plain words.** No method words: write "what they want to get better", not "desired outcome"; "the goal", not "core job".
+- **Plain words.** No method words: write "what they want to get better", not "desired outcome"; "the goal", not "core job". The tool refuses them.
 - **One sentence, one idea.** The word limits are in `kb-schema.md`. The tool refuses longer sentences.
 - **No claim without a quote behind it.** A gap, and the quote under the people, must be quotes the KB holds. The tool refuses others.
 - **No score words.** Never write "opportunity score", "importance score" or "satisfaction score", and no percentages. The tool refuses them. Six interviews show what people said, not how much it matters.
@@ -241,6 +256,10 @@ You write the sentences. The map counts everything else from the KB, so do not r
 | Gap "Poor tooling" | "The stock sheet is wrong by Wednesday" |
 | Ask "Would you pay for a tool that plans your orders?" | It asks for an opinion. "Tell me about the last time you ran out of something. What did you do?" |
 | Today "80% use spreadsheets" | The map shows the counts. "Mostly by hand, with a paper stock sheet" |
+| Bottom line "The hard part is the supply side, not the kitchen" | Who? What part? "Owners lose an hour a day chasing suppliers for deliveries" |
+| Why "Ordering friction drives waste: the stack is fragmented" | Jargon. "Each supplier wants the order in a different way, so owners order from memory" |
+| Label "F&B operator" | Nobody calls themselves that. "Small-restaurant owner" |
+| Text "Owners and their suppliers who manage inventory" | Two groups, and a vague verb. "An owner who runs one restaurant and places every order themselves" |
 
 ## Evidence
 

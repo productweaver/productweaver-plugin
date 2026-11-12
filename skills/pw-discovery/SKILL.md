@@ -20,7 +20,7 @@ python3 <skill folder>/scripts/kb_tool.py <command> ...           # when PyYAML 
 
 Below, `kb_tool` stands for either line. Do not write plain `python`; many machines do not have it. `.docx` transcripts need `python-docx` and `.pdf` transcripts need `pypdf`. Add them with `--with python-docx==1.2.0` or `--with pypdf==6.21.4`, for example `uv run --locked --with pypdf==6.21.4 <skill folder>/scripts/kb_tool.py ...`.
 
-Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool into `.pw-kb/tools/` only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_tool.py.lock`, `references/kb-schema.json`, `references/patch-schema.json` and `assets/discovery-map-template.html` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
+Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool into `.pw-kb/tools/` only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_tool.py.lock`, `references/kb-schema.json`, `references/patch-schema.json`, `assets/discovery-map-template.html` and `assets/js-yaml.js` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
 
 ## What a run changes, and what it leaves alone
 
@@ -141,7 +141,7 @@ After a merge that added interviews, write the overview between the two commands
 Add `--open` to `map` when it writes the study's first map, and whenever the user asks to see the map: the tool then shows it in the user's default browser. Do not ask first. Leave `--open` out on later rebuilds, so the user does not get a new tab after every merge.
 
 - `.pw-kb/review.md` is a plain sheet listing decisions waiting, what is new since the last merge, the job map by stage with interview counts and the steps to ask about next.
-- `.pw-kb/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It opens on an Overview view, the study as a short story with what to do next; see "Write the overview". When the study has value themes, it has a Value themes view: one card per theme with its outcomes, what people use today and the quotes. It is one file with the KB inside: it opens in any browser and works offline.
+- `.pw-kb/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It opens on an Overview view, the study as a short story with what to do next; see "Write the overview". When the study has value themes, it has a Value themes view: one card per theme with its outcomes, what people use today and the quotes. It is one file with the KB inside: it opens in any browser and works offline. The end of its Overview says which plugin version made it, and when.
 
 A folder whose name starts with a dot is hidden in Finder and in most file dialogs, so the user cannot easily find the map by hand. `map` prints a `link:` line with a `file://` address. Give the user that address, exactly as printed, every time you point to the map, and give the full path of `review.md`.
 
@@ -165,7 +165,7 @@ The reader may be a founder or a domain expert, not an ODI specialist, so write 
 - decisions waiting: what and why in one line each, and how to answer ("approve P1")
 - current solutions, briefly: each new group in one line with its why and its most used solutions, then what people stopped using and why. Point to the Solutions view in the map for the full list
 - what to ask about next: per core job, the steps that fewest people support, at most 5, as `review.md` lists them under "Ask about these next"; and which derived layers are now out of date
-- the overview's bottom line and its three next steps, one line each, marked as advice
+- who the overview says the study is about, its bottom line and its three next steps, one line each, the steps marked as advice
 - a pointer to `review.md` and the map's `file://` link, with the note that the map holds the interviewees' names and quotes
 
 **After a first batch** everything is new, so that list would be the whole study. Report this instead, and leave the rest to `review.md` and the map:
@@ -199,7 +199,7 @@ Run `context` and read the CURRENT SOLUTIONS block, or point the user to the Sol
 
 ## Write the overview
 
-The discovery map opens on its Overview view: the study as a short story in six steps, with a "What to do next" block on top. It is made for a person who does not know the method, often a founder starting discovery. The map counts what it can from the KB. The sentences are yours, and without them the view says "No written findings yet".
+The discovery map opens on its Overview view: who the study is about, then the study as a short story in six steps, with a "What to do next" block on top. It is made for a person who does not know the method, often a founder starting discovery. The map counts what it can from the KB. The sentences are yours, and without them the view says "No written findings yet".
 
 Write the overview for each core job that got new evidence, at the end of every run that merged interviews, after `review` and before `map`. Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules.
 
@@ -208,6 +208,11 @@ Write the overview for each core job that got new evidence, at the end of every 
 
 ```yaml
 job: A
+executor:                       # who the study is about; the map shows it first, with the icon
+  label: Small-restaurant owner # at most 4 words, what they would call themselves
+  text: An owner who runs one restaurant and places every supplier order themselves.
+  icon: cook                    # one of the icons listed in kb-schema.md; person when none fits
+  others: [their suppliers]     # optional: people in the story who are not its focus
 bottom_line: Owners throw away food every week because they order by gut feeling.
 why: The stock apps they tried need a count nobody has time to do.
 opening: Tell the owner what the week will need before the order goes out.
@@ -258,9 +263,9 @@ kb_tool.py overview .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml --dry-run
 kb_tool.py overview .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml
 ```
 
-A clean dry run ends with "dry run OK". The tool refuses a quote or a solution the KB does not hold, a sentence over its word limit, a percentage or a score word, and a missing part. It replaces that core job's overview and leaves other core jobs alone. Then run `kb_tool.py map .pw-kb/pw-kb.yaml`.
+A clean dry run ends with "dry run OK". The tool refuses a quote or a solution the KB does not hold, a sentence over its word limit, a percentage or a score word, a word of the method ("core job", "desired outcome"), an unknown icon and a missing part. It warns on vague words such as "pain point" or "workflow": rewrite them in plain words unless they are the customers' own. It replaces that core job's overview and leaves other core jobs alone. Then run `kb_tool.py map .pw-kb/pw-kb.yaml`.
 
-4. In your report, give the bottom line and the three next steps in one line each, and point to the Overview view. The next steps are advice: say so. Never call a count a score.
+4. In your report, say who the study is about, give the bottom line and the three next steps in one line each, and point to the Overview view. The next steps are advice: say so. Never call a count a score.
 
 The user changes the overview by telling you ("the bottom line is too strong", "we are ready to prototype"). Edit the file and run `overview` again; there is no proposal step.
 
@@ -316,7 +321,7 @@ Set this when the user asks for different limits or when a market's everyday abb
 
 ## Branding
 
-Every file this skill produces carries a light Product Weaver credit: the map's header and badge, the review sheet's footer, `generated_with` in the KB's metadata, and the first line of each patch file (`# Made with Product Weaver · productweaver.com`). Keep these when you edit or rebuild files. They tell readers where the method and the tools come from. Do not add marketing lines to chat replies; the credit lives in the files.
+Every file this skill produces carries a light Product Weaver credit: the map's header and badge, the review sheet's footer, `generated_with` in the KB's metadata, and the first line of each patch file (`# Made with Product Weaver · productweaver.com`). Keep these when you edit or rebuild files. They tell readers where the method and the tools come from. Do not add marketing lines to chat replies; the credit lives in the files. The links to productweaver.com in the map and the review sheet carry fixed tags (`utm_source=productweaver-plugin` and so on) that tell the site which file a visit came from. They never hold anything from the study; leave them as they are.
 
 ## What the script records
 
@@ -341,6 +346,7 @@ The KB's fields are explained one by one in `references/kb-schema.md`. Read it b
 - `scripts/kb_tool.py`: init, context, merge (with format, quote, reference and clarity checks), apply, themes, review, map, validate and migrate (which also moves a study made by an earlier version into `.pw-kb/`). Needs PyYAML, plus python-docx or pypdf for .docx or .pdf transcripts. Carries its own dependency list, so `uv run --locked` needs no setup.
 - `scripts/kb_tool.py.lock`: the exact package versions `uv run --locked` installs. Keep it next to the script.
 - `assets/discovery-map-template.html`: the interactive map viewer. `map` fills it with the KB. Opened on its own, it lets anyone load a KB file.
+- `assets/js-yaml.js`: the YAML reader the map uses. The template loads it from beside itself; `map` puts it inside each map, so a map is one file that works offline.
 - `references/pw-rules.md`: how to write each kind of statement, with examples and common mistakes. Read it before extracting.
 - `references/patch-format.md`: the patch format the merge accepts, with a worked example. Read it before writing a patch.
 - `references/patch-schema.json`: the same format as a JSON Schema, checked first by every merge.

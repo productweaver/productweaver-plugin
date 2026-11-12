@@ -73,11 +73,15 @@ try:
 except ImportError:  # pragma: no cover - depends on the machine
     _jsonschema = None
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 SCHEMA_VERSION = 2
 
 BRAND = "Product Weaver"
-SITE = "https://productweaver.com"
+SITE = "https://www.productweaver.com/"
+# The review sheet's links carry fixed tags, so the site can count visits from it. They never hold anything from the
+# study. The map tags its own links the same way (pwUrl in the template).
+REVIEW_LINK = (f"{SITE}?utm_source=productweaver-plugin&utm_medium=review-sheet&utm_campaign=pw-discovery"
+               "&utm_content=review-footer")
 MADE_WITH = f"Made with {BRAND} · productweaver.com"
 
 DERIVED = ["survey", "simulation", "value_themes", "overview", "use_cases"]
@@ -114,7 +118,14 @@ THEME_MIN_OUTCOMES = 3     # outcomes a theme should gather, and outcomes a core
 THEME_MAX_SHARE = 3        # no theme should hold more than one in this many of the job's outcomes
 THEME_MAX_PER_OUTCOME = 2  # themes one outcome may sit in
 THEME_HIGHLIGHTS = 6       # quotes picked for one theme, at most
-OVERVIEW_KEYS = ("job", "bottom_line", "why", "opening", "people", "today", "gaps", "needs", "focus", "next")
+OVERVIEW_KEYS = ("job", "executor", "bottom_line", "why", "opening", "people", "today", "gaps", "needs", "focus",
+                 "next")
+EXECUTOR_KEYS = ("label", "text", "icon", "others")
+# the icons the map draws for the people at the center of a study; `person` when none fits
+ROLE_ICONS = ("person", "office", "finance", "shop", "sales", "support", "manager", "developer", "designer", "driver",
+              "warehouse", "builder", "repair", "cook", "health", "care", "teacher", "student", "farmer", "legal",
+              "parent")
+EXECUTOR_OTHERS = 3        # other people in the story an overview may name, at most
 GAP_KINDS = ["pain", "struggle"]  # what goes wrong today, and a fix that did not work
 GAP_MAX = 5                # gaps an overview should show, at most
 # what to do next: the statuses each track may have, and the fields it holds besides status and action
@@ -124,6 +135,44 @@ NEXT_TRACKS = {"learn": (("now", "enough"), ("why", "ask", "tip")),
 NEXT_LISTS = {"ask": 2, "words": 3}  # fields that are lists, and how many items each may hold
 SCORE_WORDS = re.compile(r"\d\s?%|\bpercent\b|\b(opportunity|importance|satisfaction) (score|rating)s?\b",
                          re.IGNORECASE)
+# The overview is read by people new to the method. Words of the method are refused, vague business words get a
+# warning; each comes with the plain words to use. A space in a pattern also matches a hyphen.
+METHOD_WORDS = (("core jobs?", "core job", "the goal, or what they try to get done"),
+                ("job executors?", "job executor", "the people, by their role"),
+                ("desired outcomes?", "desired outcome", "what they want to get better"),
+                ("outcome statements?", "outcome statement", "a need"),
+                ("job steps?", "job step", "a step, or a part of the work"),
+                ("job maps?", "job map", "the map"),
+                ("jobs? to be done", "jobs to be done", "what they try to get done"),
+                ("JTBD", "JTBD", "what they try to get done"),
+                ("ODI", "ODI", "say what you did: you listened to people"))
+JARGON_WORDS = (("pain points?", "pain point", "say what goes wrong"),
+                ("friction", "friction", "say what slows them down"),
+                ("workflows?", "workflow", "say how they work"),
+                ("leverag(?:e|es|ed|ing)", "leverage", "use"),
+                ("stakeholders?", "stakeholder", "name the person, such as the owner"),
+                ("value propositions?", "value proposition", "say what it does for them"),
+                ("streamlin(?:e|es|ed|ing)", "streamline", "make faster or simpler"),
+                ("optimi[sz](?:e|es|ed|ing|ation)", "optimize", "say what gets better"),
+                ("seamless(?:ly)?", "seamless", "say what gets easier, or drop it"),
+                ("solution space", "solution space", "ideas"),
+                ("unmet needs?", "unmet need", "a need"),
+                ("end to end", "end-to-end", "from start to finish"),
+                ("ecosystems?", "ecosystem", "name the tools or the people"),
+                ("holistic(?:ally)?", "holistic", "drop it"),
+                ("actionable", "actionable", "say what to do"),
+                ("user journeys?", "user journey", "the steps they take"),
+                ("personas?", "persona", "the people, by their role"))
+
+
+def _plain_terms(terms: tuple[tuple[str, str, str], ...]) -> list[tuple[re.Pattern[str], str, str]]:
+    """Compile a word list: whole words, any case except for acronyms, a space also matching a hyphen."""
+    return [(re.compile(r"\b" + pattern.replace(" ", r"[\s-]+") + r"\b", 0 if pattern.isupper() else re.IGNORECASE),
+             word, hint) for pattern, word, hint in terms]
+
+
+METHOD_TERMS = _plain_terms(METHOD_WORDS)
+JARGON_TERMS = _plain_terms(JARGON_WORDS)
 GROUP_KEY = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 TRANSCRIPT_EXTS = (".md", ".markdown", ".txt", ".docx", ".pdf")
 KEEP_BACKUPS = 20
@@ -1228,7 +1277,7 @@ class Style:
     limits: dict[str, int] = field(default_factory=lambda: {
         "executor": 16, "job": 10, "step": 10, "outcome": 16, "feeling": 12, "rationale": 30,
         "solution": 6, "group": 6, "theme": 6, "need": 25,
-        "headline": 20, "finding": 50, "action": 20})
+        "headline": 20, "finding": 50, "action": 20, "role": 4, "who": 25})
     banned: list[str] = field(default_factory=lambda: list(BANNED_NAMES))
     idioms: list[str] = field(default_factory=lambda: ["bread and butter", "in and out"])
     acronyms: list[str] = field(default_factory=lambda: ["OTR", "US", "UK", "EU"])
@@ -3070,6 +3119,7 @@ def _ov_text(ctx: OverviewChecks, data: Any, key: str, kind: str, label: str, *,
         return ""
     clarity(text, kind, f"{label} {key}", ctx.style, ctx.report)
     _ov_no_score(ctx, text, f"{label} {key}")
+    _ov_plain(ctx, text, f"{label} {key}")
     return text
 
 
@@ -3078,6 +3128,18 @@ def _ov_no_score(ctx: OverviewChecks, text: str, label: str) -> None:
     if SCORE_WORDS.search(text):
         ctx.report.error(f"{label}: no percentages and no score words in an overview; say how many people said it: "
                          f"'{text}'", code="overview_score")
+
+
+def _ov_plain(ctx: OverviewChecks, text: str, label: str) -> None:
+    """A first-time reader must understand every sentence on first read: no words of the method, few buzzwords."""
+    for pattern, word, hint in METHOD_TERMS:
+        if pattern.search(text):
+            ctx.report.error(f"{label}: '{word}' is a word of the method that readers do not know; write "
+                             f"{hint}: '{text}'", code="overview_method_word")
+    for pattern, word, hint in JARGON_TERMS:
+        if pattern.search(text):
+            ctx.report.warn(f"{label}: '{word}' is vague; {hint}, unless it is the customers' own word: '{text}'",
+                            code="overview_jargon")
 
 
 def _ov_mapping(ctx: OverviewChecks, data: Any, key: str, allowed: tuple[str, ...], label: str) -> Json:
@@ -3121,6 +3183,36 @@ def _ov_section(ctx: OverviewChecks, data: Json, key: str, quote: bool = False) 
         found = _ov_quote(ctx, section["quote"], key)
         if found:
             out["quote"] = found
+    return out
+
+
+def _ov_executor(ctx: OverviewChecks, data: Json) -> Json:
+    """Who the study is about: a short label, one sentence, an icon the map can draw, and the other people who
+    appear in the story but are not its focus."""
+    section = _ov_mapping(ctx, data, "executor", EXECUTOR_KEYS, "overview")
+    out: Json = {"label": _ov_text(ctx, section, "label", "role", "executor"),
+                 "text": _ov_text(ctx, section, "text", "who", "executor")}
+    icon = str(section.get("icon") or "").strip()
+    if section and icon not in ROLE_ICONS:
+        ctx.report.error(f"executor: icon {f'{icon!r} is not one the map can draw' if icon else 'is missing'}; "
+                         f"pick one of {', '.join(ROLE_ICONS)} (person when none fits)", code="overview_shape")
+    out["icon"] = icon or "person"
+    others = section.get("others")
+    if others is None:
+        return out
+    if not isinstance(others, list) or not all(isinstance(x, str) and x.strip() for x in others):
+        ctx.report.error(f"executor: others must be a list of at most {EXECUTOR_OTHERS} people, such as "
+                         "'their clients'", code="overview_shape")
+        return out
+    items = [x.strip() for x in others]
+    if len(items) > EXECUTOR_OTHERS:
+        ctx.report.error(f"executor: others holds {len(items)} people; keep at most {EXECUTOR_OTHERS}",
+                         code="overview_count")
+    for text in items:
+        clarity(text, "role", "executor others", ctx.style, ctx.report)
+        _ov_plain(ctx, text, "executor others")
+    if items:
+        out["others"] = items
     return out
 
 
@@ -3187,6 +3279,8 @@ def _ov_list(ctx: OverviewChecks, track: Json, key: str, label: str) -> list[str
     for text in items:
         clarity(text, "rationale", f"{label} {key}", ctx.style, ctx.report)
         _ov_no_score(ctx, text, f"{label} {key}")
+        if key != "words":  # the customers' own words stay as they said them
+            _ov_plain(ctx, text, f"{label} {key}")
     return items
 
 
@@ -3218,7 +3312,8 @@ def _ov_track(ctx: OverviewChecks, data: Json, name: str) -> Json:
 def build_overview(kb: Json, job: str, data: Json, report: Report) -> Json:
     """Check the file's overview against the KB and return it as the KB stores it."""
     ctx = OverviewChecks(kb, job, style_of(kb), report, _overview_pool(kb, job), id_width(kb))
-    entry: Json = {"job": job, "bottom_line": _ov_text(ctx, data, "bottom_line", "headline", "overview"),
+    entry: Json = {"job": job, "executor": _ov_executor(ctx, data),
+                   "bottom_line": _ov_text(ctx, data, "bottom_line", "headline", "overview"),
                    "why": _ov_text(ctx, data, "why", "rationale", "overview"),
                    "opening": _ov_text(ctx, data, "opening", "rationale", "overview"),
                    "people": _ov_section(ctx, data, "people", quote=True), "today": _ov_section(ctx, data, "today"),
@@ -3249,6 +3344,12 @@ def _recount_overview(kb: Json, names: dict[str, str]) -> None:
                 quote["name"] = names.get(str(quote.get("interview")), quote.get("name", ""))
 
 
+def _executor_label(entry: Json) -> str:
+    """The label of whom an overview is about; empty for an overview written before it had one."""
+    who = entry.get("executor")
+    return str(who.get("label") or "") if isinstance(who, dict) else ""
+
+
 def _overview_problems(kb: Json, jobs: dict[str, Json]) -> list[str]:
     """Cross-references of the overview layer that the schema cannot express."""
     entries = overviews_of(kb)
@@ -3265,7 +3366,10 @@ def _overview_problems(kb: Json, jobs: dict[str, Json]) -> list[str]:
 
 def _overview_text(kb: Json, entry: Json, result: Json) -> list[str]:
     job = entry["job"]
+    who = entry["executor"]
     lines = [f"OVERVIEW for core job {job}: {jobs_by_id(kb)[job]['statement']}",
+             f"about: {who['label']} [{who['icon']}]: {who['text']}"
+             + (f" (also in the story: {', '.join(who['others'])})" if who.get("others") else ""),
              f"bottom line: {entry['bottom_line']}", f"opening: {entry['opening']}"]
     lines += [f"{key}: {entry[key]['answer']}" for key in ("people", "today", "gaps", "needs", "focus")]
     lines += [f"   gap ({g['kind']}): {g['label']}" for g in entry["gaps"]["items"]]
@@ -3373,7 +3477,8 @@ def context_data(kb: Json) -> Json:
                                   for p in kb["proposed_changes"] if p.get("status") == "pending"],
             "current_solutions": solutions_data(kb), "value_themes": themes_data(kb),
             "overview": [{"job": str(o["job"]), "bottom_line": o.get("bottom_line", ""),
-                          "written": o.get("written", "")} for o in overviews_of(kb)],
+                          "executor": _executor_label(o), "written": o.get("written", "")}
+                         for o in overviews_of(kb)],
             "stale": stale_layers(kb), "schema_version": kb["meta"].get("schema_version"),
             "tool_version": __version__}
 
@@ -3461,9 +3566,12 @@ def cmd_context(args: argparse.Namespace) -> int:
     _print_solutions(data["current_solutions"])
     _print_themes(data["value_themes"], "value_themes" in data["stale"])
     if data["overview"]:
-        print("\nOVERVIEW" + (" [out of date]" if "overview" in data["stale"] else ""))
+        old = "overview" in data["stale"] or any(not entry["executor"] for entry in data["overview"])
+        print("\nOVERVIEW" + (" [out of date]" if old else ""))
         for entry in data["overview"]:
-            print(f"{entry['job']} written {entry['written']}: {entry['bottom_line']}")
+            about = f" (about: {entry['executor']})" if entry["executor"] else \
+                " (written before the map showed who the study is about: write it again)"
+            print(f"{entry['job']} written {entry['written']}: {entry['bottom_line']}{about}")
     if data["segments"]:
         print("\nSEGMENTS: " + "; ".join(f"{k}={v}" for k, v in data["segments"].items()))
     if data["people"]:
@@ -3689,8 +3797,8 @@ def _review_tail(kb: Json) -> list[str]:
     stale = [k.replace("_", " ") for k in stale_layers(kb)]
     if stale:
         lines += [f"*Out of date until rebuilt: {', '.join(stale)}.*", ""]
-    lines += ["---", "", f"*Made with [{BRAND}]({SITE}), the free ODI skill for AI assistants. "
-                         f"Get the full {BRAND} experience at [productweaver.com]({SITE}).*", ""]
+    lines += ["---", "", f"*Made with [{BRAND}]({REVIEW_LINK}), the free ODI skill for AI assistants. "
+                         f"Get the full {BRAND} experience at [productweaver.com]({REVIEW_LINK}).*", ""]
     return lines
 
 
@@ -3720,6 +3828,26 @@ MAP_KEYS = ["meta", "core_jobs", "job_map", "desired_outcomes", "current_solutio
             "proposed_changes", "changelog"]
 MAP_START, MAP_END = "/* @kb-data:start */", "/* @kb-data:end */"
 MAP_SCHEMA = f"/* @kb-schema:{SCHEMA_VERSION} */"  # the template can draw a KB of this schema version
+# The template loads js-yaml from the file next to it, so it stays under the directory's size limit and still opens
+# KB files on its own. `map` puts the library inside each map, so a map is one file that works offline.
+JS_YAML_FILE = "js-yaml.js"
+JS_YAML_TAG = f'<script src="{JS_YAML_FILE}"></script>'
+
+
+def inline_js_yaml(template: str, template_path: str) -> str:
+    """Replace the template's js-yaml tag with the library itself. A map made earlier already holds it."""
+    if JS_YAML_TAG not in template:
+        return template
+    beside = os.path.join(os.path.dirname(os.path.abspath(template_path)), JS_YAML_FILE)
+    path = beside if os.path.isfile(beside) else skill_file("assets", JS_YAML_FILE)
+    if not path:
+        raise KbError(f"{JS_YAML_FILE} not found: keep it next to discovery-map-template.html, as the skill ships "
+                      "them", code="skill_file_missing")
+    with open(path, encoding="utf-8") as handle:
+        library = handle.read()
+    if "</script" in library.lower():
+        raise KbError(f"{path} must not contain a closing script tag", code="template_invalid")
+    return template.replace(JS_YAML_TAG, f"<script>\n{library}</script>", 1)
 
 
 def embed_kb(template: str, payload: str) -> str:
@@ -3735,6 +3863,33 @@ def embed_kb(template: str, payload: str) -> str:
                       "use discovery-map-template.html from the skill", code="template_invalid")
     lines[hits[0]] = block
     return "\n".join(lines)
+
+
+def plugin_version() -> str | None:
+    """The version of the plugin this script ships in, read from the plugin's manifest so it is never set twice.
+    None when the skill runs on its own, outside the plugin folder."""
+    here = pathlib.Path(os.path.abspath(__file__)).parents
+    if len(here) < 4:
+        return None
+    root = here[3]  # <plugin>/skills/pw-discovery/scripts/kb_tool.py
+    for manifest in (root / "plugin.json", root / ".claude-plugin" / "plugin.json"):
+        try:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        version = str(data.get("version") or "") if isinstance(data, dict) else ""
+        if data.get("name") == "productweaver" and re.fullmatch(r"\d+\.\d+\.\d+", version):
+            return version
+    return None
+
+
+def map_stamp() -> Json:
+    """When the map was made and by which version, for the note at the end of its Overview."""
+    stamp: Json = {"at": dt.datetime.now().astimezone().isoformat(timespec="seconds"), "tool": __version__}
+    version = plugin_version()
+    if version:
+        stamp["plugin"] = version
+    return stamp
 
 
 def has_local_browser() -> bool:
@@ -3780,6 +3935,7 @@ def cmd_map(args: argparse.Namespace) -> int:
         data["value_themes"] = kb["value_themes"]
     if overviews_of(kb):  # the written findings of the Overview view; the map counts the rest itself
         data["overview"] = kb["overview"]
+    data["generated"] = map_stamp()
     payload = json.dumps(data, default=str, ensure_ascii=False)
     payload = payload.replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
     template_path = skill_file("assets", "discovery-map-template.html", args.template)
@@ -3792,6 +3948,7 @@ def cmd_map(args: argparse.Namespace) -> int:
     if MAP_SCHEMA not in template:
         raise KbError(f"the map template {template_path} is older than KB schema {SCHEMA_VERSION} and cannot draw "
                       "several core jobs; use discovery-map-template.html from the skill", code="template_old")
+    template = inline_js_yaml(template, template_path)
     out = args.out or os.path.join(os.path.dirname(os.path.abspath(args.kb)), "discovery-map.html")
     with open(out, "w", encoding="utf-8") as handle:
         handle.write(embed_kb(template, payload))

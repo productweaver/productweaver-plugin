@@ -1,7 +1,15 @@
 # Product Weaver plugin
 
-Product management skills for the AI assistant you already use, from
-[Product Weaver](https://www.productweaver.com).
+Product Weaver is a free, open-source plugin for Claude, ChatGPT and Codex, and
+GitHub Copilot that turns customer interview transcripts into a
+jobs-to-be-done knowledge base, with every quote checked word for word against
+its transcript.
+
+More on [productweaver.com](https://www.productweaver.com): the
+[install guide](https://www.productweaver.com/plugin), an
+[example study](https://www.productweaver.com/example), a guide to
+[analyzing customer interviews with AI](https://www.productweaver.com/customer-interview-analysis)
+and [jobs to be done, explained](https://www.productweaver.com/jobs-to-be-done).
 
 The first skill, **pw-discovery**, turns customer interview transcripts into an
 Outcome-Driven Innovation (ODI) knowledge base: the jobs your customers are

@@ -1,8 +1,9 @@
 Third-party components shipped inside this plugin
 
 js-yaml 4.1.0
-  Where: skills/pw-discovery/assets/discovery-map-template.html, inlined in the
-         first <script> block, and in every discovery-map.html the skill writes.
+  Where: skills/pw-discovery/assets/js-yaml.js, loaded by
+         discovery-map-template.html beside it, and inlined in the first
+         <script> block of every discovery-map.html the skill writes.
   Source: https://github.com/nodeca/js-yaml
   License: MIT. Copyright (C) 2011-2015 by Vitaly Puzrin.
   Permission is hereby granted, free of charge, to any person obtaining a copy

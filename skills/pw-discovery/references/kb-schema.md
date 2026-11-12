@@ -85,7 +85,7 @@ The letter is there even when the study has one core job (`A.6.3`), so no ID cha
 
 | Field | Type | Meaning |
 |---|---|---|
-| `limits` | mapping of kind to integer | Maximum words per kind of statement: `executor` (16), `job` (10), `step` (10), `outcome` (16), `feeling` (12), `rationale` (30, also a solution group's `why`), `solution` (6, a solution's name), `group` (6, a solution group's name), `theme` (6, a value theme's label), `need` (25, a value theme's need) |
+| `limits` | mapping of kind to integer | Maximum words per kind of statement: `executor` (16), `job` (10), `step` (10), `outcome` (16), `feeling` (12), `rationale` (30, also a solution group's `why`), `solution` (6, a solution's name), `group` (6, a solution group's name), `theme` (6, a value theme's label), `need` (25, a value theme's need), `headline` (20), `finding` (50) and `action` (20) for the overview's sentences, `role` (4, the overview's label for who the study is about) and `who` (25, the sentence under it) |
 | `banned` | list of strings | Tokens a statement may not contain. Default: `(`, `;`, `e.g.`, `i.e.`, ` and/or `, `/` |
 | `idioms` | list of strings | Phrases with "and" or "or" that are one idea. Default: `bread and butter`, `in and out` |
 | `acronyms` | list of strings | Abbreviations every reviewer in this market knows. Default: `OTR`, `US`, `UK`, `EU` |
@@ -307,6 +307,7 @@ The layer holds only the sentences the assistant writes. The map counts the rest
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `job` | core job ID | yes | The core job the overview is about |
+| `executor` | mapping | yes for `overview` | Who the study is about, shown first: see below. An overview written before 0.9.0 has none; the map then shows the core job's `job_executor`, and `context` marks the overview out of date |
 | `bottom_line` | string | yes | The main finding, in one sentence of at most 20 words |
 | `why` | string | yes | Why the problem is still there. At most 30 words |
 | `opening` | string | yes | Where a new solution fits. At most 30 words |
@@ -317,6 +318,15 @@ The layer holds only the sentences the assistant writes. The map counts the rest
 | `focus` | mapping | yes | Where a new solution should focus: `answer`, optional `text`. The map lists the themes |
 | `next` | mapping | yes | What to do next, in three tracks: `learn`, `prototype`, `market`. Advice, not findings |
 | `written` | date | no | *Computed.* When this overview was written |
+
+**Who the study is about** (`executor`) holds:
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `label` | string | yes | A short name for these people that a stranger can picture, at most 4 words: "Small-firm bookkeeper" |
+| `text` | string | yes | Who they are and what they do, in one sentence of at most 25 words |
+| `icon` | string | yes | The icon the map draws for them. One of `person`, `office`, `finance`, `shop`, `sales`, `support`, `manager`, `developer`, `designer`, `driver`, `warehouse`, `builder`, `repair`, `cook`, `health`, `care`, `teacher`, `student`, `farmer`, `legal`, `parent`. Use `person` when none fits |
+| `others` | list of strings | no | Up to 3 other people who appear in the story but are not its focus, at most 4 words each: "their clients" |
 
 **A gap** (`gaps.items[]`) holds `label` (at most 6 words), `text` (at most 30 words), `kind` (`pain`: it hurts today; `struggle`: a fix they tried did not work), optional `solutions` (IDs of the solutions it concerns) and `quote`.
 
