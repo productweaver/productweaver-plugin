@@ -49,7 +49,7 @@ Commands add their own fields:
 | `moved`, `transcripts_copied` | migrate | True when migrate moved a study made by an earlier version into `.pw-kb/`, and how many transcripts it copied there |
 | `git` | init, migrate | True when `.pw-kb/` sits in a git repository and has no `.gitignore` of its own |
 | `language` | init, labels | The study's language, a BCP 47 code such as `en`, `it` or `pt-BR` |
-| `labels` | init, labels, review, map | Counts only, never a label's text: `missing` (labels that still show in English), `added` (labels `labels --add` kept), `refused` (problems that stopped `labels --add`) |
+| `labels` | init, labels, review, map, migrate | Counts only, never a label's text: `missing` (labels that still show in English), `added` (labels `labels --add` kept), `refused` (problems that stopped `labels --add`). `migrated` (migrate: 1 when it turned `labels.yaml` into `labels.json`, else 0) |
 | `exception` | any | The exception class when the tool crashed |
 
 ## Codes
@@ -61,11 +61,10 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | Code | Meaning |
 |---|---|
 | `patch_format` | The patch does not match `patch-schema.json` |
-| `yaml_split` | A key with no value that the patch format does not have: YAML split a value with a comma that was not in quotes |
 | `quote_not_found` | A quote is not in its transcript word for word |
 | `quote_empty` | A quote is empty |
 | `evidence_missing` | An item that needs evidence has none |
-| `evidence_shape` | An evidence item is not a mapping with interview, source and quote |
+| `evidence_shape` | An evidence item is not an object with interview, source and quote |
 | `source_invalid` | `source` is not transcript, quoted_in_notes or interviewer_notes |
 | `interview_unresolved` | Evidence names an interview that is unknown, skipped or has no transcript |
 | `clarity_length` | A statement is over the word limit for its kind |
@@ -113,7 +112,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 
 | Code | Meaning |
 |---|---|
-| `theme_shape` | A theme is not a mapping, lacks its label, need, `why` or outcomes, holds an unknown key, or has a highlight without kind, interview and quote |
+| `theme_shape` | A theme is not an object, lacks its label, need, `why` or outcomes, holds an unknown key, or has a highlight without kind, interview and quote |
 | `theme_id` | A theme's `id` is not a theme of that core job, or two themes give the same `id` |
 | `theme_outcome` | A theme cites an outcome that is not in the KB, was merged into another, or belongs to another core job |
 | `theme_need_form` | A theme's need does not start with "Help me". Only in an English study, or when `meta.style.need_start` sets the opening |
@@ -124,7 +123,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 
 | Code | Meaning |
 |---|---|
-| `ids_unquoted` | Interview IDs were not quoted and were read as zero-padded strings |
+| `ids_unquoted` | Interview IDs were written as numbers and were read as zero-padded strings, such as `"07"` |
 | `unknown_key` | A top-level key the patch format does not have was ignored |
 | `ref_legacy` | A step or outcome ID without a job letter, or the older bootstrap form, was read as core job A in a KB with one core job |
 | `job_unlinked` | A new interview is linked to no core job, has no `unlinked_reason` saying why, and is not listed in a `new_core_job` proposal |
@@ -154,37 +153,38 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 
 | Code | Meaning |
 |---|---|
-| `file_missing` | The KB or the patch file does not exist |
-| `yaml_invalid` | The KB or the patch is not valid YAML |
-| `kb_shape` | The KB is not a YAML mapping |
-| `kb_exists` | `init` refused to overwrite an existing KB, or `migrate` found a study in `.pw-kb/` already |
-| `kb_location` | The KB is not `.pw-kb/pw-kb.yaml`. A study made by an earlier version is moved there with `migrate` |
+| `file_missing` | The KB, the patch or another file given to the tool does not exist |
+| `json_invalid` | The KB, the patch or another file given to the tool is not valid JSON, is not UTF-8, or writes a key twice in one object or NaN. The message gives the line and column |
+| `yaml_invalid` | `migrate`: the KB of a study written in YAML is not valid YAML |
+| `kb_shape` | The KB is not a JSON object |
+| `kb_exists` | `init` refused to overwrite an existing KB or to start next to a study written in YAML, or `migrate` found a study in `.pw-kb/` already, or both `pw-kb.yaml` and `pw-kb.json` |
+| `kb_location` | The KB is not `.pw-kb/pw-kb.json`. A study made by an earlier version is moved there with `migrate` |
 | `move_conflict` | `migrate` would overwrite a file in `.pw-kb/`; nothing was moved |
-| `overview_file` | The file given to `overview` is not a mapping with `job`, holds an unknown key, or names a core job the KB does not have |
+| `overview_file` | The file given to `overview` is not an object with `job`, holds an unknown key, or names a core job the KB does not have |
 | `themes_file` | The file given to `themes` does not hold `job` and `themes`, holds another key, or names a core job the KB does not have |
 | `patch_empty` | The patch file is empty |
-| `patch_shape` | The patch is not a YAML mapping |
+| `patch_shape` | The patch is not a JSON object |
 | `schema_version` | The KB's schema version is not a number or is newer than the tool knows |
-| `migrate_needed` | The KB uses an older schema version; run `migrate` |
+| `migrate_needed` | The KB uses an older schema version, or the study is still in YAML (`.pw-kb/pw-kb.yaml`); run `migrate` |
 | `schema_unsupported` | A JSON Schema uses a keyword the built-in checker does not support |
-| `skill_file_missing` | A schema, the map template or a file that ships beside it (`js-yaml.js`, `labels-en.js`) was not found |
+| `skill_file_missing` | A schema, the map template or the file that ships beside it (`labels-en.js`) was not found |
 | `skill_file_invalid` | `labels-en.js` is not a label table |
 | `language_invalid` | `--language` is not a BCP 47 language code |
 | `language_locked` | `labels --language` would change the language of a study that already holds interviews |
-| `labels_file` | The file given to `labels --add` does not hold `language` and `labels` |
+| `labels_file` | The file given to `labels --add` does not hold `language` and `labels`. As a warning, `migrate` could not read a study's `labels.yaml` and left it as it was |
 | `labels_language` | The file given to `labels --add` is for another language than the study's, or the study is in English |
 | `labels_unknown` | `labels --add`: a key is not a label of the map or the review sheet |
 | `labels_empty` | `labels --add`: a label's text is empty or not text |
 | `labels_placeholder` | `labels --add`: a label does not keep exactly the English label's `{name}` places |
-| `labels_plural` | `labels --add`: a plural label is not a mapping of plural forms with `other`, or a form lacks `{n}` |
+| `labels_plural` | `labels --add`: a plural label is not an object of plural forms with `other`, or a form lacks `{n}` |
 | `labels_markup` | `labels --add`: a label holds `<` or `>` |
 | `template_invalid` | The map template has no place to put the KB |
-| `template_old` | The map template is older than the KB schema and cannot draw several core jobs |
+| `template_old` | The map template is older than the KB schema; use the one in the skill |
 | `style_invalid` | `meta.style` is not shaped as documented |
 | `transcript_duplicate` | A transcript file name exists under two `--transcripts` roots |
 | `transcript_unreadable` | A transcript could not be read |
 | `transcript_type` | A transcript has an extension the tool does not read |
-| `reader_missing` | python-docx or pypdf is needed and not installed |
+| `reader_missing` | pypdf is needed to read a `.pdf` transcript and is not installed (save the PDF's text as a `.txt` instead), or `migrate` needs PyYAML to read a study written in YAML |
 | `proposal_missing` | `apply` named a proposal that is not in the KB |
 | `proposal_decided` | `apply` named a proposal that was already approved or rejected |
 | `proposal_stale` | The proposal's target no longer exists as it was raised; fix the KB or reject it |

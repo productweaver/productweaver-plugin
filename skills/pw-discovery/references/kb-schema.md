@@ -2,34 +2,44 @@
 
 *Made with [Product Weaver](https://productweaver.com).*
 
-One YAML file, `.pw-kb/pw-kb.yaml` at the root of the workspace, holds a whole study. This page explains every field. The machine-checkable version is `kb-schema.json` (JSON Schema, draft 2020-12). `kb_tool.py validate` checks every KB against it, and `merge` refuses to write a KB that would break it.
+One JSON file, `.pw-kb/pw-kb.json` at the root of the workspace, holds a whole study. This page explains every field. The machine-checkable version is `kb-schema.json` (JSON Schema, draft 2020-12). `kb_tool.py validate` checks every KB against it, and `merge` refuses to write a KB that would break it.
 
 **Who writes what.** The skill writes the statements, and the script stamps IDs, counts, dates and hashes. People decide on proposals. Fields marked *computed* are recalculated on every merge, so don't edit them by hand.
 
 **Extra fields are allowed.** Anything not listed here is kept and ignored, so older files and your own notes keep loading.
 
+**The file.** The script writes it in UTF-8 with two-space indents, and keeps each object that holds no list or object, such as an evidence item, on one line. A date is a string such as `"2026-03-05"`. A study written in YAML by plugin 0.7.0 or earlier, `.pw-kb/pw-kb.yaml`, becomes this file with `kb_tool.py migrate .pw-kb/pw-kb.yaml`.
+
 ## At a glance
 
-```yaml
-meta:                 # about the study
-core_jobs: []         # the core jobs the study found: A, B, C…
-clusters:             # segments of people, optional
-interviews: []        # one record per conversation, linked to the core jobs
-job_map:
-  steps: []           # what people do, per core job, on the 8 ODI stages
-desired_outcomes:
-  outcomes: []        # how people judge each step
-current_solutions:    # what people use today for each step, optional
-  groups: {}
-  solutions: []
-proposed_changes: []  # structural changes waiting for a decision
-changelog: []         # what happened to the KB, and when
-value_themes:         # a few needs that group the outcomes, optional, built on request
-  themes: []
-overview:             # the study as a short story with what to do next, optional
-  jobs: []
-survey / simulation / use_cases:   # other derived layers, rebuilt on request
+```json
+{
+  "meta": {},
+  "core_jobs": [],
+  "clusters": {},
+  "interviews": [],
+  "job_map": {"steps": []},
+  "desired_outcomes": {"outcomes": []},
+  "current_solutions": {"groups": {}, "solutions": []},
+  "proposed_changes": [],
+  "changelog": [],
+  "value_themes": {"themes": []},
+  "overview": {"jobs": []}
+}
 ```
+
+- `meta`: about the study
+- `core_jobs`: the core jobs the study found: A, B, C…
+- `clusters`: segments of people, optional
+- `interviews`: one record per conversation, linked to the core jobs
+- `job_map.steps`: what people do, per core job, on the 8 ODI stages
+- `desired_outcomes.outcomes`: how people judge each step
+- `current_solutions`: what people use today for each step, optional
+- `proposed_changes`: structural changes waiting for a decision
+- `changelog`: what happened to the KB, and when
+- `value_themes`: a few needs that group the outcomes, optional, built on request
+- `overview`: the study as a short story with what to do next, optional
+- `survey`, `simulation`, `use_cases`: other derived layers, rebuilt on request (not shown)
 
 Required at the top level: `meta`, `core_jobs`, `interviews`, `job_map`, `desired_outcomes`.
 
@@ -70,23 +80,23 @@ The letter is there even when the study has one core job (`A.6.3`), so no ID cha
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `project` | string | yes | Study or client name |
-| `schema_version` | integer | no | Version of this schema; currently 2. `kb_tool.py migrate` raises it, and every command refuses an older or a newer one |
+| `schema_version` | integer | no | Version of this schema; currently 3. `kb_tool.py migrate` raises it, and every command refuses an older or a newer one |
 | `method` | string | no | Method used |
 | `interviewer` | string | no | Who ran the interviews |
-| `language` | string | no | The study's language, a BCP 47 code such as `en`, `it`, `pt-BR` or `zh-Hans`. Every statement is written in it, and the map and `review.md` show their own text in it from `.pw-kb/labels.yaml`. Missing means English. `init` writes it; `labels --language` changes it only while the study has no interviews. Quotes stay in the words people used |
+| `language` | string | no | The study's language, a BCP 47 code such as `en`, `it`, `pt-BR` or `zh-Hans`. Every statement is written in it, and the map and `review.md` show their own text in it from `.pw-kb/labels.json`. Missing means English. `init` writes it; `labels --language` changes it only while the study has no interviews. Quotes stay in the words people used |
 | `created` | date | no | When the KB was started |
 | `interview_count` | integer | no | *Computed.* Number of interviews |
 | `date_range` | string | no | *Computed.* First to last interview date |
 | `caveat` | string | no | A warning every reader should see, such as "sample interviews" |
 | `generated_with` | string | no | *Computed.* Product Weaver credit |
 | `tool_version` | string | no | *Computed.* Version of `kb_tool.py` that last wrote the file |
-| `style` | mapping | no | Writing rules for this study that override the script's defaults, see below |
+| `style` | object | no | Writing rules for this study that override the script's defaults, see below |
 
 **`meta.style`**
 
 | Field | Type | Meaning |
 |---|---|---|
-| `limits` | mapping of kind to integer | Maximum words per kind of statement: `executor` (16), `job` (10), `step` (10), `outcome` (16), `feeling` (12), `rationale` (30, also a solution group's `why`), `solution` (6, a solution's name), `group` (6, a solution group's name), `theme` (6, a value theme's label), `need` (25, a value theme's need), `headline` (20), `finding` (50) and `action` (20) for the overview's sentences, `role` (4, the overview's label for who the study is about) and `who` (25, the sentence under it) |
+| `limits` | object of kind to integer | Maximum words per kind of statement: `executor` (16), `job` (10), `step` (10), `outcome` (16), `feeling` (12), `rationale` (30, also a solution group's `why`), `solution` (6, a solution's name), `group` (6, a solution group's name), `theme` (6, a value theme's label), `need` (25, a value theme's need), `headline` (20), `finding` (50) and `action` (20) for the overview's sentences, `role` (4, the overview's label for who the study is about) and `who` (25, the sentence under it) |
 | `banned` | list of strings | Tokens a statement may not contain. Default: `(`, `;`, `e.g.`, `i.e.`, ` and/or `, `/`, and the full-width and Arabic forms `（`, `；`, `／`, `؛`. A Greek study (`el`) drops `;`, its question mark |
 | `idioms` | list of strings | Phrases with "and" or "or" that are one idea. Default: `bread and butter`, `in and out` |
 | `acronyms` | list of strings | Abbreviations every reviewer in this market knows. Default: `OTR`, `US`, `UK`, `EU` |
@@ -114,7 +124,7 @@ The core functional jobs the study found, abstracted from each interview's own c
 
 ## `clusters`
 
-A map from a short segment code (`seq`, `fleet`) to `{name, description, interviews}`. `interviews` is *computed* from each interview's `cluster`.
+An object from a short segment code (`seq`, `fleet`) to an object with `name`, `description` and `interviews`. `interviews` is *computed* from each interview's `cluster`.
 
 ## `interviews[]`
 
@@ -179,7 +189,7 @@ What people use today to get a step done: products, everyday tools, other people
 
 Each solution sits in one group. A group gathers the solutions that compete for the same work, the options a person would weigh against each other, and says why in one sentence. A group of one is fine: no alternative has been heard yet.
 
-**`groups`**: a map from a short lowercase key (`send-orders`) to:
+**`groups`**: an object from a short lowercase key (`send-orders`) to an object with:
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
@@ -258,7 +268,7 @@ A `merge` entry also carries structured fields, so tools do not have to parse th
 | `solution_quotes` | integer | Quotes added to solutions already in the KB. Present with the two above |
 | `ts` | string | When the script wrote the entry, ISO 8601 with timezone |
 | `run_id` | string | The run that wrote it; the same value is on its line in `logs/kb_tool.jsonl` |
-| `provenance` | mapping | Who extracted the batch: `assistant`, `model`, `started`, `transcripts_read`, `notes` |
+| `provenance` | object | Who extracted the batch: `assistant`, `model`, `started`, `transcripts_read`, `notes` |
 | `proposals` | list of `P<n>` | Proposals this merge filed |
 | `bootstrap` | boolean | Present and true when the merge created the core jobs and job map |
 
@@ -266,7 +276,7 @@ A `decide` entry carries `proposal` (the ID) and `decision` (`approved` or `reje
 
 ## Backups
 
-Every write except `init` first copies the KB to `backups/` next to it, as `<name>.<date>-<time>-<microseconds>.yaml`. The newest 20 copies are kept.
+Every write except `init` first copies the KB to `backups/` next to it, as `<name>.<date>-<time>-<microseconds>.json`. The newest 20 copies are kept. `migrate` keeps the YAML files of an older study there the same way, ending in `.yaml`.
 
 ## `value_themes`
 
@@ -312,16 +322,16 @@ The layer holds only the sentences the assistant writes. The map counts the rest
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `job` | core job ID | yes | The core job the overview is about |
-| `executor` | mapping | yes for `overview` | Who the study is about, shown first: see below. An overview written before 0.9.0 has none; the map then shows the core job's `job_executor`, and `context` marks the overview out of date |
+| `executor` | object | yes for `overview` | Who the study is about, shown first: see below. An overview written before 0.9.0 has none; the map then shows the core job's `job_executor`, and `context` marks the overview out of date |
 | `bottom_line` | string | yes | The main finding, in one sentence of at most 20 words |
 | `why` | string | yes | Why the problem is still there. At most 30 words |
 | `opening` | string | yes | Where a new solution fits. At most 30 words |
-| `people` | mapping | yes | Who was listened to: `answer` (at most 20 words), optional `text` (at most 50 words) and optional `quote` |
-| `today` | mapping | yes | How they get the job done today: `answer`, optional `text`. Every `answer` is at most 20 words and every `text` at most 50 |
-| `gaps` | mapping | yes | Where today's way falls short: `answer` and `items`, 1 to 5 gaps |
-| `needs` | mapping | yes | What they most want to get better: `answer`, optional `text`. The map lists the needs |
-| `focus` | mapping | yes | Where a new solution should focus: `answer`, optional `text`. The map lists the themes |
-| `next` | mapping | yes | What to do next, in three tracks: `learn`, `prototype`, `market`. Advice, not findings |
+| `people` | object | yes | Who was listened to: `answer` (at most 20 words), optional `text` (at most 50 words) and optional `quote` |
+| `today` | object | yes | How they get the job done today: `answer`, optional `text`. Every `answer` is at most 20 words and every `text` at most 50 |
+| `gaps` | object | yes | Where today's way falls short: `answer` and `items`, 1 to 5 gaps |
+| `needs` | object | yes | What they most want to get better: `answer`, optional `text`. The map lists the needs |
+| `focus` | object | yes | Where a new solution should focus: `answer`, optional `text`. The map lists the themes |
+| `next` | object | yes | What to do next, in three tracks: `learn`, `prototype`, `market`. Advice, not findings |
 | `written` | date | no | *Computed.* When this overview was written |
 
 **Who the study is about** (`executor`) holds:

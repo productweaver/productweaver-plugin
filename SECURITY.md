@@ -25,7 +25,7 @@ This helps you judge the impact of a problem:
   `skills/pw-discovery/scripts/kb_tool.py`, which reads the interview files you
   give it and writes the knowledge base, review sheet and discovery map next
   to them.
-- The plugin makes no network calls of its own. The only download is the
-  Python packages that `uv` fetches the first time the script runs.
+- The plugin makes no network calls and downloads nothing. The script uses
+  only Python's standard library.
 - The plugin has no hooks, no MCP servers and no commands that run on their
   own.

@@ -1,5 +1,5 @@
 /* The English text of the discovery map and the review sheet. A study in another language keeps its own text in
-   .pw-kb/labels.yaml, written by `kb_tool labels`; any label it lacks shows in English from this file.
+   .pw-kb/labels.json, written by `kb_tool labels`; any label it lacks shows in English from this file.
    The map template loads this file from beside itself, and `kb_tool map` puts it inside each map.
    kb_tool reads it as JSON: keep everything from "PW_LABELS_EN = " to the last ";" strict JSON, one label per line.
    {name} is filled in by the code. A plural label has one text per plural form (CLDR: zero, one, two, few, many,
@@ -460,9 +460,9 @@ var PW_LABELS_EN = {
 "map.built.cta": "This map was made with the free {brand} skill for AI assistants. The full {brand} experience is at {site}.",
 "map.file.drop": "Drop the KB file to load it",
 "map.file.error_title": "That file didn't load",
-"map.file.error_help": "Open the knowledge base YAML file, {path} in your workspace. The folder is hidden: on a Mac, press Cmd+Shift+. in the file dialog to show it.",
-"map.file.empty": "The file is empty or not YAML.",
-"map.file.no_yaml": "This copy of the map cannot read YAML, because js-yaml.js is not next to it. Open the map that kb_tool made, or keep js-yaml.js next to this file.",
+"map.file.open_help": "Open the knowledge base file, {path} in your workspace. The folder is hidden: on a Mac, press Cmd+Shift+. in the file dialog to show it.",
+"map.file.not_kb": "The file is empty or is not a knowledge base.",
+"map.file.yaml_old": "This file was written by an earlier version of the skill. Ask your assistant to update the study, then open pw-kb.json.",
 "review.title": "{project}: review sheet",
 "review.project_default": "ODI study",
 "review.count.interviews": {"one": "{n} interview", "other": "{n} interviews"},
@@ -546,7 +546,7 @@ var PW_LABELS_EN = {
 },
 "notes": {
 "map.ov.focus.todo": "The words in quote marks are what the reader types to their assistant: translate them",
-"map.btn.open_file": "Opens the study's data file, pw-kb.yaml. Say it plainly, such as: Open a study file",
+"map.btn.open_file": "Opens the study's data file, pw-kb.json. Say it plainly, such as: Open a study file",
 "map.ov.rail.about": "Heading in the side bar for who the study is about",
 "map.theme.hl.desire": "Kind of quote: something they wish for",
 "map.theme.hl.struggle": "Kind of quote: a fix they tried that did not work",
@@ -592,7 +592,7 @@ var PW_LABELS_EN = {
 "map.drawer.stage.term": "{term} is the stage's name in the method, in English, such as define",
 "map.drawer.person.added": "{quotes}, {steps} and {measures} are counts with their word, from map.count.quotes, map.count.steps and map.count.measures, such as 3 quotes; the sentence itself must finish the idea of measures of success",
 "map.built.cta": "{brand} is Product Weaver and {site} is productweaver.com: keep both as they are",
-"map.file.error_help": "{path} is the file's path; keep Cmd+Shift+. as it is",
+"map.file.open_help": "{path} is the file's path; keep Cmd+Shift+. as it is",
 "review.title": "Title of the review sheet; {project} is the study's name",
 "review.project_default": "Study name used when the study has none",
 "review.updated": "{date} is a date such as 2026-11-12",

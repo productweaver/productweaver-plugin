@@ -3,6 +3,37 @@
 Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning.
 
+## 0.8.0 — 2026-11-12
+
+- **Runs with Python alone.** The skill's script now uses only Python's
+  standard library: no uv, no PyYAML, nothing to download. It works in
+  assistants whose sandbox cannot reach the internet, such as ChatGPT Work,
+  where the plugin failed because PyYAML could not be installed.
+- **The study's files are now JSON.** The knowledge base is
+  `.pw-kb/pw-kb.json`, the study's own text for the map and the review sheet
+  is `.pw-kb/labels.json`, and the batches, value themes and overview the
+  assistant writes are JSON files too.
+- **What you do about a study made with 0.7.0 or earlier:** nothing by hand.
+  The first time you use it, the assistant runs `kb_tool migrate` once. That
+  one time needs PyYAML, as before; the assistant tells you if it is missing.
+  The YAML files are kept in `.pw-kb/backups/`, and old batch files in
+  `patches/` stay as they are. If people share a study through git, update
+  the plugin for everyone at the same time: an older version cannot read the
+  JSON files.
+- `.docx` transcripts no longer need python-docx; the text is read exactly as
+  before, so quotes and checks are unchanged. `.pdf` transcripts still use
+  pypdf when it is installed. Without it, the assistant saves the PDF's text,
+  word for word, as a `.txt` file in `.pw-kb/transcripts/` and quotes that.
+- Each discovery map is about 110 KB smaller: it no longer carries a YAML
+  reader. Its "Open file" button opens `pw-kb.json`, and says what to do when
+  given a YAML file from an earlier version. A study in another language
+  shows three of the map's messages about opening a file in English until the
+  assistant translates them again.
+- `kb_tool` 0.11.0, KB schema 3. A JSON file that will not load now gets an
+  error with the line, the column and the line itself, so the assistant can
+  fix it. If you copied the tool into `.pw-kb/tools/`, copy the new files and
+  delete `kb_tool.py.lock` and `js-yaml.js` there.
+
 ## 0.7.0 — 2026-11-12
 
 - **A study can be in the interviews' language.** When a new study starts

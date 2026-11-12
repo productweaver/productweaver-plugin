@@ -70,11 +70,13 @@ copilot plugin install productweaver@productweaver-plugin
 
 ### Requirements
 
-- Python 3.9 or newer.
-- [uv](https://docs.astral.sh/uv/), which installs the one Python package the
-  skill needs (PyYAML) the first time it runs. Without uv, install it once
-  yourself: `python3 -m pip install pyyaml==6.0.3`.
-- Transcripts as `.md`, `.txt`, `.docx` or `.pdf` files.
+- Python 3.9 or newer. Nothing else to install: the skill's script uses only
+  Python's standard library, so it also runs where packages cannot be
+  downloaded.
+- Transcripts as `.md`, `.txt`, `.docx` or `.pdf` files. To read a `.pdf`
+  directly, the script needs pypdf (`python3 -m pip install pypdf==6.21.4`).
+  Without it, the assistant first saves the PDF's text, word for word, as a
+  `.txt` file in the study.
 
 ## Use it
 
@@ -104,8 +106,7 @@ MCP servers and no background processes.
 
 ## What it sends and where
 
-Nothing. The plugin makes no network calls of its own. The only download is
-PyYAML, which uv fetches from PyPI the first time the script runs. Your
+Nothing. The plugin makes no network calls and downloads nothing. Your
 assistant itself works as it always does with the files it reads.
 
 ## Files it writes
@@ -113,13 +114,13 @@ assistant itself works as it always does with the files it reads.
 All files go into one folder, `.pw-kb/`, at the root of your workspace. One
 workspace holds one study.
 
-- `pw-kb.yaml`, the knowledge base;
+- `pw-kb.json`, the knowledge base;
 - `transcripts/`, a copy of each transcript the knowledge base quotes. Your own
   files are never changed;
 - `review.md`, the review sheet;
 - `discovery-map.html`, the interactive map, which works offline. The first
   time it is made, it opens in your browser;
-- `labels.yaml`, only for a study in another language than English: the map's
+- `labels.json`, only for a study in another language than English: the map's
   and the review sheet's own text in that language;
 - `patches/`, one file per batch, the audit trail of what each batch added;
 - `backups/`, copies of the knowledge base before each merge (the newest 20);
@@ -131,8 +132,12 @@ interviewees' names and words. They stay on your machine unless you share
 them. If your workspace is a git repository, the assistant asks once whether
 to share the study through git.
 
-A study made by version 0.2.0 or earlier sits in a `KB/` folder. The assistant
-moves it into `.pw-kb/` the first time you use it, and keeps a backup.
+A study made by version 0.7.0 or earlier is kept in YAML files, `pw-kb.yaml`
+and `labels.yaml`. The assistant turns them into JSON once, the first time you
+use the study, and keeps the YAML files in `backups/`. That one time, the
+script needs PyYAML (`python3 -m pip install pyyaml==6.0.3`). A study made by
+version 0.2.0 or earlier sits in a `KB/` folder; the assistant moves it into
+`.pw-kb/` the same way.
 
 ## Where it works
 
@@ -153,5 +158,5 @@ report a security problem, follow [SECURITY.md](https://github.com/productweaver
 
 ## License
 
-Apache License 2.0, see [LICENSE](LICENSE). The discovery map includes js-yaml
-under the MIT license, see [NOTICE](NOTICE).
+Apache License 2.0, see [LICENSE](LICENSE). The plugin ships no third-party
+code, see [NOTICE](NOTICE).

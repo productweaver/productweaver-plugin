@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://productweaver.com/schemas/pw-patch/v2",
+  "$id": "https://productweaver.com/schemas/pw-patch/v3",
   "title": "ODI knowledge base patch",
-  "description": "One YAML file describing what a batch of interview transcripts adds to an ODI knowledge base. kb_tool.py merge checks a patch against this schema before any other check. Every key is optional, but a patch needs at least one of them. Write every ID in quotes: interviews like \"01\", steps like \"A.6\", outcomes like \"A.6.3\". The prose version is patch-format.md. Made with Product Weaver · productweaver.com",
+  "description": "One JSON file describing what a batch of interview transcripts adds to an ODI knowledge base. kb_tool.py merge checks a patch against this schema before any other check. Every key is optional, but a patch needs at least one of them. Write every ID as a string: interviews like \"01\", steps like \"A.6\", outcomes like \"A.6.3\". The prose version is patch-format.md. Made with Product Weaver · productweaver.com",
   "type": "object",
   "properties": {
     "interviews": {
@@ -171,6 +171,10 @@
     },
     "provenance": {
       "$ref": "#/$defs/provenance"
+    },
+    "generated_with": {
+      "type": "string",
+      "description": "The Product Weaver credit the patch opens with: Made with Product Weaver · productweaver.com."
     }
   },
   "$defs": {

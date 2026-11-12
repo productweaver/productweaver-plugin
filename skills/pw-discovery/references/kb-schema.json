@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://productweaver.com/schemas/pw-kb/v2",
+  "$id": "https://productweaver.com/schemas/pw-kb/v3",
   "title": "ODI knowledge base",
-  "description": "One YAML file holding an Outcome-Driven Innovation study built from interview transcripts. Made with Product Weaver · productweaver.com. Extra fields are allowed so older and derived layers keep loading; the fields below are the contract.",
+  "description": "One JSON file holding an Outcome-Driven Innovation study built from interview transcripts. Made with Product Weaver · productweaver.com. Extra fields are allowed so older and derived layers keep loading; the fields below are the contract.",
   "type": "object",
   "required": [
     "meta",

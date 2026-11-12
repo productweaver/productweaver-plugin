@@ -545,7 +545,7 @@ button.tag:hover{border-color:var(--accent);color:var(--accent)}
       <button class="btn" id="btnRead" type="button" data-t="map.btn.read"></button>
       <button class="btn" id="btnBuilt" type="button" data-t="map.btn.built"></button>
       <button class="btn primary" id="btnOpen" type="button" data-t="map.btn.open_file"></button>
-      <input type="file" id="file" accept=".yaml,.yml,.json" hidden>
+      <input type="file" id="file" accept=".json" hidden>
     </div>
   </div>
   <div class="jobs" id="jobs" role="group" data-t-aria="map.aria.jobs" hidden></div>
@@ -600,10 +600,9 @@ button.tag:hover{border-color:var(--accent);color:var(--accent)}
 <div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mTitle"><button class="dclose" id="mClose" type="button" data-t-aria="map.modal.close">×</button><div id="mBody"></div></div></div>
 <div class="drop" id="drop" data-t="map.file.drop" hidden></div>
 
-<script src="js-yaml.js"></script>
 <script src="labels-en.js"></script>
 <script>
-/* @kb-schema:2 */ /* draws KBs of schema 2, with one or more core jobs, and still reads schema 1 files */
+/* @kb-schema:3 */ /* draws KBs of schema 3 (and 2, the same data in YAML), with one or more core jobs, and still reads schema 1 */
 /* @kb-data:start */
 const SAMPLE = {"meta":{"project":"Open a KB file to begin"}};
 /* @kb-data:end */
@@ -761,7 +760,7 @@ function solScope(sols, groups, job){
 /* ---------- model ---------- */
 let M = null;
 function build(raw){
-  if(!raw || typeof raw!=="object") throw new Error(t("map.file.empty"));
+  if(!raw || typeof raw!=="object") throw new Error(t("map.file.not_kb"));
   const jm = raw.job_map||{};
   // schema 1 files had one market_core_job and IDs without a job letter: read them as core job A
   const v1 = !Array.isArray(raw.core_jobs), mcj = raw.market_core_job||{};
@@ -1835,10 +1834,10 @@ document.getElementById("btnBuilt").onclick=()=>openModal(`
 const fileIn=document.getElementById("file");
 document.getElementById("btnOpen").onclick=()=>fileIn.click();
 fileIn.onchange=()=>{ if(fileIn.files[0]) readFile(fileIn.files[0]); fileIn.value=""; };
-function readFile(f){ const r=new FileReader(); r.onload=()=>{ try{ const txt=String(r.result);
-    if(!f.name.endsWith(".json") && typeof jsyaml==="undefined") throw new Error(t("map.file.no_yaml"));
-    const data=f.name.endsWith(".json")?JSON.parse(txt):jsyaml.load(txt); load(data); }
-  catch(err){ openModal(`<h2 id="mTitle">${th("map.file.error_title")}</h2><div class="err">${esc(err.message)}</div><p>${th("map.file.error_help",{path:"<b>.pw-kb/pw-kb.yaml</b>"})}</p>`); } }; r.readAsText(f); }
+function readFile(f){ const r=new FileReader(); r.onload=()=>{ try{
+    if(/\.ya?ml$/i.test(f.name)) throw new Error(t("map.file.yaml_old"));
+    load(JSON.parse(String(r.result))); }
+  catch(err){ openModal(`<h2 id="mTitle">${th("map.file.error_title")}</h2><div class="err">${esc(err.message)}</div><p>${th("map.file.open_help",{path:"<b>.pw-kb/pw-kb.json</b>"})}</p>`); } }; r.readAsText(f); }
 let dragDepth=0; const dropEl=document.getElementById("drop");
 addEventListener("dragenter",e=>{ e.preventDefault(); dragDepth++; dropEl.hidden=false; });
 addEventListener("dragleave",()=>{ dragDepth=Math.max(0,dragDepth-1); if(!dragDepth) dropEl.hidden=true; });
@@ -1847,7 +1846,7 @@ addEventListener("drop",e=>{ e.preventDefault(); dragDepth=0; dropEl.hidden=true
 
 /* A KB dropped onto the map brings its own language; a file that does not load leaves the map as it was. */
 function load(raw){
-  if(!raw || typeof raw!=="object") throw new Error(t("map.file.empty"));
+  if(!raw || typeof raw!=="object") throw new Error(t("map.file.not_kb"));
   const was={...UI}, wasCache=labelCache;
   setLanguage(raw);
   try{ M=build(raw); }catch(err){ Object.assign(UI, was); labelCache=wasCache; applyLabels(); throw err; }

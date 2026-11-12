@@ -1,43 +1,40 @@
 #!/usr/bin/env python3
-# /// script
-# requires-python = ">=3.9"
-# dependencies = ["pyyaml==6.0.3"]
-# ///
-"""kb_tool.py - keep an ODI knowledge base (one YAML file) growing from interview transcripts.
+"""kb_tool.py - keep an ODI knowledge base (one JSON file) growing from interview transcripts.
 
 Part of the Product Weaver pw-discovery skill · https://productweaver.com
 
-A study lives in one folder, .pw-kb/ at the root of the workspace: the KB .pw-kb/pw-kb.yaml, and next to it
+A study lives in one folder, .pw-kb/ at the root of the workspace: the KB .pw-kb/pw-kb.json, and next to it
 patches/, backups/, logs/, transcripts/ (a copy of every transcript the KB cites), review.md and discovery-map.html.
 
 Commands
-  init      .pw-kb/pw-kb.yaml --project NAME [--interviewer NAME] [--language CODE]
+  init      .pw-kb/pw-kb.json --project NAME [--interviewer NAME] [--language CODE]
                                                               start an empty KB, in English unless --language says
-  labels    <kb.yaml> [--language CODE] [--add FILE] [--json] set the study's language (before the first interview);
+  labels    <kb.json> [--language CODE] [--add FILE] [--json] set the study's language (before the first interview);
                                                               write the map's and review sheet's text still to write
                                                               in it, or check and keep that text (--add)
-  context   <kb.yaml> [--json]                                compact view of the KB to map new evidence against
-  merge     <kb.yaml> <patch.yaml> [--transcripts DIR ...] [--dry-run] [--json]
+  context   <kb.json> [--json]                                compact view of the KB to map new evidence against
+  merge     <kb.json> <patch.json> [--transcripts DIR ...] [--dry-run] [--json]
                                                               check every quote and reference, fold the patch in and
                                                               copy new transcripts into .pw-kb/transcripts/
-  apply     <kb.yaml> <proposal-id> --decision approve|reject [--note TEXT]
+  apply     <kb.json> <proposal-id> --decision approve|reject [--note TEXT]
                                                               act on a proposed structural change
-  review    <kb.yaml> [--since DATE] [--out FILE]             write review.md, a plain sheet for human reviewers
-  map       <kb.yaml> [--template FILE] [--out FILE] [--open] write discovery-map.html, the interactive map, KB inside;
+  review    <kb.json> [--since DATE] [--out FILE]             write review.md, a plain sheet for human reviewers
+  map       <kb.json> [--template FILE] [--out FILE] [--open] write discovery-map.html, the interactive map, KB inside;
                                                               --open also shows it in the default browser
-  themes    <kb.yaml> <themes.yaml> [--dry-run] [--json]      check one core job's value themes and write them:
+  themes    <kb.json> <themes.json> [--dry-run] [--json]      check one core job's value themes and write them:
                                                               few needs that group the outcomes, for ideation
-  overview  <kb.yaml> <overview.yaml> [--dry-run] [--json]  check one core job's overview and write it: the
+  overview  <kb.json> <overview.json> [--dry-run] [--json]  check one core job's overview and write it: the
                                                               study as a short story, with what to do next
-  validate  <kb.yaml> [--structure-only] [--schema FILE] [--rehash]
+  validate  <kb.json> [--structure-only] [--schema FILE] [--rehash]
                                                               check the structure, then every quote and transcript hash
-  migrate   <kb.yaml> [--to .pw-kb/pw-kb.yaml] [--transcripts DIR ...]
-                                                              bring an older KB up to the current schema version, and
-                                                              move a study made by an earlier version into .pw-kb/
+  migrate   <kb> [--to .pw-kb/pw-kb.json] [--transcripts DIR ...]
+                                                              bring an older KB up to the current schema version, turn
+                                                              a YAML study into JSON, and move a study made by an
+                                                              earlier version into .pw-kb/
 
-Run it with no setup:   uv run --locked kb_tool.py <command> ...      (uv installs PyYAML in its cache the first time)
-Or install PyYAML once: python3 -m pip install pyyaml==6.0.3
-.docx transcripts need python-docx==1.2.0, .pdf transcripts need pypdf==6.21.4.
+Run it with python3 kb_tool.py <command> ... It needs Python 3.9 or newer and nothing else: only the standard library.
+Two packages help when they are installed, and nothing needs them: pypdf==6.21.4 reads .pdf transcripts, and
+pyyaml==6.0.3 lets migrate read a study written in YAML by version 0.10.0 or earlier.
 
 Every run, including a failed one or a dry run, appends one JSON line to .pw-kb/logs/kb_tool.jsonl:
 what was asked, how it ended, error and warning codes, counts, versions. Never quotes, names or file names.
@@ -63,21 +60,18 @@ import sys
 import time
 import uuid
 import webbrowser
+import zipfile
 from dataclasses import dataclass, field
 from typing import Any, Callable
-
-try:
-    import yaml
-except ImportError:  # pragma: no cover - depends on the machine
-    sys.exit("PyYAML is missing. Run `uv run --locked kb_tool.py ...` or `python3 -m pip install pyyaml==6.0.3`.")
+from xml.etree import ElementTree
 
 try:
     import jsonschema as _jsonschema  # optional: richer schema messages when it is installed
 except ImportError:  # pragma: no cover - depends on the machine
     _jsonschema = None
 
-__version__ = "0.10.0"
-SCHEMA_VERSION = 2
+__version__ = "0.11.0"
+SCHEMA_VERSION = 3
 
 BRAND = "Product Weaver"
 SITE = "https://www.productweaver.com/"
@@ -100,15 +94,16 @@ SOLUTION_KINDS = ["product", "everyday_tool", "people", "own_method"]
 SOLUTION_STATUS = ["current", "stopped"]
 KIND_LABELS = {"product": "review.kind.product", "everyday_tool": "review.kind.everyday_tool",
                "people": "review.kind.people", "own_method": "review.kind.own_method"}  # the review sheet's names
-PATCH_KEYS = (*PATCH_SECTIONS, "provenance")  # every top-level key a patch may carry
+PATCH_KEYS = (*PATCH_SECTIONS, "provenance", "generated_with")  # every top-level key a patch may carry
 PROVENANCE_KEYS = ("assistant", "model", "started", "transcripts_read", "notes")
 LOG_FOLDER, LOG_FILE = "logs", "kb_tool.jsonl"
-KB_FOLDER, KB_FILE, COPIES = ".pw-kb", "pw-kb.yaml", "transcripts"  # <workspace root>/.pw-kb/pw-kb.yaml
+KB_FOLDER, KB_FILE, COPIES = ".pw-kb", "pw-kb.json", "transcripts"  # <workspace root>/.pw-kb/pw-kb.json
+OLD_KB_FILE, OLD_STUDY_LABELS = "pw-kb.yaml", "labels.yaml"  # what versions up to 0.10.0 wrote; migrate reads them
 KB_HOME = f"{KB_FOLDER}/{KB_FILE}"
 # The study's language. The map's and the review sheet's own text comes from LABELS_FILE (English, in the skill's
 # assets/), and for a study in another language from STUDY_LABELS (in .pw-kb/), which `labels` writes.
 ENGLISH = "en"
-LABELS_FILE, STUDY_LABELS = "labels-en.js", "labels.yaml"
+LABELS_FILE, STUDY_LABELS = "labels-en.js", "labels.json"
 OLD_TRANSCRIPTS = "Interviews"  # where earlier versions kept a study's transcripts: <study>/Interviews/
 MOVED_ON_MIGRATE = ("patches", "backups", LOG_FOLDER, "review.md", "discovery-map.html")
 JOB_ID = re.compile(r"^[A-Z]{1,2}$")
@@ -235,9 +230,9 @@ def file_sha256(path: str) -> str | None:
 def kb_summary(path: str) -> Json | None:
     """How big the KB is after a run, as counts only, so the log can draw trend lines."""
     try:
-        with open(path, encoding="utf-8") as handle:
-            kb = yaml.safe_load(handle)
-    except (OSError, yaml.YAMLError):
+        with open(path, encoding="utf-8-sig") as handle:
+            kb = json.load(handle)
+    except (OSError, ValueError):
         return None
     if not isinstance(kb, dict):
         return None
@@ -365,29 +360,73 @@ def changelog_entry(run: Run, action: str, **fields: Any) -> Json:
 
 
 # ---------- files ----------
-def load_yaml(path: str) -> Any:
+JSON_RULES = ("JSON needs double quotes around every key and every text, \\\" for a quote mark inside a text, a comma "
+              "between items but none after the last, and no comments")
+
+
+def _no_twice(pairs: list[tuple[str, Any]]) -> Json:
+    data: Json = {}
+    for key, value in pairs:
+        if key in data:
+            raise ValueError(f'the key "{key}" appears twice in one object')
+        data[key] = value
+    return data
+
+
+def _no_constant(name: str) -> Any:
+    raise ValueError(f"{name} is not a number JSON allows")
+
+
+def _json_spot(text: str, line: int, column: int, width: int = 120) -> str:
+    """The line of a JSON error, cut to `width` characters around the column, with a caret under it."""
+    lines = text.splitlines()
+    shown = lines[line - 1].replace("\t", " ") if 0 < line <= len(lines) else ""
+    start = max(0, column - 1 - width // 2)
+    return f"  {shown[start:start + width]}\n  {' ' * (column - 1 - start)}^"
+
+
+def load_json(path: str) -> Any:
+    """Read a JSON file; an empty one gives None. A key written twice in one object, or NaN, is refused."""
     try:
-        with open(path, encoding="utf-8") as handle:
-            return yaml.safe_load(handle)
+        with open(path, encoding="utf-8-sig") as handle:  # -sig: accept the byte order mark some editors write
+            text = handle.read()
     except FileNotFoundError:
         raise KbError(f"file not found: {path}", code="file_missing") from None
-    except yaml.YAMLError as exc:
-        raise KbError(f"{path} is not valid YAML: {exc}", code="yaml_invalid") from None
+    except UnicodeDecodeError:
+        raise KbError(f"{path} is not UTF-8 text; save it as UTF-8", code="json_invalid") from None
+    if not text.strip():
+        return None
+    try:
+        return json.loads(text, object_pairs_hook=_no_twice, parse_constant=_no_constant)
+    except json.JSONDecodeError as exc:
+        raise KbError(f"{path} is not valid JSON: {exc.msg} at line {exc.lineno}, column {exc.colno}:\n"
+                      f"{_json_spot(text, exc.lineno, exc.colno)}\n{JSON_RULES}.", code="json_invalid") from None
+    except (ValueError, RecursionError) as exc:
+        raise KbError(f"{path} is not valid JSON: {exc}", code="json_invalid") from None
 
 
-class _Dumper(yaml.SafeDumper):
-    def ignore_aliases(self, data: Any) -> bool:
-        return True
+def dump_json(value: Any, indent: str = "") -> str:
+    """JSON indented by two spaces, where an object that holds no list or object stays on one line, and so does a
+    short list of plain values: each evidence item, history entry and list of IDs reads as one line."""
+    inner = list(value.values()) if isinstance(value, dict) else value if isinstance(value, list) else None
+    line = json.dumps(value, ensure_ascii=False, allow_nan=False)
+    if not inner or (not any(isinstance(item, (dict, list)) for item in inner)
+                     and (isinstance(value, dict) or len(line) <= 100)):
+        return line
+    step = indent + "  "
+    if isinstance(value, dict):
+        lines = [f"{step}{json.dumps(str(k), ensure_ascii=False)}: {dump_json(v, step)}" for k, v in value.items()]
+        return "{\n" + ",\n".join(lines) + f"\n{indent}}}"
+    return "[\n" + ",\n".join(f"{step}{dump_json(item, step)}" for item in value) + f"\n{indent}]"
 
 
-def save_yaml(data: Json, path: str, header: str = "") -> None:
-    """Write atomically: dump to a temporary file, reload it, then replace the target. `header` is a comment on top."""
+def save_json(data: Any, path: str) -> None:
+    """Write atomically: dump to a temporary file, reload it, then replace the target."""
+    text = dump_json(data) + "\n"
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as handle:
-        handle.write("".join(f"# {line}\n" for line in header.splitlines()))
-        yaml.dump(data, handle, Dumper=_Dumper, sort_keys=False, allow_unicode=True, width=110)
-    with open(tmp, encoding="utf-8") as handle:
-        yaml.safe_load(handle)  # never leave a file in place that will not load
+    with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+    load_json(tmp)  # never leave a file in place that will not load
     os.replace(tmp, path)
 
 
@@ -403,17 +442,19 @@ def save_kb(kb: Json, path: str) -> None:
     ordered.update({key: value for key, value in kb.items() if key not in ordered})
     kb.clear()
     kb.update(ordered)
-    save_yaml(kb, path)
+    save_json(kb, path)
 
 
 def backup(kb_path: str, source: str | None = None) -> str:
-    """Copy the KB (or `source`, the file it is about to replace) into backups/ next to it, named after the KB.
+    """Copy the KB (or `source`, the file it is about to replace) into backups/ next to it, named after the KB
+    with the copied file's extension.
     Names carry microseconds, so two writes never collide.
 
     Only the newest KEEP_BACKUPS copies are kept."""
     folder = os.path.join(os.path.dirname(os.path.abspath(kb_path)), "backups")
     os.makedirs(folder, exist_ok=True)
-    stem, ext = os.path.splitext(os.path.basename(kb_path))
+    stem = os.path.splitext(os.path.basename(kb_path))[0]
+    ext = os.path.splitext(source or kb_path)[1]  # a YAML file from an earlier version stays .yaml
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     target = os.path.join(folder, f"{stem}.{stamp}{ext}")
     counter = 1
@@ -576,12 +617,12 @@ def labels_path(kb_path: str) -> str:
 
 
 def stored_labels(kb: Json, kb_path: str) -> Json:
-    """The study's own labels as labels.yaml holds them, for the study's language; {} when there are none."""
+    """The study's own labels as labels.json holds them, for the study's language; {} when there are none."""
     path = labels_path(kb_path)
     if base_language(study_language(kb)) == ENGLISH or not os.path.isfile(path):
         return {}
     try:
-        data = load_yaml(path)
+        data = load_json(path)
     except KbError:
         return {}
     if not isinstance(data, dict) or str(data.get("language")) != study_language(kb):
@@ -636,13 +677,29 @@ def count_words(text: str, language: str = ENGLISH) -> int:
 
 # ---------- where a study lives ----------
 def at_home(kb_path: str) -> bool:
-    """True when the path is <somewhere>/.pw-kb/pw-kb.yaml, the only place a study lives."""
+    """True when the path is <somewhere>/.pw-kb/pw-kb.json, the only place a study lives."""
     absolute = os.path.abspath(kb_path)
     return os.path.basename(absolute) == KB_FILE and os.path.basename(os.path.dirname(absolute)) == KB_FOLDER
 
 
+def old_yaml(kb_path: str) -> str | None:
+    """.pw-kb/pw-kb.yaml, the KB of a study written in YAML by version 0.10.0 or earlier, when kb_path names it, or
+    names the pw-kb.json beside it that does not exist yet. None otherwise."""
+    folder, name = os.path.split(kb_path)
+    old = os.path.join(folder, OLD_KB_FILE)
+    if os.path.basename(os.path.abspath(folder or ".")) != KB_FOLDER or not os.path.isfile(old):
+        return None
+    return old if name == OLD_KB_FILE or (name == KB_FILE and not os.path.exists(kb_path)) else None
+
+
 def check_home(kb_path: str) -> None:
-    """Refuse a KB anywhere but .pw-kb/pw-kb.yaml. One made by an earlier version is moved by migrate."""
+    """Refuse a KB anywhere but .pw-kb/pw-kb.json. One made by an earlier version is moved or turned into JSON by
+    migrate."""
+    old = old_yaml(kb_path)
+    if old:
+        raise KbError(f"{old} was written in YAML by an earlier version of the skill; this version keeps the study in "
+                      f"{KB_HOME}. Run `kb_tool.py migrate {old}` once from the workspace root, then try again",
+                      code="migrate_needed")
     if at_home(kb_path):
         return
     if os.path.isfile(kb_path):
@@ -694,26 +751,74 @@ def norm(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+DOCX_MAIN = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+
+
+def _docx_part(archive: zipfile.ZipFile, name: str) -> ElementTree.Element:
+    data = archive.read(name)
+    if b"<!DOCTYPE" in data:  # Word never writes one; refusing it keeps entity tricks out
+        raise ValueError(f"{name} declares a DOCTYPE")
+    return ElementTree.fromstring(data)
+
+
+def _docx_main(archive: zipfile.ZipFile) -> str:
+    """The main document part, found through _rels/.rels the way Word and python-docx find it."""
+    with contextlib.suppress(KeyError):
+        for rel in _docx_part(archive, "_rels/.rels"):
+            if rel.get("Type") == DOCX_MAIN and rel.get("Target"):
+                return rel.get("Target", "").lstrip("/")
+    return "word/document.xml"
+
+
+def _run_text(run: ElementTree.Element) -> str:
+    text = {"tab": "\t", "ptab": "\t", "cr": "\n", "noBreakHyphen": "-"}
+    out = []
+    for child in run:
+        tag = child.tag[len(W_NS):] if child.tag.startswith(W_NS) else ""
+        if tag == "t":
+            out.append(child.text or "")
+        elif tag == "br":  # a line break; a page or column break is no text
+            out.append("\n" if child.get(f"{W_NS}type", "textWrapping") == "textWrapping" else "")
+        else:
+            out.append(text.get(tag, ""))
+    return "".join(out)
+
+
+def read_docx(path: str) -> str:
+    """The text of a .docx file, exactly as python-docx 1.2.0 gives it for its paragraphs, so a transcript keeps its
+    hash: the paragraphs right under the body (not tables), each the text of its runs and of its hyperlinks' runs."""
+    with zipfile.ZipFile(path) as archive:
+        body = _docx_part(archive, _docx_main(archive)).find(f"{W_NS}body")
+    if body is None:
+        raise ValueError("it holds no Word document body")
+    lines = []
+    for paragraph in body.findall(f"{W_NS}p"):
+        runs = []
+        for child in paragraph:
+            if child.tag == f"{W_NS}r":
+                runs.append(child)
+            elif child.tag == f"{W_NS}hyperlink":
+                runs += child.findall(f"{W_NS}r")
+        lines.append("".join(_run_text(run) for run in runs))
+    return "\n".join(lines)
+
+
 def read_text(path: str) -> str:
     ext = os.path.splitext(path)[1].lower()
     if ext in (".md", ".markdown", ".txt", ""):
         with open(path, encoding="utf-8", errors="replace") as handle:
             return handle.read()
     if ext == ".docx":
-        try:
-            import docx  # noqa: PLC0415  (python-docx, optional)
-        except ImportError:
-            raise KbError(f"{path}: reading .docx needs python-docx "
-                          "(uv run --locked --with python-docx==1.2.0 kb_tool.py ... "
-                          "or pip install python-docx==1.2.0)",
-                          code="reader_missing") from None
-        return "\n".join(paragraph.text for paragraph in docx.Document(path).paragraphs)
+        return read_docx(path)
     if ext == ".pdf":
         try:
             from pypdf import PdfReader  # noqa: PLC0415  (optional)
         except ImportError:
-            raise KbError(f"{path}: reading .pdf needs pypdf "
-                          "(uv run --locked --with pypdf==6.21.4 kb_tool.py ... or pip install pypdf==6.21.4)",
+            stem = os.path.splitext(os.path.basename(path))[0]
+            raise KbError(f"{path}: reading a .pdf needs pypdf, which is not installed here. Read the PDF yourself, "
+                          f"save its text word for word as {KB_FOLDER}/{COPIES}/{stem}.txt, and cite that file "
+                          "instead (or install pypdf: python3 -m pip install pypdf==6.21.4)",
                           code="reader_missing") from None
         return "\n".join((page.extract_text() or "") for page in PdfReader(path).pages)
     raise KbError(f"unsupported transcript type: {path}", code="transcript_type")
@@ -815,20 +920,21 @@ def transcripts_for(roots: list[str], report: Report, own: str | None = None) ->
 
 
 # ---------- KB access ----------
-def _guess_version(kb: Json) -> int:
-    """A KB written before schema_version existed: schema 1 if it still has the single market core job."""
+def _guess_version(kb: Json, newest: int = SCHEMA_VERSION) -> int:
+    """A KB written before schema_version existed: schema 1 if it still has the single market core job, else
+    `newest`, the last version its format had (2 for YAML)."""
     steps = (kb.get("job_map") or {}).get("steps") or []
     old = "market_core_job" in kb or any(isinstance(s, dict) and "job" not in s for s in steps)
-    return 1 if old else SCHEMA_VERSION
+    return 1 if old else newest
 
 
-def ensure(kb: Any, label: str = "the KB") -> Json:
+def ensure(kb: Any, label: str = "the KB", newest: int = SCHEMA_VERSION) -> Json:
     if kb is None:
         kb = {}
     if not isinstance(kb, dict):
-        raise KbError(f"{label} is not a YAML mapping", code="kb_shape")
+        raise KbError(f"{label} is not a JSON object", code="kb_shape")
     kb.setdefault("meta", {})
-    kb["meta"].setdefault("schema_version", _guess_version(kb))
+    kb["meta"].setdefault("schema_version", _guess_version(kb, newest))
     kb["meta"].setdefault("generated_with", MADE_WITH)
     kb.setdefault("core_jobs", [])
     kb.setdefault("interviews", [])
@@ -851,7 +957,7 @@ def check_version(kb: Json, path: str) -> int:
 
 def load_kb(path: str) -> Json:
     check_home(path)
-    kb = ensure(load_yaml(path), path)
+    kb = ensure(load_json(path), path)
     version = check_version(kb, path)
     if version < SCHEMA_VERSION:
         raise KbError(f"{path} uses KB schema version {version}; run `kb_tool.py migrate {path}` first",
@@ -1265,7 +1371,7 @@ def _theme_link_problems(tid: str, job: str, oid: str, outcomes: dict[str, Json]
 _SCHEMA_ANNOTATIONS = {"$schema", "$id", "$comment", "title", "description", "examples", "default", "$defs"}
 _SCHEMA_KEYWORDS = {"$ref", "type", "enum", "required", "properties", "items", "pattern",
                     "minLength", "minimum", "minItems", "additionalProperties"}
-_TYPE_NAMES = {dict: "mapping", list: "list", str: "string", bool: "boolean", int: "integer",
+_TYPE_NAMES = {dict: "object", list: "array", str: "string", bool: "boolean", int: "integer",
                float: "number", type(None): "null"}
 
 
@@ -1291,7 +1397,7 @@ def schema_errors(data: Any, schema: Json, root: str = "kb") -> list[str]:
 
     Uses the jsonschema package when it is installed. Otherwise a built-in checker covers the keywords our
     schemas use and refuses any other keyword, so a new keyword can never pass unchecked."""
-    plain = json.loads(json.dumps(data, default=str))  # YAML dates become strings, as in the schema
+    plain = copy.deepcopy(data)
     if _jsonschema is not None:
         return _library_schema_errors(plain, schema, root)
     return _builtin_schema_errors(plain, schema, root)
@@ -1501,7 +1607,7 @@ def style_of(kb: Json) -> Style:
     style = Style(language=study_language(kb))
     given = kb["meta"].get("style") or {}
     if not isinstance(given, dict):
-        raise KbError("meta.style must be a mapping with any of: limits, banned, idioms, acronyms, directions, "
+        raise KbError("meta.style must be an object with any of: limits, banned, idioms, acronyms, directions, "
                       "need_start", code="style_invalid")
     if not style.english:
         style.directions, style.need_start = [], ""
@@ -1511,7 +1617,7 @@ def style_of(kb: Json) -> Style:
             style.banned = [token for token in style.banned if token != ";"]
     limits = given.get("limits") or {}
     if not isinstance(limits, dict):
-        raise KbError("meta.style.limits must be a mapping such as {outcome: 16}", code="style_invalid")
+        raise KbError('meta.style.limits must be an object such as {"outcome": 16}', code="style_invalid")
     style.limits.update({str(k): int(v) for k, v in limits.items()})
     for name in ("banned", "idioms", "acronyms", "directions"):
         if name in given:
@@ -1567,7 +1673,7 @@ class QuoteChecker:
             return
         for item in items:
             if not isinstance(item, dict):
-                report.error(f"{label}: each evidence item must be a mapping with interview, source and quote",
+                report.error(f"{label}: each evidence item must be an object with interview, source and quote",
                              code="evidence_shape")
                 continue
             if item.get("source") not in SOURCES:
@@ -1590,27 +1696,13 @@ def _is_int(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-def schema_names(node: Any, names: set[str] | None = None) -> set[str]:
-    """Every property name a JSON Schema defines, at any depth."""
-    names = set() if names is None else names
-    if isinstance(node, dict):
-        for key, value in (node.get("properties") or {}).items():
-            names.add(key)
-            schema_names(value, names)
-        for value in [node.get("items"), node.get("additionalProperties"), *(node.get("$defs") or {}).values()]:
-            schema_names(value, names)
-    return names
-
-
 class _PatchReader:
-    """Reads YAML values the way the patch writer meant them. Remembers the interview IDs it had to pad, and the keys
-    with no value that the patch format does not have: what YAML makes of an unquoted comma in `{a: x, y}`."""
+    """Reads interview IDs the way the patch writer meant them, and remembers the ones it had to pad: a bare
+    number such as 7 becomes "07"."""
 
-    def __init__(self, width: int, known: set[str] | None = None) -> None:
+    def __init__(self, width: int) -> None:
         self.width = width
         self.fixed: set[str] = set()
-        self.known = known or set()
-        self.split: list[str] = []
 
     def pad(self, value: Any) -> Any:
         if not _is_int(value):
@@ -1626,11 +1718,7 @@ class _PatchReader:
         if not isinstance(node, dict):
             return
         for key, value in list(node.items()):
-            if value is None and str(key) not in self.known:
-                self.split.append(str(key))
-            if isinstance(value, (dt.date, dt.datetime)):
-                node[key] = value.isoformat()
-            elif key == "interview":
+            if key == "interview":
                 node[key] = self.pad(value)
             elif key == "interviews" and isinstance(value, list):
                 node[key] = [self.pad(v) for v in value]
@@ -1640,27 +1728,21 @@ class _PatchReader:
 
 
 def coerce_patch(patch: Any, width: int, report: Report) -> Json:
-    """Read the YAML the way the writer meant it: dates become strings and a bare interview number
-    becomes a zero-padded ID, with a warning. Outcome IDs are never coerced, because 2.10 would become 2.1."""
+    """Read the patch the way the writer meant it: a bare interview number becomes a zero-padded ID, with a warning.
+    Outcome IDs are never coerced, because 2.10 written as a number is 2.1."""
     if patch is None:
         raise KbError("the patch file is empty", code="patch_empty")
     if not isinstance(patch, dict):
-        raise KbError(f"the patch must be a YAML mapping with keys such as {', '.join(PATCH_SECTIONS)}",
+        raise KbError(f"the patch must be a JSON object with keys such as {', '.join(PATCH_SECTIONS)}",
                       code="patch_shape")
-    reader = _PatchReader(width, schema_names(load_schema("patch-schema.json")) | set(PATCH_KEYS))
+    reader = _PatchReader(width)
     reader.walk(patch)
     for proposal in patch.get("proposed_changes") or []:
         if isinstance(proposal, dict) and proposal.get("type") == "relink_interview":
             proposal["target"] = reader.pad(proposal.get("target"))
-    if reader.split:
-        names = ", ".join(f"'{short(key, 40)}'" for key in reader.split[:5])
-        report.error(f"patch: {names} has no value and is not a field of the patch format. YAML does this when a "
-                     'value with a comma is not in quotes: {covers: Pick lanes, regions} becomes covers "Pick lanes" '
-                     'plus a key "regions". Put quotes around every value that holds a comma',
-                     code="yaml_split")
     if reader.fixed:
-        report.warn(f"interview IDs were not quoted and were read as {sorted(reader.fixed)}; write IDs in quotes, "
-                    'like "01"', code="ids_unquoted")
+        report.warn(f"interview IDs were written as numbers and were read as {sorted(reader.fixed)}; write IDs as "
+                    'text in quotes, like "01"', code="ids_unquoted")
     unknown = sorted(set(patch) - set(PATCH_KEYS))
     if unknown:
         report.warn(f"unknown top-level key(s) {unknown} are ignored; a patch uses {list(PATCH_KEYS)}",
@@ -2642,7 +2724,7 @@ def cmd_merge(args: argparse.Namespace) -> int:
     report = Report()
     out = MergeOutput(args, report)
     kb = load_kb(args.kb)
-    patch = coerce_patch(load_yaml(args.patch), id_width(kb), report)
+    patch = coerce_patch(load_json(args.patch), id_width(kb), report)
     for problem in schema_errors(patch, load_schema("patch-schema.json"), "patch"):
         report.error(f"patch format: {problem} (see references/patch-format.md)", code="patch_format")
     if not report.errors:
@@ -2953,7 +3035,7 @@ class ThemeChecks:
 
 
 def read_themes_file(path: str, kb: Json) -> tuple[str, list[Any]]:
-    data = load_yaml(path)
+    data = load_json(path)
     if not isinstance(data, dict) or not isinstance(data.get("themes"), list) or not data.get("job"):
         raise KbError(f"{path} must hold `job` (a core job ID such as A) and `themes` (a list: the full set of value "
                       "themes for that core job)", code="themes_file")
@@ -2987,9 +3069,9 @@ def _clean_highlights(items: Any, label: str, width: int, report: Report) -> lis
 
 
 def _clean_theme(item: Any, label: str, width: int, report: Report) -> Json | None:
-    """One theme of the file in a known shape, or None when it is not a mapping."""
+    """One theme of the file in a known shape, or None when it is not an object."""
     if not isinstance(item, dict):
-        report.error(f"{label}: must be a mapping with label, need, why and outcomes", code="theme_shape")
+        report.error(f"{label}: must be an object with label, need, why and outcomes", code="theme_shape")
         return None
     unknown = sorted(str(key) for key in set(item) - set(THEME_KEYS))
     if unknown:
@@ -3318,9 +3400,9 @@ def _overview_pool(kb: Json, job: str) -> dict[tuple[str, str], Json]:
 
 
 def read_overview_file(path: str, kb: Json) -> tuple[str, Json]:
-    data = load_yaml(path)
+    data = load_json(path)
     if not isinstance(data, dict) or not data.get("job"):
-        raise KbError(f"{path} must be a mapping with `job` (a core job ID such as A) and the overview of that core "
+        raise KbError(f"{path} must be an object with `job` (a core job ID such as A) and the overview of that core "
                       f"job: {', '.join(OVERVIEW_KEYS[1:])}", code="overview_file")
     unknown = sorted(str(key) for key in set(data) - set(OVERVIEW_KEYS))
     if unknown:
@@ -3369,7 +3451,7 @@ def _ov_plain(ctx: OverviewChecks, text: str, label: str) -> None:
 def _ov_mapping(ctx: OverviewChecks, data: Any, key: str, allowed: tuple[str, ...], label: str) -> Json:
     section = data.get(key) if isinstance(data, dict) else None
     if not isinstance(section, dict):
-        ctx.report.error(f"{label}: {key} must be a mapping with {', '.join(allowed)}", code="overview_shape")
+        ctx.report.error(f"{label}: {key} must be an object with {', '.join(allowed)}", code="overview_shape")
         return {}
     unknown = sorted(str(k) for k in set(section) - set(allowed))
     if unknown:
@@ -3459,7 +3541,7 @@ def _ov_gap_solutions(ctx: OverviewChecks, item: Json, label: str) -> list[str]:
 def _ov_gap(ctx: OverviewChecks, item: Any, label: str) -> Json | None:
     keys = ("label", "text", "kind", "solutions", "quote")
     if not isinstance(item, dict):
-        ctx.report.error(f"{label}: must be a mapping with {', '.join(keys)}", code="overview_shape")
+        ctx.report.error(f"{label}: must be an object with {', '.join(keys)}", code="overview_shape")
         return None
     unknown = sorted(str(k) for k in set(item) - set(keys))
     if unknown:
@@ -3646,6 +3728,10 @@ def cmd_init(args: argparse.Namespace) -> int:
     if not at_home(args.kb):
         raise KbError(f"a study lives in {KB_HOME} at the root of the workspace: run `kb_tool.py init {KB_HOME}` "
                       f"from there, not init {args.kb}", code="kb_location")
+    old = os.path.join(os.path.dirname(args.kb), OLD_KB_FILE)
+    if os.path.isfile(old):
+        raise KbError(f"{old} holds a study written by an earlier version; refusing to start another. Run "
+                      f"`kb_tool.py migrate {old}` to keep working on it", code="kb_exists")
     if os.path.exists(args.kb):
         raise KbError(f"{args.kb} exists; refusing to overwrite", code="kb_exists")
     language = normalize_language(args.language) if args.language else ENGLISH
@@ -3761,7 +3847,7 @@ def _print_jobs(data: Json) -> None:
           f"core jobs={len(data['core_jobs'])}")
     if data.get("labels_missing"):
         print(f"LABELS: {data['labels_missing']} labels of the map and the review sheet have no {data['language']} "
-              "text yet; write them first: kb_tool labels .pw-kb/pw-kb.yaml")
+              f"text yet; write them first: kb_tool labels {KB_HOME}")
     if not data["core_jobs"]:
         print("CORE JOB: (none yet: bootstrap)")
     for job in data["core_jobs"]:
@@ -4104,23 +4190,24 @@ def cmd_review(args: argparse.Namespace) -> int:
 # ---------- labels ----------
 # A study in another language than English needs the map's and the review sheet's own text in that language. The
 # assistant writes it once: `labels` hands it a file with every label still in English, the assistant writes the
-# same file back in the study's language, and `labels --add` checks it and keeps it in .pw-kb/labels.yaml.
-LABELS_HEADER = """{made}
-The text of the discovery map and the review sheet, to write in the study's language: {language}.
-- Replace each English text with the same text in that language, in plain everyday words, as a person who does
-  not know the method would say it. Address the reader informally, as most apps in that language do.
-- Keep every {{name}} exactly: the tool fills it in, and the comment above a label says what it holds. A number in
-  a {{name}} can be 1, so write the sentence to read right for any number, for example with the number after a colon.
+# same file back in the study's language, and `labels --add` checks it and keeps it in .pw-kb/labels.json.
+NOTE_MARK = "#note"  # "<key>#note", just above a label in the to-do file, says what the label's {name}s hold
+LABELS_HEADER = """The text of the discovery map and the review sheet, to write in the study's language: {language}.
+- Replace each English text with the same text in that language, in plain everyday words, as a person who does \
+not know the method would say it. Address the reader informally, as most apps in that language do.
+- Keep every {{name}} exactly: the tool fills it in, and the "<key>{note}" entry just above a label says what it \
+holds. A number in a {{name}} can be 1, so write the sentence to read right for any number, for example with the \
+number after a colon.
 - A plural label lists one text per plural form the language needs for it. Translate each; keep {{n}} in each.
-- Pick one word for each idea that comes back, and use it in every label: the main goal (the review sheet calls it
-  the core job), a step, a stage, a measure of success (the review sheet's outcome), a value theme, and a solution,
-  which is what people use today.
-- Words in quote marks that the reader types to their assistant are translated too. Keep ODI, YAML and the names
-  of files and commands as they are.
-- Keep every text in double quotes, so apostrophes are safe. \\n inside a text is a line break: keep it.
-  You may drop these comments.
+- Pick one word for each idea that comes back, and use it in every label: the main goal (the review sheet calls it \
+the core job), a step, a stage, a measure of success (the review sheet's outcome), a value theme, and a solution, \
+which is what people use today.
+- Words in quote marks that the reader types to their assistant are translated too. Keep ODI and the names of \
+files and commands as they are.
+- This is a JSON file: change only the texts, keep each one in double quotes, and write \\" for a quote mark \
+inside a text. \\n inside a text is a line break: keep it. You may leave out "instructions" and the "{note}" entries.
 A label you leave out stays in English. Then run: kb_tool labels {kb} --add <this file>"""
-STUDY_LABELS_HEADER = ("Written by kb_tool labels: the study's own text for the discovery map and the review sheet.\n"
+STUDY_LABELS_HEADER = ("Written by kb_tool labels: the study's own text for the discovery map and the review sheet. "
                        "Change it with kb_tool labels --add, not by hand.")
 
 
@@ -4145,9 +4232,9 @@ def _todo_path(kb_path: str, language: str) -> str:
     folder = os.path.join(os.path.dirname(kb_path) or ".", "patches")
     os.makedirs(folder, exist_ok=True)
     stem = os.path.join(folder, f"{today()}-labels-{language}")
-    path, counter = f"{stem}.yaml", 2
+    path, counter = f"{stem}.json", 2
     while os.path.exists(path):
-        path, counter = f"{stem}-{counter}.yaml", counter + 1
+        path, counter = f"{stem}-{counter}.json", counter + 1
     return path
 
 
@@ -4161,21 +4248,18 @@ def labels_todo(kb: Json, args: argparse.Namespace, language: str) -> int:
         print(f"every label has {language} text; nothing to write")
         return 0
     path = _todo_path(args.kb, language)
-    header = LABELS_HEADER.format(made=MADE_WITH, language=language, kb=args.kb)
-    lines = [f"# {line}" for line in header.splitlines()] + [f"language: {language}", "labels:"]
+    labels: Json = {}
     for key in todo:
         if key in table["notes"]:
-            lines.append(f"  # {table['notes'][key]}")
+            labels[key + NOTE_MARK] = table["notes"][key]
         value = table["labels"][key]
         if isinstance(value, dict):  # one text per form the language needs, in English to start with
             value = {form: value.get(form) or value.get("one" if form == "one" else "other") or value["other"]
                      for form in needed_forms(language, value)}
-        dumped = yaml.safe_dump(value, allow_unicode=True, default_flow_style=True, default_style='"', width=100000,
-                                sort_keys=False)
-        dumped = dumped[:-len("\n...\n")] if dumped.endswith("\n...\n") else dumped.rstrip("\n")  # a lone scalar
-        lines.append(f"  {key}: {dumped}")
-    with open(path, "w", encoding="utf-8") as handle:
-        handle.write("\n".join(lines) + "\n")
+        labels[key] = value
+    header = LABELS_HEADER.format(language=language, kb=args.kb, note=NOTE_MARK)
+    save_json({"generated_with": MADE_WITH, "instructions": header.splitlines(), "language": language,
+               "labels": labels}, path)
     args.run.note(out=args.run.relative(path))
     print(f"wrote {path}: {len(todo)} of {len(table['labels'])} labels to write in {language}\n"
           f"Then run: kb_tool labels {args.kb} --add {path}")
@@ -4183,9 +4267,9 @@ def labels_todo(kb: Json, args: argparse.Namespace, language: str) -> int:
 
 
 def _read_labels_file(path: str, language: str) -> Json:
-    data = load_yaml(path)
+    data = load_json(path)
     if not isinstance(data, dict) or not isinstance(data.get("labels"), dict):
-        raise KbError(f"{path} must hold `language` and `labels`, a mapping of label keys to text",
+        raise KbError(f"{path} must hold `language` and `labels`, an object of label keys to text",
                       code="labels_file")
     try:
         given = normalize_language(str(data.get("language") or ""))
@@ -4194,7 +4278,7 @@ def _read_labels_file(path: str, language: str) -> Json:
     if given != language:
         raise KbError(f"{path} is for language '{data.get('language')}', but the study is written in {language}",
                       code="labels_language")
-    return {str(key): value for key, value in data["labels"].items()}
+    return {str(key): value for key, value in data["labels"].items() if not str(key).endswith(NOTE_MARK)}
 
 
 def _check_labels(given: Json, language: str, report: Report) -> Json:
@@ -4238,7 +4322,7 @@ def _add_labels(kb: Json, args: argparse.Namespace, language: str) -> int:
                 if k in english and not label_problem(v, english[k])}
         kept.update(good)
         ordered = {key: kept[key] for key in english if key in kept}  # the English order: by area, not by letter
-        save_yaml({"language": language, "labels": ordered}, labels_path(args.kb), STUDY_LABELS_HEADER)
+        save_json({"about": STUDY_LABELS_HEADER, "language": language, "labels": ordered}, labels_path(args.kb))
         missing = len(english) - len(ordered)
         result.update(added=len(good), missing=missing)
         args.run.note(labels={"added": len(good), "missing": missing}, out=args.run.relative(labels_path(args.kb)))
@@ -4273,11 +4357,9 @@ MAP_KEYS = ["meta", "core_jobs", "job_map", "desired_outcomes", "current_solutio
             "proposed_changes", "changelog"]
 MAP_START, MAP_END = "/* @kb-data:start */", "/* @kb-data:end */"
 MAP_SCHEMA = f"/* @kb-schema:{SCHEMA_VERSION} */"  # the template can draw a KB of this schema version
-# The template loads js-yaml from the file next to it, so it stays under the directory's size limit and still opens
-# KB files on its own. `map` puts the library inside each map, so a map is one file that works offline.
-JS_YAML_FILE = "js-yaml.js"
-# The English text of the map and the review sheet, shipped beside the template the same way. js-yaml comes first.
-MAP_ASSETS = (JS_YAML_FILE, LABELS_FILE)
+# The English text of the map and the review sheet ships beside the template, so the template stays under the
+# directory's size limit. `map` puts it inside each map, so a map is one file that works offline.
+MAP_ASSETS = (LABELS_FILE,)
 
 
 def inline_asset(template: str, template_path: str, name: str) -> str:
@@ -4393,13 +4475,13 @@ def cmd_map(args: argparse.Namespace) -> int:
     template_path = skill_file("assets", "discovery-map-template.html", args.template)
     if not template_path:
         raise KbError("map template not found: put discovery-map-template.html next to kb_tool.py, run the kb_tool.py "
-                      "that sits in the skill's scripts/ folder, or pass --template (a discovery-map.html made earlier "
-                      "also works)", code="skill_file_missing")
+                      "that sits in the skill's scripts/ folder, or pass --template (a discovery-map.html made by this "
+                      "version also works)", code="skill_file_missing")
     with open(template_path, encoding="utf-8") as handle:
         template = handle.read()
     if MAP_SCHEMA not in template:
-        raise KbError(f"the map template {template_path} is older than KB schema {SCHEMA_VERSION} and cannot draw "
-                      "several core jobs; use discovery-map-template.html from the skill", code="template_old")
+        raise KbError(f"the map template {template_path} is older than KB schema {SCHEMA_VERSION}; use "
+                      "discovery-map-template.html from the skill", code="template_old")
     for name in MAP_ASSETS:
         template = inline_asset(template, template_path, name)
     out = args.out or os.path.join(os.path.dirname(os.path.abspath(args.kb)), "discovery-map.html")
@@ -4605,7 +4687,12 @@ def _migrate_1(kb: Json) -> str:
     return "the core job is now core job A; step and outcome IDs gained the prefix A. (6.3 is now A.6.3)"
 
 
-MIGRATIONS: dict[int, Callable[[Json], str]] = {1: _migrate_1}  # from version -> upgrade to version + 1
+def _migrate_2(kb: Json) -> str:
+    """Schema 2 -> 3: the same data, now kept in a JSON file."""
+    return f"the KB is now a JSON file, {KB_FILE}"
+
+
+MIGRATIONS: dict[int, Callable[[Json], str]] = {1: _migrate_1, 2: _migrate_2}  # from version -> to version + 1
 
 
 def _upgrade(kb: Json, version: int) -> list[str]:
@@ -4673,16 +4760,102 @@ def _move_study(old: str, new: str, kb: Json, sources: list[str]) -> str:
     return made
 
 
+def _plain(node: Any) -> Any:
+    """What PyYAML read, as JSON holds it: dates become text, and every key a string."""
+    if isinstance(node, dict):
+        return {str(key): _plain(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [_plain(value) for value in node]
+    return node.isoformat() if isinstance(node, (dt.date, dt.datetime)) else node
+
+
+def read_old_yaml(path: str) -> Any:
+    """A file written in YAML by version 0.10.0 or earlier. Only migrate reads one, with PyYAML when it is there."""
+    try:
+        import yaml  # noqa: PLC0415  (PyYAML, optional: only to migrate a study written in YAML)
+    except ImportError:
+        raise KbError(f"{path} was written in YAML by an earlier version, and reading it this once needs PyYAML, "
+                      "which is not installed here. Nothing changed. Install it (python3 -m pip install "
+                      "pyyaml==6.0.3; if pip refuses, in a virtual environment) and run migrate again, or migrate "
+                      "the study on a computer that has it", code="reader_missing") from None
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return _plain(yaml.safe_load(handle))
+    except FileNotFoundError:
+        raise KbError(f"file not found: {path}", code="file_missing") from None
+    except yaml.YAMLError as exc:
+        raise KbError(f"{path} is not valid YAML: {exc}", code="yaml_invalid") from None
+
+
+def read_kb_any(path: str) -> Json:
+    """A KB to migrate: JSON, or YAML from version 0.10.0 or earlier (whose last schema was 2)."""
+    if os.path.splitext(path)[1].lower() in (".yaml", ".yml"):
+        return ensure(read_old_yaml(path), path, newest=2)
+    return ensure(load_json(path), path)
+
+
+def _migrate_labels(kb_path: str, report: Report) -> str | None:
+    """Turn the study's labels.yaml into labels.json, as it is. Returns the backup of the YAML file, or None."""
+    old = os.path.join(os.path.dirname(kb_path), OLD_STUDY_LABELS)
+    if not os.path.isfile(old):
+        return None
+    try:
+        data = read_old_yaml(old)
+    except KbError as exc:
+        report.warn(f"{old} could not be read and is left as it is: {exc}", code="labels_file")
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("labels"), dict):
+        report.warn(f"{old} holds no labels and is left as it is", code="labels_file")
+        return None
+    save_json({"about": STUDY_LABELS_HEADER, "language": data.get("language"), "labels": data["labels"]},
+              labels_path(kb_path))
+    made = backup(labels_path(kb_path), source=old)
+    os.remove(old)
+    return made
+
+
+def _migrate_format(args: argparse.Namespace, old: str) -> int:
+    """Turn a study written in YAML by version 0.10.0 or earlier into JSON, where it is: pw-kb.yaml becomes
+    pw-kb.json and labels.yaml becomes labels.json. The YAML files go to backups/."""
+    new = os.path.join(os.path.dirname(old), KB_FILE)
+    if os.path.exists(new):
+        raise KbError(f"{os.path.dirname(old) or '.'}/ holds both {OLD_KB_FILE} and {KB_FILE}. Nothing changed. Keep "
+                      f"the study you work on and move the other file out of {KB_FOLDER}/", code="kb_exists")
+    kb = read_kb_any(old)
+    version = check_version(kb, old)
+    args.run.note(schema_from=version)
+    notes = _upgrade(kb, version)
+    summary = f"migrated from schema version {version} to {SCHEMA_VERSION}: " + "; ".join(notes)
+    kb["changelog"].append(changelog_entry(args.run, "migrate", summary=summary))
+    problems = structure_problems(kb)
+    if problems:
+        raise KbError("the migrated KB would break the KB structure; nothing written. Fix these first:\n  - "
+                      + "\n  - ".join(problems), code="structure")
+    made = backup(new, source=old)
+    save_kb(kb, new)
+    os.remove(old)
+    args.run.moved(new)
+    report = Report()
+    labels = _migrate_labels(new, report)
+    args.run.add_report(report)
+    args.run.note(written=True, backup=args.run.relative(made), labels={"migrated": int(bool(labels))})
+    lines = [f"WARN {warning}" for warning in report.warnings]
+    lines.append(f"{summary}. The KB is now {new}" + (f" and the labels {labels_path(new)}" if labels else "")
+                 + f"; the YAML files are in {KB_FOLDER}/backups/")
+    print("\n".join(lines))
+    return 0
+
+
 def _migrate_move(args: argparse.Namespace) -> int:
     """Move a study made by an earlier version (the KB in <study>/KB/, transcripts in <study>/Interviews/) into
-    .pw-kb/pw-kb.yaml."""
+    .pw-kb/pw-kb.json."""
     new = args.to or KB_HOME
     if not at_home(new):
         raise KbError(f"--to must be {KB_HOME} at the root of the workspace, not {new}", code="kb_location")
-    if os.path.exists(new):
-        raise KbError(f"{new} already holds a study, and a workspace holds one study. Nothing moved. Open the old "
-                      "study in a workspace of its own, or move the other one out first", code="kb_exists")
-    kb = ensure(load_yaml(args.kb), args.kb)
+    if os.path.exists(new) or old_yaml(new):
+        raise KbError(f"{os.path.dirname(new)}/ already holds a study, and a workspace holds one study. Nothing moved. "
+                      "Open the old study in a workspace of its own, or move the other one out first", code="kb_exists")
+    kb = read_kb_any(args.kb)
     version = check_version(kb, args.kb)
     args.run.note(schema_from=version, moved=True)
     report = Report()
@@ -4720,9 +4893,15 @@ def _migrate_move(args: argparse.Namespace) -> int:
 
 
 def cmd_migrate(args: argparse.Namespace) -> int:
+    old = old_yaml(args.kb)
+    if old:
+        return _migrate_format(args, old)
+    done = os.path.join(os.path.dirname(args.kb), KB_FILE)  # a second run, after the YAML became JSON
+    if os.path.basename(args.kb) == OLD_KB_FILE and at_home(done) and os.path.isfile(done):
+        args.kb = done
     if not at_home(args.kb):
         return _migrate_move(args)
-    kb = ensure(load_yaml(args.kb), args.kb)
+    kb = ensure(load_json(args.kb), args.kb)
     version = check_version(kb, args.kb)
     args.run.note(schema_from=version)
     if version == SCHEMA_VERSION:
@@ -4750,7 +4929,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     def command(name: str, func: Callable[[argparse.Namespace], int], help_text: str) -> argparse.ArgumentParser:
         sp = sub.add_parser(name, help=help_text)
-        sp.add_argument("kb", help="path to the KB YAML file")
+        sp.add_argument("kb", help=f"the KB, {KB_HOME}")
         sp.set_defaults(func=func)
         return sp
 
@@ -4765,7 +4944,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp = command("context", cmd_context, "compact view of the KB")
     sp.add_argument("--json", action="store_true", help="print the same information as JSON")
     sp = command("merge", cmd_merge, "check a patch and fold it into the KB")
-    sp.add_argument("patch", help="path to the patch YAML file")
+    sp.add_argument("patch", help="the patch, a JSON file")
     sp.add_argument("--transcripts", action="append",
                     help="folder or file with new transcripts; repeat for several. "
                          f"{KB_FOLDER}/{COPIES}/ is always read first")
@@ -4784,11 +4963,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--open", action="store_true",
                     help="also show the map in the default browser; set KB_TOOL_OPEN=0 to never do so")
     sp = command("themes", cmd_themes, "check one core job's value themes and write them")
-    sp.add_argument("themes", help="path to a YAML file with `job` and `themes`, the full set for that core job")
+    sp.add_argument("themes", help="a JSON file with `job` and `themes`, the full set for that core job")
     sp.add_argument("--dry-run", action="store_true", help="run every check, write nothing")
     sp.add_argument("--json", action="store_true", help="print the result as one JSON object")
     sp = command("overview", cmd_overview, "check one core job's overview and write it")
-    sp.add_argument("overview", help="path to a YAML file with `job` and the overview of that core job")
+    sp.add_argument("overview", help="a JSON file with `job` and the overview of that core job")
     sp.add_argument("--dry-run", action="store_true", help="run every check, write nothing")
     sp.add_argument("--json", action="store_true", help="print the result as one JSON object")
     sp = command("validate", cmd_validate, f"check the KB's structure, then its quotes against {KB_FOLDER}/{COPIES}/")

@@ -1,26 +1,27 @@
 ---
 name: pw-discovery
-description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a YAML knowledge base that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, the outcomes grouped into a few value themes to guide ideation, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "YAML". From Product Weaver (productweaver.com).
+description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a knowledge base, one JSON file, that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, the outcomes grouped into a few value themes to guide ideation, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "JTBD". From Product Weaver (productweaver.com).
 ---
 
 # pw-discovery: fold interviews into an ODI knowledge base
 
 *A free skill from [Product Weaver](https://productweaver.com).*
 
-One YAML file is the knowledge base (KB). Each run reads new transcripts, extracts ODI knowledge with verbatim evidence, and merges it into the KB through `scripts/kb_tool.py`. The script checks every quote against its transcript and refuses the whole merge if one does not match. That makes the KB safe to build on over many runs: nothing in it is paraphrased evidence or a duplicate.
+One JSON file is the knowledge base (KB). Each run reads new transcripts, extracts ODI knowledge with verbatim evidence, and merges it into the KB through `scripts/kb_tool.py`. The script checks every quote against its transcript and refuses the whole merge if one does not match. That makes the KB safe to build on over many runs: nothing in it is paraphrased evidence or a duplicate.
 
 ## Running the script
 
-The script needs Python 3.9 or newer and PyYAML. It finds its schemas and the map template next to itself, so run it from the root of the workspace, where the study lives:
+The script needs Python 3.9 or newer and nothing else: it uses only Python's standard library, so it installs nothing and needs no network. It finds its schemas and the map template next to itself, so run it from the root of the workspace, where the study lives:
 
 ```
-uv run --locked <skill folder>/scripts/kb_tool.py <command> ...   # no setup: uv installs PyYAML the first time
-python3 <skill folder>/scripts/kb_tool.py <command> ...           # when PyYAML is installed (python3 -m pip install pyyaml==6.0.3)
+python3 <skill folder>/scripts/kb_tool.py <command> ...
 ```
 
-Below, `kb_tool` stands for either line. Do not write plain `python`; many machines do not have it. `.docx` transcripts need `python-docx` and `.pdf` transcripts need `pypdf`. Add them with `--with python-docx==1.2.0` or `--with pypdf==6.21.4`, for example `uv run --locked --with pypdf==6.21.4 <skill folder>/scripts/kb_tool.py ...`.
+Below, `kb_tool` stands for that line. Do not write plain `python`; many machines do not have it. On Windows, if `python3` is missing, use `py -3`.
 
-Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool into `.pw-kb/tools/` only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_tool.py.lock`, `references/kb-schema.json`, `references/patch-schema.json`, `assets/discovery-map-template.html`, `assets/js-yaml.js` and `assets/labels-en.js` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
+Transcripts can be `.md`, `.txt`, `.docx` or `.pdf`. The script reads `.docx` itself. It reads `.pdf` with pypdf when that package is installed. When it is not, the merge stops with `reader_missing`: read the PDF yourself, save its text word for word as `.pw-kb/transcripts/<name>.txt` (the PDF's name, ending in `.txt`), and name that file in the patch instead of the PDF. Say so in `provenance.notes`, and tell the user that the quotes were checked against your text copy of the PDF.
+
+Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool into `.pw-kb/tools/` only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `references/kb-schema.json`, `references/patch-schema.json`, `assets/discovery-map-template.html` and `assets/labels-en.js` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
 
 ## What a run changes, and what it leaves alone
 
@@ -42,14 +43,14 @@ Everything the skill makes goes into one folder, `.pw-kb/`, at the root of the w
 
 ```
 .pw-kb/
-  pw-kb.yaml           the knowledge base (KB)
+  pw-kb.json           the knowledge base (KB)
   transcripts/         a copy of every transcript the KB quotes; merge makes it
   patches/             one file per batch, the audit trail
   backups/             the KB before each write; the newest 20 are kept
   logs/kb_tool.jsonl   one line per run of the tool
   review.md            the review sheet
   discovery-map.html   the interactive map
-  labels.yaml          the map's and the review sheet's own text, for a study in another language than English
+  labels.json          the map's and the review sheet's own text, for a study in another language than English
 ```
 
 Run every command from the workspace root, with the paths as shown. The tool refuses a KB anywhere else. Never write the skill's files outside `.pw-kb/`. The user's own transcripts stay where they are; the merge copies them in.
@@ -72,13 +73,13 @@ Some users read English with difficulty. A study is written in one language, cho
 
 **Then.** For English, nothing more. For any other language:
 
-1. `kb_tool labels .pw-kb/pw-kb.yaml --language <code>`, with a BCP 47 code such as `it`, `es`, `pt-BR` or `zh-Hans`. It sets the language and writes `.pw-kb/patches/<date>-labels-<code>.yaml`: the text of the map and the review sheet in English, with a note above the labels that need one.
-2. Read that file and write it back in the study's language, as the instructions at its top say. Keep every `{name}`, and translate each plural form it lists. There are about 540 labels: tell the user you are writing the map's text in their language, once, and that it takes a few minutes.
-3. `kb_tool labels .pw-kb/pw-kb.yaml --add <that file>`. It refuses a label that lost a `{name}`, holds markup or is empty, and keeps the rest in `.pw-kb/labels.yaml`. Fix what it refuses and add the file again.
+1. `kb_tool labels .pw-kb/pw-kb.json --language <code>`, with a BCP 47 code such as `it`, `es`, `pt-BR` or `zh-Hans`. It sets the language and writes `.pw-kb/patches/<date>-labels-<code>.json`: the text of the map and the review sheet in English, with a `"<key>#note"` entry just above each label that needs a note.
+2. Read that file and write it back in the study's language, as its `instructions` say. Keep every `{name}`, and translate each plural form it lists. There are about 540 labels: tell the user you are writing the map's text in their language, once, and that it takes a few minutes.
+3. `kb_tool labels .pw-kb/pw-kb.json --add <that file>`. It refuses a label that lost a `{name}`, holds markup or is empty, and keeps the rest in `.pw-kb/labels.json`. Fix what it refuses and add the file again.
 
 Write every statement in the study's language. `references/pw-rules.md`, "Writing in another language", has the rules. In a study that is not in English, the tool allows about a fifth more words, does not check the English openings "Minimize…" and "Help me…", and counts letters in Chinese, Japanese and Thai.
 
-**When `context` prints a `LABELS:` line**, the study lacks text for some labels, usually because an update of the skill added them. Run `kb_tool labels .pw-kb/pw-kb.yaml`, write the file it gives and `--add` it before `review` and `map`. Until then those labels show in English, and `review` and `map` say so.
+**When `context` prints a `LABELS:` line**, the study lacks text for some labels, usually because an update of the skill added them. Run `kb_tool labels .pw-kb/pw-kb.json`, write the file it gives and `--add` it before `review` and `map`. Until then those labels show in English, and `review` and `map` say so.
 
 A study's language cannot change once it has interviews, because its statements are written in it. If the user asks, say so: translating a study is not supported.
 
@@ -86,34 +87,42 @@ A study's language cannot change once it has interviews, because its statements 
 
 ### 1. Find the KB and the transcripts
 
-The KB is `.pw-kb/pw-kb.yaml`. Ask where the new transcripts are only if they cannot be found.
+The KB is `.pw-kb/pw-kb.json`. Ask where the new transcripts are only if they cannot be found.
 
 No KB yet:
 
 1. Read the first lines of each new transcript, to see which language the interviews are in.
-2. `kb_tool init .pw-kb/pw-kb.yaml --project "<name>"`. Add `--interviewer "<name>"` only when the user or the transcripts say who ran the interviews; never fill it in from anywhere else.
+2. `kb_tool init .pw-kb/pw-kb.json --project "<name>"`. Add `--interviewer "<name>"` only when the user or the transcripts say who ran the interviews; never fill it in from anywhere else.
 3. Ask what the start needs to know, in one question call: the study's language, unless every transcript is in English (see "Study language"), and, when `init` printed a `git:` line, whether to share the study through git. `.pw-kb/` holds interviewees' names, their words and their transcripts, and the `git:` line means the workspace is a git repository. If the user does not want to share it, write `.pw-kb/.gitignore` containing the single line `*`. Do not ask either question again later.
 4. For a language other than English, run the `labels` steps in "Study language" before you extract.
 
 When nobody can answer, as in a scripted run, pass `--language <code>` to `init` instead: it writes the labels file to fill in the same call. Do not touch git then.
 
-**A study made by an earlier version of the skill** sits in a `KB/` folder, with its transcripts in `Interviews/` next to it. The tool refuses it with a message to run `migrate`. Run, from the workspace root:
+**A study written in YAML**, `.pw-kb/pw-kb.yaml`, was made by plugin 0.7.0 or earlier. Every command refuses it with `migrate_needed`. Run, from the workspace root:
 
 ```
-kb_tool migrate <study>/KB/<file>.yaml --to .pw-kb/pw-kb.yaml --transcripts <study>/Interviews
+kb_tool migrate .pw-kb/pw-kb.yaml
 ```
 
-It copies the transcripts, moves the KB, patches, backups, logs, review sheet and map into `.pw-kb/`, renames the KB `pw-kb.yaml` and keeps the old file as a backup. If a transcript is missing, or `.pw-kb/` already holds a study, it moves nothing and says why. Then tell the user where the study is now and what was left in the old folder, and ask about git as above.
+It writes `.pw-kb/pw-kb.json` and, for a study in another language, `.pw-kb/labels.json`, and puts the YAML files in `.pw-kb/backups/`. Reading the YAML this one time needs PyYAML. When it is missing, migrate stops with `reader_missing` and changes nothing: install it with `python3 -m pip install pyyaml==6.0.3` (if pip refuses, in a virtual environment) and run migrate again, or ask the user to run it on a computer that has PyYAML. The YAML files already in `patches/` stay as history; write every new file in JSON. Tell the user the study is now in `pw-kb.json`, and that everyone who works on it needs this version of the plugin.
+
+**A study made by an even earlier version** sits in a `KB/` folder, with its transcripts in `Interviews/` next to it. The tool refuses it with a message to run `migrate`. Run, from the workspace root:
+
+```
+kb_tool migrate <study>/KB/<file>.yaml --to .pw-kb/pw-kb.json --transcripts <study>/Interviews
+```
+
+It copies the transcripts, moves the KB, patches, backups, logs, review sheet and map into `.pw-kb/`, writes the KB as `pw-kb.json` and keeps the old file as a backup. It needs PyYAML too, as above. If a transcript is missing, or `.pw-kb/` already holds a study, it moves nothing and says why. Then tell the user where the study is now and what was left in the old folder, and ask about git as above.
 
 ### 2. Load the current structure
 
 ```
-kb_tool context .pw-kb/pw-kb.yaml            # add --json for the same information as one JSON object
+kb_tool context .pw-kb/pw-kb.json            # add --json for the same information as one JSON object
 ```
 
 This prints the study's language, then each core job with its steps, outcomes and IDs, then the current solutions by group, every person with their own core job and the core job it links to, the segments, the files already processed, pending proposals and stale layers. Write every statement in the study's language. Map new evidence against this. Skip any transcript whose file is in "processed files". The script also skips it, matching by file name and content hash, so re-running the same batch never double-counts.
 
-A KB with an older schema is refused with a message to run `kb_tool migrate .pw-kb/pw-kb.yaml`; moving an older study upgrades it in the same step. When either says it migrated from schema version 1, tell the user: the core job is now core job A, and every step and outcome ID gained the letter, so `6.3` is now `A.6.3`.
+A KB with an older schema is refused with a message to run `kb_tool migrate .pw-kb/pw-kb.json`; moving an older study upgrades it in the same step. When either says it migrated from schema version 1, tell the user: the core job is now core job A, and every step and outcome ID gained the letter, so `6.3` is now `A.6.3`.
 
 ### 3. Read each new transcript in full, then extract
 
@@ -140,32 +149,33 @@ Tag the source honestly:
 
 ### 5. Write the patch, dry-run, merge
 
-Write the patch to `.pw-kb/patches/<date>-<batch>.yaml`, using the format in `references/patch-format.md`. Open it with a `provenance` block: which assistant and model you are, when you started reading, which interviews you read (by ID or key, never by file name) and any note a later reader needs. The merge copies it into the KB's changelog, so every batch can be traced to who extracted it and how. Write every ID in quotes: interviews `"01"`, core jobs `"B"`, steps `"B.2"`, outcomes `"B.2.3"`. Unquoted, YAML reads an interview ID as a number. Then:
+Write the patch to `.pw-kb/patches/<date>-<batch>.json`, a JSON file in the format of `references/patch-format.md`. Open it with `generated_with` and a `provenance` block: which assistant and model you are, when you started reading, which interviews you read (by ID or key, never by file name) and any note a later reader needs. The merge copies it into the KB's changelog, so every batch can be traced to who extracted it and how. Write every ID as a string, in double quotes: interviews `"01"`, core jobs `"B"`, steps `"B.2"`, outcomes `"B.2.3"`. A number is not an ID: the merge reads the number `7` as interview `"07"` and warns, but `2.10` reads as `2.1`, another outcome. Inside a text, write a straight quote mark as `\"`; a curly one needs nothing. Then:
 
 ```
-kb_tool merge .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml --transcripts <folder with the new transcripts> --dry-run
-kb_tool merge .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml --transcripts <folder with the new transcripts>
+kb_tool merge .pw-kb/pw-kb.json .pw-kb/patches/<file>.json --transcripts <folder with the new transcripts> --dry-run
+kb_tool merge .pw-kb/pw-kb.json .pw-kb/patches/<file>.json --transcripts <folder with the new transcripts>
 ```
 
-In the patch, `file:` is the transcript's file name. `--transcripts` says where the new ones are; pass it once per folder, or leave it out when the patch adds no interview. A file name that exists in two of those folders is refused. The KB's own copies in `.pw-kb/transcripts/` always come first, so the transcripts of earlier interviews are read from there. The real merge copies each new transcript into `.pw-kb/transcripts/` and records it as `transcripts/<file name>`; the user's originals are never changed. The script reads only the transcripts the KB and the patch cite.
+In the patch, `file` is the transcript's file name. `--transcripts` says where the new ones are; pass it once per folder, or leave it out when the patch adds no interview. A file name that exists in two of those folders is refused. The KB's own copies in `.pw-kb/transcripts/` always come first, so the transcripts of earlier interviews are read from there. The real merge copies each new transcript into `.pw-kb/transcripts/` and records it as `transcripts/<file name>`; the user's originals are never changed. The script reads only the transcripts the KB and the patch cite.
 
 The dry run and the real merge run the same checks in the same order, so a clean dry run is never followed by a refused merge. Each check blocks the merge:
 
-- **Patch format**, against `references/patch-schema.json`: a missing field, a list where a mapping belongs, or an unquoted ID gives one message that names the place in the patch.
+- **JSON:** a missing comma, a comma after the last item or a quote mark without its `\` gives `json_invalid`, with the line and column and the line itself. Fix that spot.
+- **Patch format**, against `references/patch-schema.json`: a missing field, a list where an object belongs, or an ID written as a number gives one message that names the place in the patch.
 - **Quote not found:** open the transcript, copy the exact span and fix the patch. Never loosen the check.
 - **Reference:** a step, outcome, interview, core job link, proposal target or segment that does not exist, or an outcome that was merged into another. In a KB with several core jobs, an ID without its job letter (`6.3`) is refused too.
 - **Clarity:** a statement is too long or carries brackets, examples or a semicolon. Rewrite it shorter, following "Write for the reviewer first". Treat the warnings ("may hold two jobs", abbreviations) as prompts to reread the statement.
 - **Structure:** the KB that would result is checked against `kb-schema.json` before anything is written.
 
-Warnings do not block: an interview skipped because it is already in the KB (its evidence is dropped), an unquoted interview ID that was read as `"01"`, an unknown top-level key, or a transcript whose content changed since it was added.
+Warnings do not block: an interview skipped because it is already in the KB (its evidence is dropped), an interview ID written as a number that was read as `"01"`, an unknown top-level key, or a transcript whose content changed since it was added.
 
 A real merge first copies the new transcripts into `.pw-kb/transcripts/` and the current KB to `.pw-kb/backups/` (the newest 20 copies are kept), then writes the new KB, recounts all coverage numbers, marks derived layers stale and appends a changelog entry that lists what was added, stamped with the time and the `run_id` of the run. Keep the patch file: it is the audit trail of what each batch added. Re-running a batch that was merged already is a no-op. Add `--json` to get one JSON object with `ok`, `errors`, `warnings`, `run_id` and the changes, instead of text.
 
 ### 6. Refresh the review sheet and the map
 
 ```
-kb_tool review .pw-kb/pw-kb.yaml
-kb_tool map .pw-kb/pw-kb.yaml
+kb_tool review .pw-kb/pw-kb.json
+kb_tool map .pw-kb/pw-kb.json
 ```
 
 Run both after every merge or approved proposal, so reviewers never open a stale picture.
@@ -186,7 +196,7 @@ A folder whose name starts with a dot is hidden in Finder and in most file dialo
 
 **The map contains personal data.** It embeds every interviewee's name and every quote. Before suggesting that anyone share it, say so, and let the user decide who may see it. The same goes for the KB file and `review.md`.
 
-`map` uses `assets/discovery-map-template.html` from this skill. Any `discovery-map.html` made earlier also works as a template (`--template`).
+`map` uses `assets/discovery-map-template.html` from this skill. A `discovery-map.html` made by the same version of the skill also works as a template (`--template`).
 
 ### 7. Report to the user
 
@@ -217,7 +227,7 @@ Skip tool jargon such as "patch", "object of control" or "verbatim check" unless
 When the user decides:
 
 ```
-kb_tool apply .pw-kb/pw-kb.yaml P3 --decision approve --note "agreed in review"
+kb_tool apply .pw-kb/pw-kb.json P3 --decision approve --note "agreed in review"
 ```
 
 `apply` re-checks that the proposal's target still exists before it acts. A proposal raised against an outcome that was since merged or moved is refused with a message, not applied blindly. Automatic actions exist for `new_step`, `reword_step`, `reword_outcome`, `reword_core_job`, `merge_outcomes`, `move_outcome`, `new_segment`, `new_core_job`, `confirm_core_job`, `move_step`, `relink_interview`, `merge_solutions`, `move_solution`, `reword_solution` and `reword_solution_group`. A rejected `confirm_core_job` changes nothing: ask the user what is wrong with the job, then propose `reword_core_job`, or `move_step` and `relink_interview`. Old wording and old links are kept in `history`. IDs stay stable: new steps get the next free number in their core job, and merged outcomes keep a `merged_into` pointer instead of being deleted. A moved outcome or step gets the next free ID where it lands, the old ID goes to `history`, and pending proposals that cited the old ID are updated. For `other`, edit the KB by hand, then run `validate`.
@@ -238,67 +248,86 @@ The discovery map opens on its Overview view: who the study is about, then the s
 
 Write the overview for each core job that got new evidence, at the end of every run that merged interviews, after `review` and before `map`. Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules. Write it in the study's language.
 
-1. Run `kb_tool.py context .pw-kb/pw-kb.yaml` for the outcomes, the solutions and who stopped using them, and the value themes. `context` prints no quotes and does not say who said what. For those, read `.pw-kb/pw-kb.yaml` itself: the `evidence` lists of the steps, the outcomes, the solution uses and each person's own statements.
-2. Write `.pw-kb/patches/<YYYY-MM-DD>-overview-<job>.yaml`:
+1. Run `kb_tool context .pw-kb/pw-kb.json` for the outcomes, the solutions and who stopped using them, and the value themes. `context` prints no quotes and does not say who said what. For those, read `.pw-kb/pw-kb.json` itself: the `evidence` lists of the steps, the outcomes, the solution uses and each person's own statements.
+2. Write `.pw-kb/patches/<YYYY-MM-DD>-overview-<job>.json`:
 
-```yaml
-job: A
-executor:                       # who the study is about; the map shows it first, with the icon
-  label: Small-restaurant owner # at most 4 words, what they would call themselves
-  text: An owner who runs one restaurant and places every supplier order themselves.
-  icon: cook                    # one of the icons listed in kb-schema.md; person when none fits
-  others: [their suppliers]     # optional: people in the story who are not its focus
-bottom_line: Owners throw away food every week because they order by gut feeling.
-why: The stock apps they tried need a count nobody has time to do.
-opening: Tell the owner what the week will need before the order goes out.
-people:
-  answer: Five owners of small restaurants who place the orders themselves.
-  text: They order twice a week, between services, with no one to check the numbers.   # optional
-  quote: {interview: "02", quote: "I order on Sunday night, half asleep."}                # optional
-today:
-  answer: By memory, with a paper stock sheet.
-  text: The sheet is filled in when there is time, so the order rests on what the owner remembers.
-gaps:
-  answer: It breaks in two places.
-  items:
-    - label: The stock sheet is wrong by Wednesday
-      text: Nobody updates it during service, so the second order of the week is a guess.
-      kind: struggle            # pain: it hurts today. struggle: a fix they tried did not work
-      solutions: ["S2"]         # optional: the solutions it concerns
-      quote: {interview: "03", quote: "We threw out two cases of fish that week."}
-needs:
-  answer: Above all, less food thrown away at the end of the week.
-focus:
-  answer: On ordering the right amount.
-next:
-  learn:
-    status: now                 # now or enough
-    action: Talk to four more owners, two of them with more than one site.
-    why: Every owner so far runs one site, and the last two still named new needs.
-    ask: ["Tell me about the last time you ran out of something. What did you do?"]
-    tip: Ask what they did last time, not what they would like.
-  prototype:
-    status: ready               # ready or early
-    action: Sketch one thing, an order list built from last week's sales.
-    why: All five raised it, and two paid for a stock app and gave it up.
-    test: Ask two owners to place one real order from the sketch.
-    later: Anything about staff rotas.
-  market:
-    status: early               # ready or early
-    action: Keep a list of the owners who asked to see it.
-    who: Owners who place the orders themselves.
-    words: ["half asleep"]      # their own words, each part of a quote in the KB
-    unknown: What they would pay.
+```json
+{
+  "job": "A",
+  "executor": {
+    "label": "Small-restaurant owner",
+    "text": "An owner who runs one restaurant and places every supplier order themselves.",
+    "icon": "cook",
+    "others": ["their suppliers"]
+  },
+  "bottom_line": "Owners throw away food every week because they order by gut feeling.",
+  "why": "The stock apps they tried need a count nobody has time to do.",
+  "opening": "Tell the owner what the week will need before the order goes out.",
+  "people": {
+    "answer": "Five owners of small restaurants who place the orders themselves.",
+    "text": "They order twice a week, between services, with no one to check the numbers.",
+    "quote": {"interview": "02", "quote": "I order on Sunday night, half asleep."}
+  },
+  "today": {
+    "answer": "By memory, with a paper stock sheet.",
+    "text": "The sheet is filled in when there is time, so the order rests on what the owner remembers."
+  },
+  "gaps": {
+    "answer": "It breaks in two places.",
+    "items": [
+      {
+        "label": "The stock sheet is wrong by Wednesday",
+        "text": "Nobody updates it during service, so the second order of the week is a guess.",
+        "kind": "struggle",
+        "solutions": ["S2"],
+        "quote": {"interview": "03", "quote": "We threw out two cases of fish that week."}
+      }
+    ]
+  },
+  "needs": {"answer": "Above all, less food thrown away at the end of the week."},
+  "focus": {"answer": "On ordering the right amount."},
+  "next": {
+    "learn": {
+      "status": "now",
+      "action": "Talk to four more owners, two of them with more than one site.",
+      "why": "Every owner so far runs one site, and the last two still named new needs.",
+      "ask": ["Tell me about the last time you ran out of something. What did you do?"],
+      "tip": "Ask what they did last time, not what they would like."
+    },
+    "prototype": {
+      "status": "ready",
+      "action": "Sketch one thing, an order list built from last week's sales.",
+      "why": "All five raised it, and two paid for a stock app and gave it up.",
+      "test": "Ask two owners to place one real order from the sketch.",
+      "later": "Anything about staff rotas."
+    },
+    "market": {
+      "status": "early",
+      "action": "Keep a list of the owners who asked to see it.",
+      "who": "Owners who place the orders themselves.",
+      "words": ["half asleep"],
+      "unknown": "What they would pay."
+    }
+  }
+}
 ```
+
+Notes on the example:
+
+- `executor` is who the study is about; the map shows it first, with the icon. Its `label` has at most 4 words, what they would call themselves. `icon` is one of the icons listed in `references/kb-schema.md`; use `person` when none fits. `others` is optional: people in the story who are not its focus.
+- `text` and `quote` under `people` are optional.
+- A gap's `kind` is `pain` (it hurts today) or `struggle` (a fix they tried did not work). Its `solutions` is optional: the solutions it concerns.
+- `status` is `now` or `enough` for `learn`, and `ready` or `early` for `prototype` and `market`.
+- `words` are the customers' own words, each part of a quote in the KB.
 
 3. Check it, then write it:
 
 ```
-kb_tool.py overview .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml --dry-run
-kb_tool.py overview .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml
+kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<file>.json --dry-run
+kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<file>.json
 ```
 
-A clean dry run ends with "dry run OK". The tool refuses a quote or a solution the KB does not hold, a sentence over its word limit, a percentage or a score word, a word of the method ("core job", "desired outcome"), an unknown icon and a missing part. It warns on vague words such as "pain point" or "workflow": rewrite them in plain words unless they are the customers' own. It replaces that core job's overview and leaves other core jobs alone. Then run `kb_tool.py map .pw-kb/pw-kb.yaml`.
+A clean dry run ends with "dry run OK". The tool refuses a quote or a solution the KB does not hold, a sentence over its word limit, a percentage or a score word, a word of the method ("core job", "desired outcome"), an unknown icon and a missing part. It warns on vague words such as "pain point" or "workflow": rewrite them in plain words unless they are the customers' own. It replaces that core job's overview and leaves other core jobs alone. Then run `kb_tool map .pw-kb/pw-kb.json`.
 
 4. In your report, say who the study is about, give the bottom line and the three next steps in one line each, and point to the Overview view. The next steps are advice: say so. Never call a count a score.
 
@@ -309,25 +338,33 @@ The user changes the overview by telling you ("the bottom line is too strong", "
 Value themes turn a long list of outcomes into a few needs a team can sort ideas into, such as "Help me order what the week will really need". Build them only on request, one core job at a time, in the study's language. Read `references/pw-rules.md`, "Value themes", first: it holds the method.
 
 1. Run `context`. It prints every outcome with its ID and, once themes exist, the VALUE THEMES block with the outcomes in no theme yet.
-2. Write `.pw-kb/patches/<date>-themes-<job>.yaml` with the full set of themes for that core job:
+2. Write `.pw-kb/patches/<date>-themes-<job>.json` with the full set of themes for that core job:
 
-```yaml
-job: A
-themes:
-  - id: A.T1                      # only for a theme that already exists; leave it out for a new one
-    label: Order the right amount
-    need: Help me order what the week will really need
-    why: Each one decides how close the order comes to what gets sold.
-    outcomes: ["A.2.1", "A.4.2", "A.6.3"]
-    highlights:
-      - {kind: pain, interview: "03", quote: "We threw out two cases of fish that week."}
+```json
+{
+  "job": "A",
+  "themes": [
+    {
+      "id": "A.T1",
+      "label": "Order the right amount",
+      "need": "Help me order what the week will really need",
+      "why": "Each one decides how close the order comes to what gets sold.",
+      "outcomes": ["A.2.1", "A.4.2", "A.6.3"],
+      "highlights": [
+        {"kind": "pain", "interview": "03", "quote": "We threw out two cases of fish that week."}
+      ]
+    }
+  ]
+}
 ```
+
+Give `id` only for a theme that already exists; leave it out for a new one.
 
 3. Check it, then write it:
 
 ```
-kb_tool themes .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml --dry-run
-kb_tool themes .pw-kb/pw-kb.yaml .pw-kb/patches/<file>.yaml
+kb_tool themes .pw-kb/pw-kb.json .pw-kb/patches/<file>.json --dry-run
+kb_tool themes .pw-kb/pw-kb.json .pw-kb/patches/<file>.json
 ```
 
 The tool refuses a theme that cites an outcome or a quote the KB does not hold, and warns about a set that is too large, too small or overlapping. Fix what it refuses; weigh what it warns about. It replaces that core job's themes, keeps their IDs, leaves other core jobs alone and prints what changed. Then run `review` and `map`.
@@ -342,21 +379,21 @@ Surveys and use cases are rebuilt only on request. When the study has several co
 
 ## Study-specific writing rules
 
-The word limits, the banned tokens, the idioms allowed to contain "and" or "or" and the acronyms that need no spelling out are defaults for any market. A study can override them in `meta.style` of the KB, for example:
+The word limits, the banned tokens, the idioms allowed to contain "and" or "or" and the acronyms that need no spelling out are defaults for any market. A study can override them in `meta.style` of the KB, an object such as:
 
-```yaml
-meta:
-  style:
-    limits: {outcome: 14}
-    acronyms: [OTR, ELD, DOT]
-    idioms: [bread and butter, in and out, pick and pack]
+```json
+{
+  "limits": {"outcome": 14},
+  "acronyms": ["OTR", "ELD", "DOT"],
+  "idioms": ["bread and butter", "in and out", "pick and pack"]
+}
 ```
 
 Set this when the user asks for different limits or when a market's everyday abbreviations keep tripping the acronym warning. `references/kb-schema.md` lists the keys.
 
 ## Branding
 
-Every file this skill produces carries a light Product Weaver credit: the map's header and badge, the review sheet's footer, `generated_with` in the KB's metadata, and the first line of each patch file (`# Made with Product Weaver · productweaver.com`). Keep these when you edit or rebuild files. They tell readers where the method and the tools come from. Do not add marketing lines to chat replies; the credit lives in the files. The links to productweaver.com in the map and the review sheet carry fixed tags (`utm_source=productweaver-plugin` and so on) that tell the site which file a visit came from. They never hold anything from the study; leave them as they are.
+Every file this skill produces carries a light Product Weaver credit: the map's header and badge, the review sheet's footer, `generated_with` in the KB's metadata, and `generated_with` at the top of each patch file (`"generated_with": "Made with Product Weaver · productweaver.com"`). Keep these when you edit or rebuild files. They tell readers where the method and the tools come from. Do not add marketing lines to chat replies; the credit lives in the files. The links to productweaver.com in the map and the review sheet carry fixed tags (`utm_source=productweaver-plugin` and so on) that tell the site which file a visit came from. They never hold anything from the study; leave them as they are.
 
 ## What the script records
 
@@ -367,21 +404,19 @@ Each changelog entry the script writes carries `ts` and `run_id`, so a change in
 ## Checking a KB
 
 ```
-kb_tool validate .pw-kb/pw-kb.yaml
+kb_tool validate .pw-kb/pw-kb.json
 ```
 
 First checks the KB's structure against `kb-schema.json`: required fields, ID formats, stages, source types and the references between steps and outcomes. Then it re-checks every stored quote against the study's copy of its transcript in `.pw-kb/transcripts/` and compares each copy with the content hash stored when it was added. A transcript that changed is reported; if the change is intended, add `--rehash` to accept the new content once every quote matches. Add `--structure-only` to skip the quotes. A copy that is missing is reported; put the transcript back in `.pw-kb/transcripts/` under the same name. Run it after any hand edit. `merge` runs the same structure check and refuses to write a KB that would break it.
 
-Each KB records its schema version. `kb_tool migrate .pw-kb/pw-kb.yaml` brings an older KB up to date, keeping a backup; every other command refuses an older KB with a message to migrate, and a KB written by a newer version of the tool with a message to update the skill.
+Each KB records its schema version. `kb_tool migrate .pw-kb/pw-kb.json` brings an older KB up to date, keeping a backup; every other command refuses an older KB with a message to migrate, and a KB written by a newer version of the tool with a message to update the skill.
 
 The KB's fields are explained one by one in `references/kb-schema.md`. Read it before editing a KB by hand or building anything that reads one.
 
 ## Files in this skill
 
-- `scripts/kb_tool.py`: init, labels (the study's language and the map's and review sheet's text in it), context, merge (with format, quote, reference and clarity checks), apply, themes, review, map, validate and migrate (which also moves a study made by an earlier version into `.pw-kb/`). Needs PyYAML, plus python-docx or pypdf for .docx or .pdf transcripts. Carries its own dependency list, so `uv run --locked` needs no setup.
-- `scripts/kb_tool.py.lock`: the exact package versions `uv run --locked` installs. Keep it next to the script.
-- `assets/discovery-map-template.html`: the interactive map viewer. `map` fills it with the KB. Opened on its own, it lets anyone load a KB file.
-- `assets/js-yaml.js`: the YAML reader the map uses. The template loads it from beside itself; `map` puts it inside each map, so a map is one file that works offline.
+- `scripts/kb_tool.py`: init, labels (the study's language and the map's and review sheet's text in it), context, merge (with format, quote, reference and clarity checks), apply, themes, review, map, validate and migrate (which also turns a study written in YAML into JSON, and moves a study made by an earlier version into `.pw-kb/`). Uses only Python's standard library. When they are installed, pypdf reads `.pdf` transcripts and PyYAML lets `migrate` read a study written in YAML.
+- `assets/discovery-map-template.html`: the interactive map viewer. `map` fills it with the KB. Opened on its own, it lets anyone load a KB file, `pw-kb.json`.
 - `assets/labels-en.js`: the English text of the map and the review sheet, the source of every study's own text. The template loads it from beside itself and `map` puts it inside each map, with the study's own labels. The template opened on its own shows English.
 - `references/pw-rules.md`: how to write each kind of statement, with examples and common mistakes. Read it before extracting.
 - `references/patch-format.md`: the patch format the merge accepts, with a worked example. Read it before writing a patch.
