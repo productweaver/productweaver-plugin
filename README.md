@@ -90,6 +90,12 @@ The assistant reads the transcripts, proposes what to add, and merges it into
 the knowledge base. It then writes a review sheet with decisions waiting for
 you and a discovery map you can open in any browser.
 
+When the interviews are not in English, the assistant asks once, when the
+study starts, whether to write the study in the interviews' language or in
+English. Everything you read follows your answer: the findings, the review
+sheet and the map's own buttons and help. Quotes always stay in the words
+people used.
+
 ## What the plugin runs
 
 One local Python script, `kb_tool.py`, inside the skill. It reads the files
@@ -113,6 +119,8 @@ workspace holds one study.
 - `review.md`, the review sheet;
 - `discovery-map.html`, the interactive map, which works offline. The first
   time it is made, it opens in your browser;
+- `labels.yaml`, only for a study in another language than English: the map's
+  and the review sheet's own text in that language;
 - `patches/`, one file per batch, the audit trail of what each batch added;
 - `backups/`, copies of the knowledge base before each merge (the newest 20);
 - `logs/kb_tool.jsonl`, one line per run, for debugging. It holds no quotes,

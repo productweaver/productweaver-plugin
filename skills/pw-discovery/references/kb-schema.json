@@ -32,6 +32,11 @@
         "interviewer": {
           "type": "string"
         },
+        "language": {
+          "type": "string",
+          "pattern": "^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|[0-9]{3}))?$",
+          "description": "The study's language, a BCP 47 code such as en, it, pt-BR or zh-Hans. Every statement is written in it, and so are the map's and the review sheet's own text. Missing means English. Set by init or labels, before the first interview."
+        },
         "created": {
           "type": "string"
         },
@@ -84,6 +89,17 @@
                 "type": "string"
               },
               "description": "Abbreviations every reviewer in this market knows."
+            },
+            "directions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "How a new outcome must start, such as Ridurre al minimo. Default in an English study: Minimize, Maximize, Increase, Reduce; elsewhere none is checked."
+            },
+            "need_start": {
+              "type": "string",
+              "description": "How a value theme's need must start, such as Aiutami a. Default in an English study: Help me; elsewhere none is checked."
             }
           }
         }
@@ -345,7 +361,7 @@
               },
               "statement": {
                 "type": "string",
-                "pattern": "^(Minimize|Maximize|Increase|Reduce) "
+                "description": "Direction, metric, object and context. In an English study it starts with Minimize, Maximize, Increase or Reduce; the merge checks the opening, which depends on meta.language."
               },
               "evidence": {
                 "type": "array",
@@ -1104,7 +1120,7 @@
         },
         "need": {
           "type": "string",
-          "description": "The need in the customer's voice: one sentence that starts with 'Help me', at most 25 words."
+          "description": "The need in the customer's voice: one sentence that starts with 'Help me' in an English study, or the same request in the study's language, at most 25 words."
         },
         "why": {
           "type": "string",

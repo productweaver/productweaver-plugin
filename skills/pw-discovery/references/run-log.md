@@ -17,7 +17,7 @@ Every line has these fields. The order is stable, so lines are easy to compare.
 | `run_id` | 12 hex characters, unique per run. Changelog entries the script writes carry the same value |
 | `ts` | When the run started, ISO 8601 with timezone |
 | `duration_ms` | How long the run took |
-| `command` | `init`, `context`, `merge`, `apply`, `themes`, `overview`, `review`, `map`, `validate` or `migrate` |
+| `command` | `init`, `labels`, `context`, `merge`, `apply`, `themes`, `overview`, `review`, `map`, `validate` or `migrate` |
 | `args` | The options given, with paths relative to the KB folder. `--note`, `--project`, `--interviewer` and the KB path are left out. `transcripts` lists the roots; a root that is a file shows as `<file>` |
 | `exit_code` | 0 success, 1 refused or failed with a message, 2 crashed |
 | `written` | True when the run changed the KB file |
@@ -39,15 +39,17 @@ Commands add their own fields:
 | `counts` | themes | `themes` (that core job's themes after the run), `theme_outcomes` (outcomes in at least one of them), `unassigned` (that job's outcomes in no theme) |
 | `counts` | overview | `overview_gaps` (gaps in the overview just written), `overviews` (core jobs that have an overview after the run) |
 | `provenance` | merge | The patch's provenance block without `notes`: `assistant`, `model`, `started`, `transcripts_read` as KB IDs |
-| `backup` | merge, apply, themes, overview, validate, migrate | The backup made before the write, relative to the KB folder |
+| `backup` | merge, apply, themes, overview, labels, validate, migrate | The backup made before the write, relative to the KB folder |
 | `job` | themes, overview | The core job whose value themes or overview the run was about |
 | `proposal`, `proposal_type`, `decision` | apply | What was decided on and how. Logged even when the apply is refused |
-| `out`, `since` | review, map | The file written; for review, the date new items are counted from |
+| `out`, `since` | review, map, labels | The file written; for review, the date new items are counted from |
 | `browser` | map | Only with `--open`: `opened`, `failed` (no browser could be started), `no_display` (a remote session or no display, so it did not try) or `off` (`KB_TOOL_OPEN=0`) |
 | `structure_problems`, `outcome_quotes`, `drifted`, `rehash` | validate | Structure problems found, outcome quotes in the KB, transcripts whose content changed, whether `--rehash` was given |
 | `schema_from` | migrate | The schema version the KB had before |
 | `moved`, `transcripts_copied` | migrate | True when migrate moved a study made by an earlier version into `.pw-kb/`, and how many transcripts it copied there |
 | `git` | init, migrate | True when `.pw-kb/` sits in a git repository and has no `.gitignore` of its own |
+| `language` | init, labels | The study's language, a BCP 47 code such as `en`, `it` or `pt-BR` |
+| `labels` | init, labels, review, map | Counts only, never a label's text: `missing` (labels that still show in English), `added` (labels `labels --add` kept), `refused` (problems that stopped `labels --add`) |
 | `exception` | any | The exception class when the tool crashed |
 
 ## Codes
@@ -81,7 +83,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `step_missing` | A step named in the patch does not exist |
 | `outcome_missing` | An outcome named in the patch does not exist |
 | `outcome_merged` | An outcome named in the patch was merged into another |
-| `outcome_direction` | A new outcome does not start with Minimize, Maximize, Increase or Reduce |
+| `outcome_direction` | A new outcome does not start with Minimize, Maximize, Increase or Reduce. Only in an English study, or when `meta.style.directions` sets the openings |
 | `outcome_duplicate` | A new outcome repeats an existing one or another new one |
 | `solution_missing` | `solution_evidence` names a solution that does not exist |
 | `solution_merged` | `solution_evidence` names a solution that was merged into another |
@@ -114,7 +116,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `theme_shape` | A theme is not a mapping, lacks its label, need, `why` or outcomes, holds an unknown key, or has a highlight without kind, interview and quote |
 | `theme_id` | A theme's `id` is not a theme of that core job, or two themes give the same `id` |
 | `theme_outcome` | A theme cites an outcome that is not in the KB, was merged into another, or belongs to another core job |
-| `theme_need_form` | A theme's need does not start with "Help me" |
+| `theme_need_form` | A theme's need does not start with "Help me". Only in an English study, or when `meta.style.need_start` sets the opening |
 | `theme_duplicate` | Two themes of one core job share a label |
 | `theme_highlight` | A highlight quote is not on one of the theme's outcomes, nor on a solution used at their steps |
 
@@ -143,6 +145,9 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `theme_names_solution` | A theme's label or need contains the name of a current solution |
 | `theme_quotes` | A theme shows no highlight quotes, or more than 6 |
 | `overview_count` | An overview lists more than 5 gaps |
+| `labels_missing` | `review` or `map` used English for labels the study has no text for yet; run `labels` |
+| `labels_same` | `labels --add`: a label's text is the same as the English one |
+| `labels_plural_form` | `labels --add`: a plural label lacks a form the study's language uses |
 | `overview_jargon` | A sentence of the overview holds a vague word, such as "pain point" or "workflow"; keep it only when it is the customers' own word |
 
 ### Errors that stop a command
@@ -162,7 +167,17 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `schema_version` | The KB's schema version is not a number or is newer than the tool knows |
 | `migrate_needed` | The KB uses an older schema version; run `migrate` |
 | `schema_unsupported` | A JSON Schema uses a keyword the built-in checker does not support |
-| `skill_file_missing` | A schema or the map template that ships with the skill was not found |
+| `skill_file_missing` | A schema, the map template or a file that ships beside it (`js-yaml.js`, `labels-en.js`) was not found |
+| `skill_file_invalid` | `labels-en.js` is not a label table |
+| `language_invalid` | `--language` is not a BCP 47 language code |
+| `language_locked` | `labels --language` would change the language of a study that already holds interviews |
+| `labels_file` | The file given to `labels --add` does not hold `language` and `labels` |
+| `labels_language` | The file given to `labels --add` is for another language than the study's, or the study is in English |
+| `labels_unknown` | `labels --add`: a key is not a label of the map or the review sheet |
+| `labels_empty` | `labels --add`: a label's text is empty or not text |
+| `labels_placeholder` | `labels --add`: a label does not keep exactly the English label's `{name}` places |
+| `labels_plural` | `labels --add`: a plural label is not a mapping of plural forms with `other`, or a form lacks `{n}` |
+| `labels_markup` | `labels --add`: a label holds `<` or `>` |
 | `template_invalid` | The map template has no place to put the KB |
 | `template_old` | The map template is older than the KB schema and cannot draw several core jobs |
 | `style_invalid` | `meta.style` is not shaped as documented |

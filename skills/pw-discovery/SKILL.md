@@ -20,7 +20,7 @@ python3 <skill folder>/scripts/kb_tool.py <command> ...           # when PyYAML 
 
 Below, `kb_tool` stands for either line. Do not write plain `python`; many machines do not have it. `.docx` transcripts need `python-docx` and `.pdf` transcripts need `pypdf`. Add them with `--with python-docx==1.2.0` or `--with pypdf==6.21.4`, for example `uv run --locked --with pypdf==6.21.4 <skill folder>/scripts/kb_tool.py ...`.
 
-Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool into `.pw-kb/tools/` only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_tool.py.lock`, `references/kb-schema.json`, `references/patch-schema.json`, `assets/discovery-map-template.html` and `assets/js-yaml.js` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
+Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool into `.pw-kb/tools/` only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_tool.py.lock`, `references/kb-schema.json`, `references/patch-schema.json`, `assets/discovery-map-template.html`, `assets/js-yaml.js` and `assets/labels-en.js` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
 
 ## What a run changes, and what it leaves alone
 
@@ -49,9 +49,38 @@ Everything the skill makes goes into one folder, `.pw-kb/`, at the root of the w
   logs/kb_tool.jsonl   one line per run of the tool
   review.md            the review sheet
   discovery-map.html   the interactive map
+  labels.yaml          the map's and the review sheet's own text, for a study in another language than English
 ```
 
 Run every command from the workspace root, with the paths as shown. The tool refuses a KB anywhere else. Never write the skill's files outside `.pw-kb/`. The user's own transcripts stay where they are; the merge copies them in.
+
+## Study language
+
+Some users read English with difficulty. A study is written in one language, chosen when it starts and kept in `meta.language`. It covers everything the user reads: every statement you write, `review.md`, and the map's own text, such as its buttons, headings and help. Quotes always stay in the words people used. Your replies in the chat stay in the language the user writes to you in.
+
+**When to ask.** Only when a study starts, right after `init`. If every new transcript is in English, do not ask: the study is in English. A KB without `meta.language` is in English. Never ask again: `context` prints the language (`language=it`), and later batches follow it.
+
+**How to ask.** Use your host's tool for a question with choices the user clicks: `AskUserQuestion` in Claude Code and Cowork, `ask_user` in Gemini CLI and GitHub Copilot CLI, `request_user_input` in Codex's Plan mode. Other hosts, such as VS Code, Cursor and claude.ai, have one under their own name.
+
+- Ask in the language the user writes to you in.
+- Name each choice in its own language: "Italiano, come le interviste" and "English". When the interviews are in several languages, give one choice per language with its number of interviews, most first, then English: at most three choices in all, because some hosts allow no more.
+- Put first, marked as recommended, the choice that matches the language the user writes to you in. If none does, the interviews' language.
+- Do not add an "Other" choice. The host adds a free-text one, where the user can name another language.
+- Ask the git question of step 1 in the same call, so the user is interrupted once.
+- With no such tool, ask one short question in plain text that names both choices, such as "Scrivo lo studio in italiano, come le interviste, o in inglese?", and wait for the answer.
+- When nobody can answer, as in a scripted run, use the language the request is written in, or English when that is unclear, and say so in your report.
+
+**Then.** For English, nothing more. For any other language:
+
+1. `kb_tool labels .pw-kb/pw-kb.yaml --language <code>`, with a BCP 47 code such as `it`, `es`, `pt-BR` or `zh-Hans`. It sets the language and writes `.pw-kb/patches/<date>-labels-<code>.yaml`: the text of the map and the review sheet in English, with a note above the labels that need one.
+2. Read that file and write it back in the study's language, as the instructions at its top say. Keep every `{name}`, and translate each plural form it lists. There are about 540 labels: tell the user you are writing the map's text in their language, once, and that it takes a few minutes.
+3. `kb_tool labels .pw-kb/pw-kb.yaml --add <that file>`. It refuses a label that lost a `{name}`, holds markup or is empty, and keeps the rest in `.pw-kb/labels.yaml`. Fix what it refuses and add the file again.
+
+Write every statement in the study's language. `references/pw-rules.md`, "Writing in another language", has the rules. In a study that is not in English, the tool allows about a fifth more words, does not check the English openings "Minimize…" and "Help me…", and counts letters in Chinese, Japanese and Thai.
+
+**When `context` prints a `LABELS:` line**, the study lacks text for some labels, usually because an update of the skill added them. Run `kb_tool labels .pw-kb/pw-kb.yaml`, write the file it gives and `--add` it before `review` and `map`. Until then those labels show in English, and `review` and `map` say so.
+
+A study's language cannot change once it has interviews, because its statements are written in it. If the user asks, say so: translating a study is not supported.
 
 ## Workflow
 
@@ -59,9 +88,14 @@ Run every command from the workspace root, with the paths as shown. The tool ref
 
 The KB is `.pw-kb/pw-kb.yaml`. Ask where the new transcripts are only if they cannot be found.
 
-No KB yet: `kb_tool init .pw-kb/pw-kb.yaml --project "<name>"`. Add `--interviewer "<name>"` only when the user or the transcripts say who ran the interviews; never fill it in from anywhere else.
+No KB yet:
 
-`.pw-kb/` holds interviewees' names, their words and their transcripts. When `init` prints a `git:` line, the workspace is a git repository: ask the user once whether to share the study through git. If they say no, write `.pw-kb/.gitignore` containing the single line `*`. Do not ask again later.
+1. Read the first lines of each new transcript, to see which language the interviews are in.
+2. `kb_tool init .pw-kb/pw-kb.yaml --project "<name>"`. Add `--interviewer "<name>"` only when the user or the transcripts say who ran the interviews; never fill it in from anywhere else.
+3. Ask what the start needs to know, in one question call: the study's language, unless every transcript is in English (see "Study language"), and, when `init` printed a `git:` line, whether to share the study through git. `.pw-kb/` holds interviewees' names, their words and their transcripts, and the `git:` line means the workspace is a git repository. If the user does not want to share it, write `.pw-kb/.gitignore` containing the single line `*`. Do not ask either question again later.
+4. For a language other than English, run the `labels` steps in "Study language" before you extract.
+
+When nobody can answer, as in a scripted run, pass `--language <code>` to `init` instead: it writes the labels file to fill in the same call. Do not touch git then.
 
 **A study made by an earlier version of the skill** sits in a `KB/` folder, with its transcripts in `Interviews/` next to it. The tool refuses it with a message to run `migrate`. Run, from the workspace root:
 
@@ -77,7 +111,7 @@ It copies the transcripts, moves the KB, patches, backups, logs, review sheet an
 kb_tool context .pw-kb/pw-kb.yaml            # add --json for the same information as one JSON object
 ```
 
-This prints each core job with its steps, outcomes and IDs, then the current solutions by group, every person with their own core job and the core job it links to, the segments, the files already processed, pending proposals and stale layers. Map new evidence against this. Skip any transcript whose file is in "processed files". The script also skips it, matching by file name and content hash, so re-running the same batch never double-counts.
+This prints the study's language, then each core job with its steps, outcomes and IDs, then the current solutions by group, every person with their own core job and the core job it links to, the segments, the files already processed, pending proposals and stale layers. Write every statement in the study's language. Map new evidence against this. Skip any transcript whose file is in "processed files". The script also skips it, matching by file name and content hash, so re-running the same batch never double-counts.
 
 A KB with an older schema is refused with a message to run `kb_tool migrate .pw-kb/pw-kb.yaml`; moving an older study upgrades it in the same step. When either says it migrated from schema version 1, tell the user: the core job is now core job A, and every step and outcome ID gained the letter, so `6.3` is now `A.6.3`.
 
@@ -156,7 +190,7 @@ A folder whose name starts with a dot is hidden in Finder and in most file dialo
 
 ### 7. Report to the user
 
-The reader may be a founder or a domain expert, not an ODI specialist, so write in plain words. Lead with one sentence on what changed. Then keep it short:
+The reader may be a founder or a domain expert, not an ODI specialist, so write in plain words, in the language the user writes to you in. Lead with one sentence on what changed. Then keep it short:
 
 - new interviews: name, who they are and their core job, and which of the study's core jobs it links to, one line each, plus any skipped as already processed
 - when the study has several core jobs, name each by its statement with the letter after it ("Keep the trucks on the road (B)"), never by the letter alone
@@ -172,6 +206,7 @@ The reader may be a founder or a domain expert, not an ODI specialist, so write 
 
 - each core job by its statement, how many people have it as their main job, its number of steps and three of them in plain words; then ask the user to confirm each one ("approve P1") or say what to change
 - each person in one line: who they are and the core job they are linked to, or why none
+- the language the study is written in, in one line, and that it stays that way
 - the rest as counts, with the one or two findings that matter most: outcomes, current solutions and their groups, and what people stopped using
 - what to ask about next, as above, and the pointer to `review.md` and the map, which `map --open` has just shown in their browser
 
@@ -201,7 +236,7 @@ Run `context` and read the CURRENT SOLUTIONS block, or point the user to the Sol
 
 The discovery map opens on its Overview view: who the study is about, then the study as a short story in six steps, with a "What to do next" block on top. It is made for a person who does not know the method, often a founder starting discovery. The map counts what it can from the KB. The sentences are yours, and without them the view says "No written findings yet".
 
-Write the overview for each core job that got new evidence, at the end of every run that merged interviews, after `review` and before `map`. Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules.
+Write the overview for each core job that got new evidence, at the end of every run that merged interviews, after `review` and before `map`. Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules. Write it in the study's language.
 
 1. Run `kb_tool.py context .pw-kb/pw-kb.yaml` for the outcomes, the solutions and who stopped using them, and the value themes. `context` prints no quotes and does not say who said what. For those, read `.pw-kb/pw-kb.yaml` itself: the `evidence` lists of the steps, the outcomes, the solution uses and each person's own statements.
 2. Write `.pw-kb/patches/<YYYY-MM-DD>-overview-<job>.yaml`:
@@ -271,7 +306,7 @@ The user changes the overview by telling you ("the bottom line is too strong", "
 
 ## When asked for value themes
 
-Value themes turn a long list of outcomes into a few needs a team can sort ideas into, such as "Help me order what the week will really need". Build them only on request, one core job at a time. Read `references/pw-rules.md`, "Value themes", first: it holds the method.
+Value themes turn a long list of outcomes into a few needs a team can sort ideas into, such as "Help me order what the week will really need". Build them only on request, one core job at a time, in the study's language. Read `references/pw-rules.md`, "Value themes", first: it holds the method.
 
 1. Run `context`. It prints every outcome with its ID and, once themes exist, the VALUE THEMES block with the outcomes in no theme yet.
 2. Write `.pw-kb/patches/<date>-themes-<job>.yaml` with the full set of themes for that core job:
@@ -343,10 +378,11 @@ The KB's fields are explained one by one in `references/kb-schema.md`. Read it b
 
 ## Files in this skill
 
-- `scripts/kb_tool.py`: init, context, merge (with format, quote, reference and clarity checks), apply, themes, review, map, validate and migrate (which also moves a study made by an earlier version into `.pw-kb/`). Needs PyYAML, plus python-docx or pypdf for .docx or .pdf transcripts. Carries its own dependency list, so `uv run --locked` needs no setup.
+- `scripts/kb_tool.py`: init, labels (the study's language and the map's and review sheet's text in it), context, merge (with format, quote, reference and clarity checks), apply, themes, review, map, validate and migrate (which also moves a study made by an earlier version into `.pw-kb/`). Needs PyYAML, plus python-docx or pypdf for .docx or .pdf transcripts. Carries its own dependency list, so `uv run --locked` needs no setup.
 - `scripts/kb_tool.py.lock`: the exact package versions `uv run --locked` installs. Keep it next to the script.
 - `assets/discovery-map-template.html`: the interactive map viewer. `map` fills it with the KB. Opened on its own, it lets anyone load a KB file.
 - `assets/js-yaml.js`: the YAML reader the map uses. The template loads it from beside itself; `map` puts it inside each map, so a map is one file that works offline.
+- `assets/labels-en.js`: the English text of the map and the review sheet, the source of every study's own text. The template loads it from beside itself and `map` puts it inside each map, with the study's own labels. The template opened on its own shows English.
 - `references/pw-rules.md`: how to write each kind of statement, with examples and common mistakes. Read it before extracting.
 - `references/patch-format.md`: the patch format the merge accepts, with a worked example. Read it before writing a patch.
 - `references/patch-schema.json`: the same format as a JSON Schema, checked first by every merge.

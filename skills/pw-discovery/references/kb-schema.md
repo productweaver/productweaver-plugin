@@ -73,6 +73,7 @@ The letter is there even when the study has one core job (`A.6.3`), so no ID cha
 | `schema_version` | integer | no | Version of this schema; currently 2. `kb_tool.py migrate` raises it, and every command refuses an older or a newer one |
 | `method` | string | no | Method used |
 | `interviewer` | string | no | Who ran the interviews |
+| `language` | string | no | The study's language, a BCP 47 code such as `en`, `it`, `pt-BR` or `zh-Hans`. Every statement is written in it, and the map and `review.md` show their own text in it from `.pw-kb/labels.yaml`. Missing means English. `init` writes it; `labels --language` changes it only while the study has no interviews. Quotes stay in the words people used |
 | `created` | date | no | When the KB was started |
 | `interview_count` | integer | no | *Computed.* Number of interviews |
 | `date_range` | string | no | *Computed.* First to last interview date |
@@ -86,11 +87,15 @@ The letter is there even when the study has one core job (`A.6.3`), so no ID cha
 | Field | Type | Meaning |
 |---|---|---|
 | `limits` | mapping of kind to integer | Maximum words per kind of statement: `executor` (16), `job` (10), `step` (10), `outcome` (16), `feeling` (12), `rationale` (30, also a solution group's `why`), `solution` (6, a solution's name), `group` (6, a solution group's name), `theme` (6, a value theme's label), `need` (25, a value theme's need), `headline` (20), `finding` (50) and `action` (20) for the overview's sentences, `role` (4, the overview's label for who the study is about) and `who` (25, the sentence under it) |
-| `banned` | list of strings | Tokens a statement may not contain. Default: `(`, `;`, `e.g.`, `i.e.`, ` and/or `, `/` |
+| `banned` | list of strings | Tokens a statement may not contain. Default: `(`, `;`, `e.g.`, `i.e.`, ` and/or `, `/`, and the full-width and Arabic forms `（`, `；`, `／`, `؛`. A Greek study (`el`) drops `;`, its question mark |
 | `idioms` | list of strings | Phrases with "and" or "or" that are one idea. Default: `bread and butter`, `in and out` |
 | `acronyms` | list of strings | Abbreviations every reviewer in this market knows. Default: `OTR`, `US`, `UK`, `EU` |
+| `directions` | list of strings | How a new outcome must start, such as `Ridurre al minimo `. Default in an English study: `Minimize `, `Maximize `, `Increase `, `Reduce `; in another language none is checked |
+| `need_start` | string | How a value theme's need must start, such as `Aiutami a `. Default in an English study: `Help me `; in another language none is checked |
 
 Each key replaces the default list, or for `limits` the named entries, so copy the defaults you want to keep.
+
+**Other languages.** In a study whose `meta.language` is not English, the default limits are a fifth higher, rounded up, because most languages need more words than English for the same statement. Chinese, Japanese, Thai, Lao, Khmer and Burmese are written without spaces, so their letters count instead: 2 to a word in Chinese, 2.5 in Japanese and 4 in the others, plus any word in Latin letters. Limits set in `limits` are used as written. The warning that a job or step may hold two jobs ("and", "or") is given in English studies only.
 
 ## `core_jobs[]`
 
@@ -161,7 +166,7 @@ An empty list is a finding: the interview gave no evidence for that kind of job.
 |---|---|---|---|
 | `id` | `"<job>.<step>.<k>"` | yes | *Computed.* Outcome `A.6.3` is the third outcome of step A.6 |
 | `step` | step ID | yes | The step it measures, such as `A.6` |
-| `statement` | string | yes | Starts with Minimize, Maximize, Increase or Reduce. At most 16 words |
+| `statement` | string | yes | In an English study, starts with Minimize, Maximize, Increase or Reduce; in another language, the same form in that language. At most 16 words |
 | `evidence` | list of evidence items | no | Quotes showing people judge the step this way |
 | `interviews`, `interview_count`, `quote_count` | | no | *Computed* |
 | `added` | date | no | *Computed.* When it entered the KB |
@@ -281,7 +286,7 @@ A few needs, in the customer's voice, that group the desired outcomes of a core 
 | `id` | `"<job>.T<n>"` | yes | `A.T2` is the second theme of core job A. It stays the same when the theme is reworded |
 | `job` | core job ID | yes | The core job whose outcomes it groups |
 | `label` | string | yes | Starts with a verb. At most 6 words |
-| `need` | string | yes | One sentence that starts with "Help me". At most 25 words |
+| `need` | string | yes | One sentence that starts with "Help me" in an English study, or the same request in the study's language. At most 25 words |
 | `why` | string | no | What binds the outcomes, in one sentence of at most 30 words |
 | `outcomes` | list of outcome IDs | yes | The outcomes it groups, all from its core job. An outcome may sit in two themes. When an outcome moves or is merged, the script updates the ID here |
 | `highlights` | list | no | Quotes picked to show the need: `{kind, interview, source, quote, name}`. `kind` is `pain`, `struggle` or `desire`. Each is a copy of a quote on one of the theme's outcomes or on a solution used at their steps; `source` and `name` are filled in by the script |

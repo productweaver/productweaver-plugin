@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Discovery Map · Product Weaver</title>
+<title>Product Weaver</title>
 <style>
 /* Layout: header with a trust strip, then a three-pane workspace: a people and progress sidebar, a pan-and-zoom mind map, and a detail drawer. Ink-blue neutrals with a field-notes green for evidence and amber for "needs more conversations". */
 :root{
@@ -120,7 +120,7 @@ aside.side{border-right:1px solid var(--line);background:var(--surface);display:
 
 .stage{position:relative;overflow:hidden;background:
   radial-gradient(circle, var(--line) 1px, transparent 1.2px) 0 0/22px 22px, var(--bg);min-height:0;touch-action:none}
-.stage svg{width:100%;height:100%;display:block;cursor:grab;user-select:none}
+.stage svg{width:100%;height:100%;display:block;cursor:grab;user-select:none;direction:ltr}
 .stage svg.dragging{cursor:grabbing}
 .toolbar{position:absolute;top:12px;left:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none;z-index:6}
 .toolbar > *{pointer-events:auto}
@@ -351,7 +351,7 @@ svg.mk-ic{width:14px;height:14px;display:inline-block;flex:none;cursor:inherit;v
 .ov-track dl{margin:0;display:grid;gap:8px;font-size:.9rem}
 .ov-track dt{font-size:.78rem;color:var(--muted)}
 .ov-track dd{margin:0}
-.ov-track q{font-family:var(--font-read);quotes:"“" "”"}
+.ov-track q{font-family:var(--font-read);quotes:var(--pw-quotes,"“" "”")}
 .ov-next > .ov-todo{margin:0 38px 24px}
 
 .ov-step{display:grid;gap:16px;scroll-margin-top:var(--soltop,64px)}
@@ -401,7 +401,7 @@ svg.mk-ic{width:14px;height:14px;display:inline-block;flex:none;cursor:inherit;v
 .ov-theme .tn{font-family:var(--font-read);font-size:1rem;line-height:1.45;grid-column:1;max-width:60ch}
 .ov-theme .ov-heard{grid-column:2;grid-row:1 / span 2}
 .ov-theme.first{border-top:2px solid var(--ev3)}
-.ov-theme.first .tl::after{content:"Shared by most";margin-left:10px;font-size:.74rem;font-weight:700;background:var(--ev1);border-radius:999px;padding:2px 9px;vertical-align:2px;white-space:nowrap}
+.ov-theme.first .tl::after{content:attr(data-first);margin-left:10px;font-size:.74rem;font-weight:700;background:var(--ev1);border-radius:999px;padding:2px 9px;vertical-align:2px;white-space:nowrap}
 
 .ov-end{border:0;border-top:1px solid var(--line);background:none;color:var(--ink);width:100%;padding:22px 38px;display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;font-size:1rem;border-radius:0 0 14px 14px;text-align:left}
 .ov-end b{color:var(--accent)}
@@ -537,101 +537,183 @@ button.tag:hover{border-color:var(--accent);color:var(--accent)}
 <header>
   <div class="top">
     <div class="titles">
-      <span class="kicker"><a class="brand" href="https://www.productweaver.com/" data-pw="header-logo" target="_blank" rel="noopener"><svg class="pwmark" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8c4 0 6 8 9 8s5-8 9-8" /><path d="M3 16c4 0 6-8 9-8s5 8 9 8" /></svg>Product Weaver</a> · Customer discovery map</span>
-      <h1 id="title">Loading…</h1>
+      <span class="kicker"><a class="brand" href="https://www.productweaver.com/" data-pw="header-logo" target="_blank" rel="noopener"><svg class="pwmark" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8c4 0 6 8 9 8s5-8 9-8" /><path d="M3 16c4 0 6-8 9-8s5 8 9 8" /></svg>Product Weaver</a> · <span data-t="map.header.kicker"></span></span>
+      <h1 id="title"></h1>
       <span class="sub" id="subtitle"></span>
     </div>
     <div class="actions">
-      <button class="btn" id="btnRead" type="button">How to read this map</button>
-      <button class="btn" id="btnBuilt" type="button">How it was built</button>
-      <button class="btn primary" id="btnOpen" type="button">Open a KB file</button>
+      <button class="btn" id="btnRead" type="button" data-t="map.btn.read"></button>
+      <button class="btn" id="btnBuilt" type="button" data-t="map.btn.built"></button>
+      <button class="btn primary" id="btnOpen" type="button" data-t="map.btn.open_file"></button>
       <input type="file" id="file" accept=".yaml,.yml,.json" hidden>
     </div>
   </div>
-  <div class="jobs" id="jobs" role="group" aria-label="Core jobs in this study" hidden></div>
-  <div class="strip" id="strip" aria-label="From conversations to insights"></div>
+  <div class="jobs" id="jobs" role="group" data-t-aria="map.aria.jobs" hidden></div>
+  <div class="strip" id="strip" data-t-aria="map.aria.strip"></div>
 </header>
 
 <main>
-  <aside class="side" aria-label="People and progress">
+  <aside class="side" data-t-aria="map.aria.side">
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="people" type="button">People</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="progress" type="button">Progress</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="next" type="button">Ask next</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="people" type="button" data-t="map.tab.people"></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="progress" type="button" data-t="map.tab.progress"></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="next" type="button" data-t="map.tab.next"></button>
     </div>
     <div class="pane" id="pane-people" role="tabpanel"></div>
     <div class="pane" id="pane-progress" role="tabpanel" hidden></div>
     <div class="pane" id="pane-next" role="tabpanel" hidden></div>
   </aside>
 
-  <section class="stage" id="stage" aria-label="Map of the customer's job">
-    <svg id="svg" role="img" aria-label="Mind map: main goal, stages, steps and success measures"><g id="vp"><g id="edges"></g><g id="nodes"></g></g></svg>
+  <section class="stage" id="stage" data-t-aria="map.aria.stage">
+    <svg id="svg" role="img" data-t-aria="map.aria.svg"><g id="vp"><g id="edges"></g><g id="nodes"></g></g></svg>
     <div class="solview" id="overview" role="tabpanel" aria-labelledby="vOver" hidden></div>
     <div class="solview" id="solview" role="tabpanel" aria-labelledby="vSol" hidden></div>
     <div class="solview" id="themeview" role="tabpanel" aria-labelledby="vThemes" hidden></div>
     <div class="toolbar" id="toolbar">
-      <div class="viewsw" id="viewsw" role="tablist" aria-label="Choose a view" hidden>
-        <button type="button" role="tab" id="vOver" aria-selected="false" aria-controls="overview" tabindex="-1" hidden>Overview</button>
-        <button type="button" role="tab" id="vMap" aria-selected="true" tabindex="0">Map</button>
-        <button type="button" role="tab" id="vSol" aria-selected="false" aria-controls="solview" tabindex="-1">Solutions</button>
-        <button type="button" role="tab" id="vThemes" aria-selected="false" aria-controls="themeview" tabindex="-1" hidden>Value themes</button>
+      <div class="viewsw" id="viewsw" role="tablist" data-t-aria="map.aria.views" hidden>
+        <button type="button" role="tab" id="vOver" aria-selected="false" aria-controls="overview" tabindex="-1" hidden data-t="map.view.over"></button>
+        <button type="button" role="tab" id="vMap" aria-selected="true" tabindex="0" data-t="map.view.map"></button>
+        <button type="button" role="tab" id="vSol" aria-selected="false" aria-controls="solview" tabindex="-1" data-t="map.view.sol"></button>
+        <button type="button" role="tab" id="vThemes" aria-selected="false" aria-controls="themeview" tabindex="-1" hidden data-t="map.view.themes"></button>
       </div>
-      <label class="search"><span aria-hidden="true">⌕</span><input id="q" type="search" placeholder="Search the map and the quotes" aria-label="Search"></label>
-      <div class="tgroup" role="group" aria-label="Map controls">
-        <button type="button" id="bExpand" title="Show every success measure">Open all</button>
-        <button type="button" id="bCollapse" title="Show steps only">Close all</button>
-        <button type="button" id="bSols" aria-pressed="false" title="Show what people use today at each step" hidden>Show solutions</button>
-        <button type="button" id="bFit" title="Fit the map to the screen">Fit</button>
-        <button type="button" id="bIn" aria-label="Zoom in">+</button>
-        <button type="button" id="bOut" aria-label="Zoom out">−</button>
+      <label class="search"><span aria-hidden="true">⌕</span><input id="q" type="search" data-t-ph="map.search.placeholder" data-t-aria="map.search.aria"></label>
+      <div class="tgroup" role="group" data-t-aria="map.aria.controls">
+        <button type="button" id="bExpand" data-t-title="map.ctl.open_all_tip" data-t="map.ctl.open_all"></button>
+        <button type="button" id="bCollapse" data-t-title="map.ctl.close_all_tip" data-t="map.ctl.close_all"></button>
+        <button type="button" id="bSols" aria-pressed="false" data-t-title="map.ctl.sols_tip" data-t="map.ctl.sols" hidden></button>
+        <button type="button" id="bFit" data-t-title="map.ctl.fit_tip" data-t="map.ctl.fit"></button>
+        <button type="button" id="bIn" data-t-aria="map.ctl.zoom_in">+</button>
+        <button type="button" id="bOut" data-t-aria="map.ctl.zoom_out">−</button>
       </div>
-      <div class="filterpill" id="pill" hidden><span id="pillText"></span><button type="button" id="pillX" aria-label="Clear highlight">×</button></div>
+      <div class="filterpill" id="pill" hidden><span id="pillText"></span><button type="button" id="pillX" data-t-aria="map.pill.clear">×</button></div>
     </div>
     <div class="legend" id="legend"></div>
-    <a class="madewith" href="https://www.productweaver.com/" data-pw="map-badge" target="_blank" rel="noopener">Made with <b>Product Weaver</b> · productweaver.com</a>
-    <aside class="drawer" id="drawer" aria-label="Details">
-      <div class="dhead"><span class="dkind" id="dKind"></span><div class="dtitle" id="dTitle"></div><button class="dclose" id="dClose" type="button" aria-label="Close details">×</button></div>
+    <a class="madewith" href="https://www.productweaver.com/" data-pw="map-badge" target="_blank" rel="noopener" id="madeWith"></a>
+    <aside class="drawer" id="drawer" data-t-aria="map.aria.drawer">
+      <div class="dhead"><span class="dkind" id="dKind"></span><div class="dtitle" id="dTitle"></div><button class="dclose" id="dClose" type="button" data-t-aria="map.drawer.close">×</button></div>
       <div class="dbody" id="dBody"></div>
     </aside>
   </section>
 </main>
 
 <div class="tip" id="tip" hidden></div>
-<div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mTitle"><button class="dclose" id="mClose" type="button" aria-label="Close">×</button><div id="mBody"></div></div></div>
-<div class="drop" id="drop" hidden>Drop the KB file to load it</div>
+<div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mTitle"><button class="dclose" id="mClose" type="button" data-t-aria="map.modal.close">×</button><div id="mBody"></div></div></div>
+<div class="drop" id="drop" data-t="map.file.drop" hidden></div>
 
 <script src="js-yaml.js"></script>
+<script src="labels-en.js"></script>
 <script>
 /* @kb-schema:2 */ /* draws KBs of schema 2, with one or more core jobs, and still reads schema 1 files */
 /* @kb-data:start */
 const SAMPLE = {"meta":{"project":"Open a KB file to begin"}};
 /* @kb-data:end */
 
+/* ---------- labels ---------- */
+/* Every word the map shows comes from a label: English from labels-en.js, or the study's own text, which kb_tool map
+   puts in the data as `labels` for a study in another language (meta.language). A label the study lacks, or holds in
+   a form that does not fit, shows in English; a key with no English text shows as itself. Keys are always written out
+   in full, never built, so a test can find every key in use. A label holds no markup: th() escapes it, then puts in
+   the values as they are given, so the caller escapes them. */
+if(typeof PW_LABELS_EN!=="object" || !PW_LABELS_EN || typeof PW_LABELS_EN.labels!=="object"){
+  document.body.innerHTML = '<div class="err" style="margin:24px">This map cannot show its text: labels-en.js is missing. Keep it next to discovery-map-template.html, as the skill ships them, or open the map that kb_tool made.</div>';
+  throw new Error("labels-en.js is missing");
+}
+const EN = PW_LABELS_EN.labels, BRAND = "Product Weaver", SITE = "productweaver.com";
+const RTL = ["ar","he","fa","ur","ps","sd","ug","yi","dv","ckb"];
+const PLURALS = ["zero","one","two","few","many","other"];
+const UI = {lang:"en", dir:"ltr", en:true, own:{}};
+const hasKey = (o,k) => !!o && Object.prototype.hasOwnProperty.call(o,k);
+const PLACE = /\{([a-z_]+)\}/g;
+const places = s => [...s.matchAll(PLACE)].map(m=>m[1]).sort().join();
+// the study's text fits when it is text with the same {name} places as the English, one text per plural form
+const fitsText = (v, en) => typeof v==="string" && (v.trim()!=="" || !/\w/.test(en)) && places(v)===places(en);
+function fits(own, en){
+  if(own==null || en==null) return false;
+  if(typeof en==="string") return fitsText(own, en);
+  return typeof own==="object" && !Array.isArray(own) && hasKey(own,"other")
+    && Object.entries(own).every(([f,v])=>PLURALS.includes(f) && fitsText(v, String(en.other)));
+}
+let labelCache = new Map();
+const pluralRules = new Map();
+function labelOf(key){
+  let p = labelCache.get(key);
+  if(!p){ const en = hasKey(EN,key) ? EN[key] : null, own = hasKey(UI.own,key) ? UI.own[key] : null;
+    p = fits(own, en) ? {v:own, lang:UI.lang} : en!=null ? {v:en, lang:"en"} : {v:key, lang:"en"}; labelCache.set(key,p); }
+  return p;
+}
+// a plural label has one text per plural form of its language; English text follows English rules
+function pluralForm(p, n){
+  if(typeof p.v==="string") return p.v;
+  let rules = pluralRules.get(p.lang);
+  if(!rules){ try{ rules = new Intl.PluralRules(p.lang); }catch(_){ rules = new Intl.PluralRules("en"); } pluralRules.set(p.lang, rules); }
+  const f = typeof n==="number" ? rules.select(n) : "other";
+  return String(typeof p.v[f]==="string" ? p.v[f] : p.v.other ?? "");
+}
+const fillIn = (s, vars) => s.replace(PLACE, (m,k) => hasKey(vars,k) ? String(vars[k]) : m);
+/* t: plain text, for textContent and attributes. th: HTML, with \n as a line break and the values put in as given. */
+const t = (key, vars) => fillIn(pluralForm(labelOf(key), vars && vars.n), vars);
+const th = (key, vars) => fillIn(esc(pluralForm(labelOf(key), vars && vars.n)).replace(/\n/g,"<br>"), vars);
+// the words beside a big number: the label holds the number as {n}, the number is drawn apart
+const chipWords = (key, n) => fillIn(esc(pluralForm(labelOf(key), n)).replace(/\n/g,"<br>"), {n:""}).trim();
+const sentences = (...parts) => parts.filter(Boolean).join(t("map.text.sentence_sep"));
+const joinList = items => items.join(t("map.text.list_sep"));
+const quoted = q => t("map.text.quote", {q});
+const locale = () => UI.lang==="en" ? undefined : UI.lang;
+/* The study's language: meta.language, a BCP 47 code; English when it is missing. Right-to-left languages turn the
+   page around, but the map's drawing keeps its left-to-right layout (CSS: .stage svg). */
+function setLanguage(raw){
+  const meta = raw && typeof raw==="object" && raw.meta && typeof raw.meta==="object" ? raw.meta : {};
+  let lang = "en";
+  try{ if(typeof meta.language==="string" && meta.language.trim()) lang = Intl.getCanonicalLocales(meta.language.trim().replace(/_/g,"-"))[0]; }catch(_){ lang = "en"; }
+  const base = lang.split("-")[0].toLowerCase();
+  UI.lang = lang; UI.en = base==="en"; UI.dir = RTL.includes(base) ? "rtl" : "ltr";
+  UI.own = !UI.en && raw.labels && typeof raw.labels==="object" && !Array.isArray(raw.labels) ? raw.labels : {};
+  labelCache = new Map();
+  applyLabels();
+}
+function applyLabels(){
+  const root = document.documentElement;
+  root.lang = UI.lang;
+  if(UI.dir==="rtl") root.dir = "rtl"; else root.removeAttribute("dir");
+  document.querySelectorAll("[data-t]").forEach(el=>{ el.textContent = t(el.dataset.t); });
+  document.querySelectorAll("[data-t-title]").forEach(el=>{ el.title = t(el.dataset.tTitle); });
+  document.querySelectorAll("[data-t-aria]").forEach(el=>{ el.setAttribute("aria-label", t(el.dataset.tAria)); });
+  document.querySelectorAll("[data-t-ph]").forEach(el=>{ el.placeholder = t(el.dataset.tPh); });
+  document.getElementById("madeWith").innerHTML = th("map.made.badge", {brand:`<b>${BRAND}</b>`, site:SITE});
+  // the quote marks of <q>, from the same label as every other quote
+  const marks = t("map.text.quote").split("{q}");
+  if(marks.length===2) root.style.setProperty("--pw-quotes", JSON.stringify(marks[0])+" "+JSON.stringify(marks[1]));
+}
+
 /* ---------- plain language ---------- */
 const STAGES = [
-  ["define","Plan","Decide what is needed before starting."],
-  ["locate","Gather","Find the inputs and information the job needs."],
-  ["prepare","Set up","Organize the inputs and get ready."],
-  ["confirm","Check","Make sure everything is right before committing."],
-  ["execute","Do it","Carry out the main action."],
-  ["monitor","Watch","Keep track while it happens."],
-  ["modify","Adjust","Fix things when they go off plan."],
-  ["conclude","Wrap up","Finish and learn for next time."]
+  ["define","map.stage.define.name","map.stage.define.desc"],
+  ["locate","map.stage.locate.name","map.stage.locate.desc"],
+  ["prepare","map.stage.prepare.name","map.stage.prepare.desc"],
+  ["confirm","map.stage.confirm.name","map.stage.confirm.desc"],
+  ["execute","map.stage.execute.name","map.stage.execute.desc"],
+  ["monitor","map.stage.monitor.name","map.stage.monitor.desc"],
+  ["modify","map.stage.modify.name","map.stage.modify.desc"],
+  ["conclude","map.stage.conclude.name","map.stage.conclude.desc"]
 ];
 const SRC = {
-  transcript:["Their own words","transcript"],
-  quoted_in_notes:["Their own words, quoted in notes","notes"],
-  interviewer_notes:["Interviewer's summary, not their exact words","paraphrase"]
+  transcript:"map.src.transcript",
+  quoted_in_notes:"map.src.quoted_in_notes",
+  interviewer_notes:"map.src.interviewer_notes"
 };
-/* what people use today to get a step done: [plain label, color token] */
+const srcLabel = s => hasKey(SRC,s) ? t(SRC[s]) : "";
+/* what people use today to get a step done: [label key, color token] */
 const KINDS = {
-  product:["Product or app","--sol-product"],
-  everyday_tool:["Everyday tool","--sol-tool"],
-  people:["Other people","--sol-people"],
-  own_method:["Own method","--sol-own"]
+  product:["map.kind.product","--sol-product"],
+  everyday_tool:["map.kind.everyday_tool","--sol-tool"],
+  people:["map.kind.people","--sol-people"],
+  own_method:["map.kind.own_method","--sol-own"]
 };
-const kindOf = k => KINDS[k] || ["Other","--muted"];
+const kindOf = k => KINDS[k] || ["map.kind.other","--muted"];
+const kindLabel = k => t(kindOf(k)[0]);
+/* English only: an outcome's formal start, said in plain words. Other languages show the statement as written. */
 function plainOutcome(s){
+  if(!UI.en) return s;
   const r = [
     [/^Minimize the time (it takes )?to /i,"Less time to "],
     [/^Minimize the likelihood (of|that) /i,(m,w)=>w.toLowerCase()==="that"?"Less risk that ":"Less risk of "],
@@ -645,7 +727,6 @@ function plainOutcome(s){
   return s;
 }
 const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-const plural = (n,w,p) => `${n} ${n===1?w:(p||w+"s")}`;
 /* Links to productweaver.com carry fixed tags, so the site can count visits from maps opened on people's computers.
    The tags name only the link's place in the map, never anything from the study. On productweaver.com itself (the
    example study) the links stay untagged. */
@@ -654,7 +735,8 @@ const pwUrl = where => /(^|\.)productweaver\.com$/.test(location.hostname) ? PW_
   : `${PW_SITE}?utm_source=productweaver-plugin&utm_medium=discovery-map&utm_campaign=pw-discovery&utm_content=${encodeURIComponent(where)}`;
 document.querySelectorAll("a[data-pw]").forEach(a=>{ a.href=pwUrl(a.dataset.pw); });
 const short = (s,n) => { s=String(s||""); if(s.length<=n) return s; const cut=s.slice(0,n-1); return cut.slice(0,Math.max(cut.lastIndexOf(" "),n-20)).replace(/[\s,;:.]+$/,"")+"…"; };
-const names = ids => ids.map(id=>M.ivById[id]?.name||("Interview "+id)).join(", "); // plain text: wrap in esc()
+const ivName = id => M.ivById[id]?.name || t("map.common.person_fallback", {id});
+const names = ids => joinList(ids.map(ivName)); // plain text: wrap in esc()
 /* the same sentence from the same person counts once */
 function uniqEv(list){ const seen=new Set(); return list.filter(e=>{ const k=e.interview+"\u0000"+(e.quote||""); if(seen.has(k)) return false; seen.add(k); return true; }); }
 /* Solutions seen from one core job (or from all when job is null). Current users are people on a
@@ -679,7 +761,7 @@ function solScope(sols, groups, job){
 /* ---------- model ---------- */
 let M = null;
 function build(raw){
-  if(!raw || typeof raw!=="object") throw new Error("The file is empty or not YAML.");
+  if(!raw || typeof raw!=="object") throw new Error(t("map.file.empty"));
   const jm = raw.job_map||{};
   // schema 1 files had one market_core_job and IDs without a job letter: read them as core job A
   const v1 = !Array.isArray(raw.core_jobs), mcj = raw.market_core_job||{};
@@ -691,7 +773,7 @@ function build(raw){
   const ivs = (raw.interviews||[]).map(i=>{
     const cj = i.core_functional_job||{}, main = v1 ? (jobsRaw.length?"A":null) : (cj.job||null);
     return {
-      id:String(i.id), name:i.name||("Interview "+i.id), date:i.date?String(i.date):"", format:i.format||"",
+      id:String(i.id), name:i.name||t("map.common.person_fallback",{id:i.id}), date:i.date?String(i.date):"", format:i.format||"",
       tags:i.tags||[], file:i.file||"", note:i.analyst_note||"",
       who:(i.job_executor||{}).statement||"", whoEv:(i.job_executor||{}).evidence||[],
       goal:cj.statement||"", goalEv:cj.evidence||[], main, whyNone:main?"":(cj.unlinked_reason||""),
@@ -723,7 +805,7 @@ function build(raw){
       uses, jobs:[...new Set(uses.map(u=>u.job))], at:[]};
   }).filter(s=>s.uses.length);
   sols.forEach(s=>{ if(!groups.some(g=>g.id===s.group)) s.group=""; });
-  if(sols.some(s=>s.group==="")) groups.push({id:"", name:"Not in a group yet", why:"", list:[]});
+  if(sols.some(s=>s.group==="")) groups.push({id:"", name:t("map.group.none"), why:"", list:[]});
   steps.forEach(s=>{ s.sols=[]; });
   sols.forEach(sol=>{ [...new Set(sol.uses.map(u=>u.step))].forEach(k=>{
     const at=sol.uses.filter(u=>u.step===k), st=stepByKey[k];
@@ -744,20 +826,20 @@ function build(raw){
   // value themes: a few needs that group the measures of success of one core job, across its steps
   const vt = !v1 && raw.value_themes && typeof raw.value_themes==="object" ? raw.value_themes : {};
   const outByKey = Object.fromEntries(outs.map(o=>[o.oid,o]));
-  const themes = (Array.isArray(vt.themes)?vt.themes:[]).filter(t=>t && /^[A-Z]{1,2}\.T\d+$/.test(String(t.id||""))).map(t=>{
-    const os = [...new Set((Array.isArray(t.outcomes)?t.outcomes:[]).map(String))].map(k=>outByKey[k]).filter(Boolean);
+  const themes = (Array.isArray(vt.themes)?vt.themes:[]).filter(tm=>tm && /^[A-Z]{1,2}\.T\d+$/.test(String(tm.id||""))).map(tm=>{
+    const os = [...new Set((Array.isArray(tm.outcomes)?tm.outcomes:[]).map(String))].map(k=>outByKey[k]).filter(Boolean);
     const at = [...new Set(os.map(o=>stepByKey[o.step]).filter(Boolean))].flatMap(st=>st.sols);
     const using = [...new Set(at.map(a=>a.sol))].map(sol=>{ const mine=at.filter(a=>a.sol===sol), cur=[...new Set(mine.flatMap(a=>a.cur))];
       return {sol, cur, stop:[...new Set(mine.flatMap(a=>a.stop))].filter(x=>!cur.includes(x))}; })
       .sort((a,b)=>b.cur.length-a.cur.length||b.stop.length-a.stop.length||a.sol.name.localeCompare(b.sol.name));
-    return {id:String(t.id), job:String(t.job||String(t.id).split(".")[0]), label:t.label||String(t.id), need:t.need||"", why:t.why||"",
+    return {id:String(tm.id), job:String(tm.job||String(tm.id).split(".")[0]), label:tm.label||String(tm.id), need:tm.need||"", why:tm.why||"",
       outs:os.slice().sort((a,b)=>b.people.length-a.people.length), people:people(os.flatMap(o=>o.ev)),
       quotes:os.reduce((a,o)=>a+o.ev.length,0), using, dropped:[...new Set(using.flatMap(u=>u.stop))],
-      hl:(Array.isArray(t.highlights)?t.highlights:[]).filter(h=>h && h.quote).map(h=>({...h, interview:String(h.interview)}))};
+      hl:(Array.isArray(tm.highlights)?tm.highlights:[]).filter(h=>h && h.quote).map(h=>({...h, interview:String(h.interview)}))};
   });
   themes.sort((a,b)=>b.people.length-a.people.length||b.outs.length-a.outs.length||a.id.localeCompare(b.id,undefined,{numeric:true}));
-  outs.forEach(o=>{ o.themes=themes.filter(t=>t.outs.includes(o)); });
-  jobs.forEach(j=>{ j.themes=themes.filter(t=>t.job===j.id); j.loose=j.themes.length?j.outs.filter(o=>!o.themes.length):[]; });
+  outs.forEach(o=>{ o.themes=themes.filter(tm=>tm.outs.includes(o)); });
+  jobs.forEach(j=>{ j.themes=themes.filter(tm=>tm.job===j.id); j.loose=j.themes.length?j.outs.filter(o=>!o.themes.length):[]; });
   // the overview: the sentences the assistant wrote for each core job; the view computes the rest
   const ovr = !v1 && raw.overview && typeof raw.overview==="object" ? raw.overview : {};
   const overs = Object.fromEntries((Array.isArray(ovr.jobs)?ovr.jobs:[]).filter(o=>o && o.job && o.bottom_line).map(o=>[String(o.job),o]));
@@ -776,7 +858,7 @@ function build(raw){
     i.solsUsed = sols.filter(s=>s.at.some(a=>a.cur.includes(i.id)));
     i.solsStopped = sols.filter(s=>!i.solsUsed.includes(s) && s.at.some(a=>a.stop.includes(i.id)));
   });
-  return {raw, project:(raw.meta||{}).project||"Discovery study", caveat:(raw.meta||{}).caveat||"",
+  return {raw, project:(raw.meta||{}).project||t("map.header.project_default"), caveat:(raw.meta||{}).caveat||"",
     jobs, jobById:Object.fromEntries(jobs.map(j=>[j.id,j])), job:null, goal:"", goalStatus:"", executor:"",
     ivs, ivById, allSteps:steps, allOuts:outs, steps, outs, quotes,
     solList:sols, solById:Object.fromEntries(sols.map(s=>[s.id,s])), groups, groupById:Object.fromEntries(groups.map(g=>[g.id,g])),
@@ -797,8 +879,8 @@ function chooseJob(id){
   M.themes = j ? j.themes : M.themeAll; M.loose = j ? j.loose : []; M.over = j ? j.over : null;
 }
 const many = () => M.jobs.length>1;
-const doers = n => n===1 ? "1 person does it" : `${n} people do it`;
-const jobName = id => M.jobById[id] ? `${M.jobById[id].statement} (${id})` : id;
+const doers = n => t("map.count.doers", {n});
+const jobName = id => M.jobById[id] ? t("map.common.job_name", {statement:M.jobById[id].statement, id}) : id;
 function setJob(id, keep){
   if(id===M.job) return;
   chooseJob(id); expanded=new Set(); selected=null;
@@ -811,27 +893,26 @@ function setJob(id, keep){
 
 /* ---------- header, strip, sidebar ---------- */
 function renderHeader(){
-  document.title = M.project+" · Discovery map · Product Weaver";
-  document.getElementById("title").innerHTML = M.goal ? `${esc(M.project)}: <span class="goal">${esc(M.goal)}</span>` : esc(M.project);
+  document.title = t("map.header.doc_title", {project:M.project, brand:BRAND});
+  document.getElementById("title").innerHTML = M.goal ? th("map.header.title", {project:esc(M.project), goal:`<span class="goal">${esc(M.goal)}</span>`}) : esc(M.project);
   const dates = M.ivs.map(i=>i.date).filter(Boolean).sort();
-  document.getElementById("subtitle").textContent =
-    `Built from ${plural(M.ivs.length,"customer conversation")}` + (dates.length?` held ${fmtDate(dates[0])} to ${fmtDate(dates[dates.length-1])}`:"") +
-    (many()?`. They revealed ${M.jobs.length} core jobs; the map shows one at a time`:"") +
-    (M.goalStatus==="proposed"?`. ${many()?"This core job":"The main goal"} is still a proposal for the team to confirm.`:".");
-  const thin = M.steps.filter(s=>s.allPeople.length<3).length;
+  document.getElementById("subtitle").textContent = sentences(
+    dates.length ? t("map.header.built_dates", {n:M.ivs.length, from:fmtDate(dates[0]), to:fmtDate(dates[dates.length-1])}) : t("map.header.built", {n:M.ivs.length}),
+    many() ? t("map.header.jobs", {n:M.jobs.length}) : "",
+    M.goalStatus==="proposed" ? (many() ? t("map.header.proposed_job") : t("map.header.proposed_goal")) : "");
+  const thin = M.steps.filter(s=>s.allPeople.length<3).length, perJob = many() ? t("map.chip.per_job") : "";
   const chips = [
-    [M.ivs.length,"conversations","Real customers interviewed. Each one is a transcript or interview notes."],
-    [M.quotes,"exact quotes","Sentences copied word for word from those conversations. A script checks every one against its transcript."],
-    [M.steps.length,"steps in their job","What customers actually do, in order, to get their goal done."+(many()?" Counted for the core job shown.":"")],
-    [M.outs.length,"measures of success","How customers judge whether a step went well, in their own terms."+(many()?" Counted for the core job shown.":"")]
+    [M.ivs.length,"map.chip.conversations",t("map.chip.conversations_tip")],
+    [M.quotes,"map.chip.quotes",t("map.chip.quotes_tip")],
+    [M.steps.length,"map.chip.steps",sentences(t("map.chip.steps_tip"), perJob)],
+    [M.outs.length,"map.chip.outcomes",sentences(t("map.chip.outcomes_tip"), perJob)]
   ];
   // what people use today sits beside the flow, not in it: it is context, not a step toward the insights
-  const sc = M.sols, solTip = "Products, everyday tools, other people and their own methods that people use now to get a step done. Click to see them all."
-    + (sc && sc.onlyStopped ? ` Plus ${sc.onlyStopped} more that people stopped using.` : "") + (many()?" Counted for the core job shown.":"");
-  const solChip = M.hasSols ? `<span class="flow" aria-hidden="true"></span><button class="chip" type="button" id="solChip" data-tip="${esc(solTip)}"><b>${sc.inUse}</b><span>${sc.inUse===1?"solution":"solutions"}<br>in use today</span></button>` : "";
-  document.getElementById("strip").innerHTML = chips.map((c,i)=>`<div class="chip" tabindex="0" data-tip="${esc(c[2])}"><b>${c[0]}</b><span>${c[1]}</span></div>${i<chips.length-1?'<span class="flow" aria-hidden="true">→</span>':""}`).join("")
-    + solChip + `<span class="flow" aria-hidden="true"></span><div class="chip check" tabindex="0" data-tip="Every insight on this map points back to the quotes behind it. Click any box to read them."><b>✓</b><span>every insight<br>traced to a quote</span></div>`
-    + (thin?`<div class="chip" tabindex="0" data-tip="Steps that fewer than 3 people talked about. More conversations would firm them up." style="border-color:var(--amber)"><b style="color:var(--amber)">${thin}</b><span>${thin===1?"step needs":"steps need"}<br>more voices</span></div>`:"");
+  const sc = M.sols, solTip = sentences(t("map.chip.sols_tip"), sc && sc.onlyStopped ? t("map.chip.sols_stopped", {n:sc.onlyStopped}) : "", perJob);
+  const solChip = M.hasSols ? `<span class="flow" aria-hidden="true"></span><button class="chip" type="button" id="solChip" data-tip="${esc(solTip)}"><b>${sc.inUse}</b><span>${chipWords("map.chip.sols", sc.inUse)}</span></button>` : "";
+  document.getElementById("strip").innerHTML = chips.map((c,i)=>`<div class="chip" tabindex="0" data-tip="${esc(c[2])}"><b>${c[0]}</b><span>${chipWords(c[1], c[0])}</span></div>${i<chips.length-1?'<span class="flow" aria-hidden="true">→</span>':""}`).join("")
+    + solChip + `<span class="flow" aria-hidden="true"></span><div class="chip check" tabindex="0" data-tip="${esc(t("map.chip.traced_tip"))}"><b>✓</b><span>${th("map.chip.traced")}</span></div>`
+    + (thin?`<div class="chip" tabindex="0" data-tip="${esc(t("map.chip.thin_tip"))}" style="border-color:var(--amber)"><b style="color:var(--amber)">${thin}</b><span>${chipWords("map.chip.thin", thin)}</span></div>`:"");
   document.getElementById("strip").querySelectorAll("[data-tip]").forEach(el=>{
     el.addEventListener("mouseenter",e=>showTip(e,`<div>${esc(el.dataset.tip)}</div>`));
     el.addEventListener("mousemove",moveTip); el.addEventListener("mouseleave",hideTip);
@@ -843,22 +924,22 @@ function renderJobs(){
   const box = document.getElementById("jobs");
   box.hidden = !many();
   if(!many()){ box.innerHTML=""; return; }
-  box.innerHTML = `<span class="lbl">Core jobs</span>` + M.jobs.map(j=>`<button class="jobbtn" type="button" data-job="${esc(j.id)}" aria-pressed="${j.id===M.job}">
-    <span class="jl">${esc(j.id)}</span><span>${esc(j.statement)}<small>${doers(j.main.length)}${j.also.length?` · ${j.also.length} also`:""}${j.status==="proposed"?" · proposed":""}</small></span></button>`).join("");
+  box.innerHTML = `<span class="lbl">${th("map.jobs.label")}</span>` + M.jobs.map(j=>`<button class="jobbtn" type="button" data-job="${esc(j.id)}" aria-pressed="${j.id===M.job}">
+    <span class="jl">${esc(j.id)}</span><span>${esc(j.statement)}<small>${esc(doers(j.main.length))}${j.also.length?` · ${th("map.jobs.also",{n:j.also.length})}`:""}${j.status==="proposed"?` · ${th("map.jobs.proposed")}`:""}</small></span></button>`).join("");
   box.querySelectorAll("[data-job]").forEach(b=>b.addEventListener("click",()=>setJob(b.dataset.job)));
 }
 function jobBadges(i){
   if(!many() && i.main) return "";
-  const main = i.main ? `<span class="jl" title="${esc("Main job: "+jobName(i.main))}">${esc(i.main)}</span>` : `<span class="jl none" title="Linked to no core job">none</span>`;
-  return `<span class="jobsline">${main}${i.also.map(j=>`<span class="jl also" title="${esc("Also: "+jobName(j))}">${esc(j)}</span>`).join("")}</span>`;
+  const main = i.main ? `<span class="jl" title="${esc(t("map.badge.main",{job:jobName(i.main)}))}">${esc(i.main)}</span>` : `<span class="jl none" title="${esc(t("map.badge.none_tip"))}">${th("map.badge.none")}</span>`;
+  return `<span class="jobsline">${main}${i.also.map(j=>`<span class="jl also" title="${esc(t("map.badge.also",{job:jobName(j)}))}">${esc(j)}</span>`).join("")}</span>`;
 }
-function fmtDate(d){ const t=new Date(d+"T12:00:00"); return isNaN(t)?d:t.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
+function fmtDate(d){ const day=new Date(d+"T12:00:00"); return isNaN(day)?d:day.toLocaleDateString(locale(),{month:"short",day:"numeric",year:"numeric"}); }
 
 function renderPeople(){
   const p = document.getElementById("pane-people");
-  p.innerHTML = `<p class="hint">Pick a person to light up everything their conversation added to the map.${many()?" The map switches to their main core job.":""}</p>` +
+  p.innerHTML = `<p class="hint">${esc(sentences(t("map.people.hint"), many() ? t("map.people.hint_jobs") : ""))}</p>` +
     M.ivs.map(i=>`<button class="person" type="button" data-iv="${esc(i.id)}" aria-pressed="false">
-      <span class="nm">${esc(i.name)}<small>${plural(i.quoteCount,"quote")}</small></span>
+      <span class="nm">${esc(i.name)}<small>${th("map.count.quotes",{n:i.quoteCount})}</small></span>
       <span class="role">${esc(i.who||"")}</span>${jobBadges(i)}</button>`).join("");
   p.querySelectorAll(".person").forEach(b=>b.addEventListener("click",()=>{
     const on = b.getAttribute("aria-pressed")!=="true";
@@ -882,47 +963,52 @@ function renderProgress(){
   const area = series.length?`${path} L${x(series[series.length-1].k)},${y(0)} L${x(1)},${y(0)} Z`:"";
   const yt=[0,Math.round(Y/2),Y];
   p.innerHTML = `
-    <div class="callout"><b>Each conversation still teaches us something.</b> The last ${Math.min(5,order.length)} conversations added ${plural(fresh,"new measure")} of success and backed up ${firmed} we had already heard.</div>
-    <div class="sect">Measures of success heard so far</div>
-    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Measures of success found, by number of conversations">
+    <div class="callout"><b>${th("map.progress.lead")}</b> ${th("map.progress.callout",{n:Math.min(5,order.length), added:th("map.count.new_outcomes",{n:fresh}), firmed})}</div>
+    <div class="sect">${th("map.progress.chart_title")}</div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(t("map.progress.chart_aria"))}">
       ${yt.map(v=>`<line x1="${ml}" x2="${W-mr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${ml-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`).join("")}
       <path d="${area}" fill="var(--ev1)"/>
       <path d="${path}" fill="none" stroke="var(--ev4)" stroke-width="2"/>
       ${series.map(s=>`<circle class="pt" cx="${x(s.k)}" cy="${y(s.n)}" r="9" fill="transparent" data-k="${s.k}"/>`).join("")}
       <circle cx="${x(N)}" cy="${y(series.length?series[series.length-1].n:0)}" r="4" fill="var(--ev4)"/>
-      <text x="${(ml+W-mr)/2}" y="${H-4}" text-anchor="middle" font-size="10" fill="var(--muted)">conversations, in the order they happened</text>
+      <text x="${(ml+W-mr)/2}" y="${H-4}" text-anchor="middle" font-size="10" fill="var(--muted)">${th("map.progress.chart_axis")}</text>
     </svg>
-    <p class="hint">When this line flattens, new conversations stop adding new measures. That is the signal the map is complete enough to survey a larger group.</p>
-    <div class="sect">Growth of the map</div>
-    ${M.changelog.length?M.changelog.slice(-6).reverse().map(c=>`<div class="hint"><b>${esc(String(c.date||""))}</b> · ${esc(humanLog(c))}</div>`).join(""):`<p class="hint">No update history in this file yet.</p>`}`;
+    <p class="hint">${th("map.progress.flat_hint")}</p>
+    <div class="sect">${th("map.progress.growth")}</div>
+    ${M.changelog.length?M.changelog.slice(-6).reverse().map(c=>`<div class="hint"><b>${esc(String(c.date||""))}</b> · ${esc(humanLog(c))}</div>`).join(""):`<p class="hint">${th("map.progress.no_history")}</p>`}`;
   p.querySelectorAll(".pt").forEach(c=>{
     const s=series[+c.dataset.k-1];
-    const h=e=>showTip(e,`<div class="tt">After ${plural(s.k,"conversation")}</div><div>${plural(s.n,"measure")} of success heard. Latest: ${esc(s.name)}.</div>`);
+    const h=e=>showTip(e,`<div class="tt">${th("map.progress.point_title",{n:s.k})}</div><div>${th("map.progress.point_text",{n:s.n, name:esc(s.name)})}</div>`);
     c.addEventListener("mouseenter",h); c.addEventListener("mousemove",moveTip); c.addEventListener("mouseleave",hideTip);
   });
 }
+/* One line per change of the KB. The summaries come from kb_tool, in English: the older ones are read for their numbers. */
 function humanLog(c){
-  if(c.action==="init") return "Study started.";
-  if(c.action==="decide") return "Team decision: "+(c.summary||"");
-  if(c.action==="migrate" || c.action==="edit") return c.summary||"File maintenance.";
-  if(c.action==="rebuild" && c.layer==="overview") return `Overview written${c.job&&many()?` for ${jobName(c.job)}`:""}.`;
-  if(c.action==="rebuild") return c.layer==="value_themes" ? `Value themes written${Array.isArray(c.themes)?` (${c.themes.length})`:""}${c.job&&many()?` for ${jobName(c.job)}`:""}.` : (c.summary||"A derived layer was rebuilt.");
+  if(c.action==="init") return t("map.log.init");
+  if(c.action==="decide") return t("map.log.decide", {summary:c.summary||""});
+  if(c.action==="migrate" || c.action==="edit") return c.summary||t("map.log.maintenance");
+  const forJob = c.job && many();
+  if(c.action==="rebuild" && c.layer==="overview") return forJob ? t("map.log.overview_job", {job:jobName(c.job)}) : t("map.log.overview");
+  if(c.action==="rebuild" && c.layer==="value_themes"){ const count = Array.isArray(c.themes) ? c.themes.length : null;
+    return count===null ? (forJob ? t("map.log.themes_job", {job:jobName(c.job)}) : t("map.log.themes"))
+      : forJob ? t("map.log.themes_count_job", {count, job:jobName(c.job)}) : t("map.log.themes_count", {count}); }
+  if(c.action==="rebuild") return c.summary||t("map.log.rebuilt");
   if(Array.isArray(c.added_interviews) || typeof c.outcome_quotes==="number" || Array.isArray(c.new_solutions)){
     // structured changelog entries, written by kb_tool.py 0.2 and later
     const iv=c.added_interviews||[], no=(c.new_outcomes||[]).length, q=c.outcome_quotes||0, ns=(c.new_solutions||[]).length;
     const parts=[];
-    if(c.bootstrap) parts.push(/core jobs/.test(c.summary||"")?"Core jobs and steps drafted.":"Main goal and steps drafted.");
-    if(iv.length) parts.push(`Added ${plural(iv.length,"conversation")} (${iv.join(", ")}).`);
-    if(no) parts.push(`${plural(no,"new measure")} of success.`);
-    if(ns) parts.push(`${plural(ns,"new solution")} people use or used.`);
-    if(q) parts.push(`${plural(q,"new quote")} on measures of success.`);
-    return parts.join(" ")||(c.summary||"Update.");
+    if(c.bootstrap) parts.push(/core jobs/.test(c.summary||"")?t("map.log.drafted_jobs"):t("map.log.drafted_goal"));
+    if(iv.length) parts.push(t("map.log.added", {n:iv.length, ids:joinList(iv)}));
+    if(no) parts.push(t("map.log.new_outcomes", {n:no}));
+    if(ns) parts.push(t("map.log.new_solutions", {n:ns}));
+    if(q) parts.push(t("map.log.new_quotes", {n:q}));
+    return sentences(...parts)||(c.summary||t("map.log.update"));
   }
   // older entries only carry a sentence; read the numbers out of it
   const s=c.summary||""; const m=s.match(/added interviews ([^;]+)/);
-  const iv = m&&m[1]!=="none"?`Added conversations ${m[1]}.`:"";
+  const iv = m&&m[1]!=="none"?t("map.log.added_ids", {ids:m[1]}):"";
   const q=(s.match(/(\d+) outcome quotes/)||[])[1];
-  return [iv, q?`${q} new quotes on measures of success.`:"" ].filter(Boolean).join(" ")||s;
+  return sentences(iv, q?t("map.log.new_quotes", {n:+q}):"")||s;
 }
 function renderNext(){
   const p = document.getElementById("pane-next");
@@ -930,15 +1016,15 @@ function renderNext(){
   const thinSteps = allThin.slice(0,5), moreThin = allThin.length-thinSteps.length; // after a first batch every step is thin: name the 5 with fewest voices
   const lone = M.outs.filter(o=>o.people.length===1);
   const unlinked = M.ivs.filter(i=>!i.main);
-  p.innerHTML = `<p class="hint">These parts of the map rest on only a few voices. A couple more conversations would show if they hold up. Click one to find it on the map.${many()?` Shown for ${esc(jobName(M.job))}.`:""}</p>
-    <div class="sect">Steps with fewer than 3 voices</div>
-    ${thinSteps.length?thinSteps.map(s=>`<button class="gap" type="button" data-go="${s.id}">${esc(s.text)}<small>${plural(s.allPeople.length,"person","people")} so far</small></button>`).join(""):`<p class="hint">None. Every step has at least 3 voices.</p>`}
-    ${moreThin?`<p class="hint">These are the ${thinSteps.length} with the fewest voices. ${plural(moreThin,"more step")} also ${moreThin===1?"has":"have"} fewer than 3.</p>`:""}
-    <div class="sect">Measures heard from one person only</div>
-    ${lone.length?`<p class="hint">${plural(lone.length,"measure")} of success. A good question to test in the next conversation is whether others feel the same.</p>`+lone.slice(0,8).map(o=>`<button class="gap" type="button" data-go="${o.id}">${esc(o.plain)}<small>${esc(M.ivById[o.people[0]]?.name||"")}</small></button>`).join(""):`<p class="hint">None.</p>`}
-    ${unlinked.length&&M.jobs.length?`<div class="sect">People linked to no core job</div><p class="hint">Their own job fits none of the core jobs. Their quotes still count where they do a step.</p>`+unlinked.map(i=>`<button class="gap" type="button" data-person="${esc(i.id)}">${esc(i.name)}<small>${esc(i.whyNone||i.note||i.goal)}</small></button>`).join(""):""}
-    ${M.proposals.length?`<div class="sect">Open questions for the team</div>`+M.proposals.map(x=>`<div class="gap"><b>${x.type==="confirm_core_job"?"Confirm the core job: ":""}${esc(x.proposal)}</b><small>${esc(x.rationale||"")}</small></div>`).join(""):""}
-    ${M.caveat?`<div class="sect">Caveat</div><div class="gap">${esc(M.caveat)}</div>`:""}`;
+  p.innerHTML = `<p class="hint">${esc(sentences(t("map.next.hint"), many() ? t("map.next.shown_for", {job:jobName(M.job)}) : ""))}</p>
+    <div class="sect">${th("map.next.thin_title")}</div>
+    ${thinSteps.length?thinSteps.map(s=>`<button class="gap" type="button" data-go="${s.id}">${esc(s.text)}<small>${th("map.next.so_far",{n:s.allPeople.length})}</small></button>`).join(""):`<p class="hint">${th("map.next.thin_none")}</p>`}
+    ${moreThin?`<p class="hint">${th("map.next.thin_more",{n:moreThin, shown:thinSteps.length})}</p>`:""}
+    <div class="sect">${th("map.next.lone_title")}</div>
+    ${lone.length?`<p class="hint">${th("map.next.lone",{n:lone.length})}</p>`+lone.slice(0,8).map(o=>`<button class="gap" type="button" data-go="${o.id}">${esc(o.plain)}<small>${esc(M.ivById[o.people[0]]?.name||"")}</small></button>`).join(""):`<p class="hint">${th("map.next.none")}</p>`}
+    ${unlinked.length&&M.jobs.length?`<div class="sect">${th("map.next.unlinked_title")}</div><p class="hint">${th("map.next.unlinked")}</p>`+unlinked.map(i=>`<button class="gap" type="button" data-person="${esc(i.id)}">${esc(i.name)}<small>${esc(i.whyNone||i.note||i.goal)}</small></button>`).join(""):""}
+    ${M.proposals.length?`<div class="sect">${th("map.next.proposals_title")}</div>`+M.proposals.map(x=>`<div class="gap"><b>${x.type==="confirm_core_job"?th("map.next.confirm_job",{proposal:esc(x.proposal)}):esc(x.proposal)}</b><small>${esc(x.rationale||"")}</small></div>`).join(""):""}
+    ${M.caveat?`<div class="sect">${th("map.next.caveat")}</div><div class="gap">${esc(M.caveat)}</div>`:""}`;
   p.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>focusNode(b.dataset.go)));
   p.querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>{ setPerson(b.dataset.person); openPerson(b.dataset.person); fitHits(); }));
 }
@@ -952,9 +1038,24 @@ let expanded = new Set(), selected=null, personHL=null, searchHL=null;
 let showSols = false, solHL = null, solMode = false, themeMode = false, overMode = false; // solHL: {kind:"sol"|"group", id}
 const solOn = sol => !!solHL && (solHL.kind==="group" ? sol.group===solHL.id : sol.id===solHL.id);
 let view = {x:40,y:40,k:1};
+/* Lines of a box's text, about `chars` wide. A wide character (Chinese, Japanese, Korean, full-width forms) takes the
+   room of two. A word wider than a line, as a sentence in a language written without spaces is, breaks where the
+   language's words end, or between any two characters; in English such a word stays whole, as it always has. */
+const WIDE = /[\u1100-\u115f\u2e80-\u303e\u3041-\u33ff\u3400-\u4dbf\u4e00-\u9fff\ua000-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]|[\u{20000}-\u{3fffd}]/u;
+const textWidth = s => { let w=0; for(const c of s) w += WIDE.test(c) ? 2 : c.length; return w; };
+function breakWord(word, chars){
+  let parts;
+  try{ parts = [...new Intl.Segmenter(UI.lang, {granularity:"word"}).segment(word)].map(x=>x.segment); }catch(_){ parts = [...word]; }
+  const lines=[]; let cur="";
+  for(const part of parts) for(const piece of textWidth(part)>chars ? [...part] : [part]){
+    if(cur && textWidth(cur+piece)>chars){ lines.push(cur.trimEnd()); cur=piece.trimStart(); } else cur+=piece; }
+  if(cur) lines.push(cur); return lines;
+}
 function wrap(text, chars){
   const words=String(text).split(/\s+/); const lines=[]; let cur="";
-  for(const w of words){ if((cur+" "+w).trim().length>chars && cur){ lines.push(cur); cur=w; } else cur=(cur+" "+w).trim(); }
+  const breaks = w => textWidth(w)>chars && (!UI.en || WIDE.test(w));
+  for(const w of words){ if(textWidth((cur+" "+w).trim())>chars && cur && !breaks(w)){ lines.push(cur); cur=w; } else cur=(cur+" "+w).trim();
+    if(breaks(cur)){ const parts=breakWord(cur, chars); cur=parts.pop()||""; lines.push(...parts); } }
   if(cur) lines.push(cur); return lines;
 }
 function strengthColor(n){ return n>=6?"var(--ev4)":n>=4?"var(--ev3)":n>=2?"var(--ev2)":n>=1?"var(--ev1)":"var(--line)"; }
@@ -972,25 +1073,25 @@ function makeTree(){
   const root={id:"root",type:"root",kids:[]};
   STAGES.forEach(([k,name,desc])=>{
     const ss=M.steps.filter(s=>s.stage===k).sort((a,b)=>a.n-b.n); if(!ss.length) return;
-    const st={id:"g-"+k,type:"stage",key:k,name,desc,kids:[]};
+    const st={id:"g-"+k,type:"stage",key:k,name:t(name),desc:t(desc),kids:[]};
     ss.forEach(s=>st.kids.push(stepNode(s)));
     root.kids.push(st);
   });
   const other=M.steps.filter(s=>!STAGES.some(x=>x[0]===s.stage));
-  if(other.length){ const st={id:"g-other",type:"stage",key:"other",name:"Other",desc:"Steps without a stage.",kids:[]}; other.forEach(s=>st.kids.push(stepNode(s))); root.kids.push(st); }
+  if(other.length){ const st={id:"g-other",type:"stage",key:"other",name:t("map.stage.other.name"),desc:t("map.stage.other.desc"),kids:[]}; other.forEach(s=>st.kids.push(stepNode(s))); root.kids.push(st); }
   return root;
 }
 function measure(n){
   const w=WID[n.type]; n.w=w; const chars=Math.floor((w-(TX[n.type]||18)-18)/7.1);
   if(n.type==="cap"){ n.lines=[]; n.h=n.after?30:18; return; }
-  if(n.type==="root"){ n.lines=wrap(M.goal||"Main goal not set yet",Math.floor((w-28)/7.6));
-    n.meta = many() ? `Core job ${M.job} · ${doers(M.jobById[M.job].main.length)}` : `The main goal · ${plural(M.ivs.length,"conversation")}`; }
-  else if(n.type==="stage"){ n.lines=[n.name]; n.meta=`${plural(n.kids.length,"step")}`; }
-  else if(n.type==="step"){ const s=n.ref; n.lines=wrap(s.text,chars); n.meta=`${plural(s.allPeople.length,"person","people")} · ${plural(s.outs.length,"measure")}`; }
+  if(n.type==="root"){ n.lines=wrap(M.goal||t("map.root.unset"),Math.floor((w-28)/7.6));
+    n.meta = many() ? `${t("map.root.job",{id:M.job})} · ${doers(M.jobById[M.job].main.length)}` : `${t("map.root.goal")} · ${t("map.count.conversations",{n:M.ivs.length})}`; }
+  else if(n.type==="stage"){ n.lines=wrap(n.name,chars); n.meta=t("map.count.steps",{n:n.kids.length}); }
+  else if(n.type==="step"){ const s=n.ref; n.lines=wrap(s.text,chars); n.meta=`${t("map.count.people",{n:s.allPeople.length})} · ${t("map.count.measures",{n:s.outs.length})}`; }
   else if(n.type==="sol"){ const x=n.ref; n.lines=wrap(x.sol.name,chars);
-    n.meta=`${x.cur.length?plural(x.cur.length,"person","people"):"No one now"} · ${kindOf(x.sol.kind)[0]}`;
-    n.meta2=x.stop.length?`${x.stop.length} stopped using it`:""; }
-  else { const o=n.ref; n.lines=wrap(o.plain,chars); n.meta=`${plural(o.people.length,"person","people")} · ${plural(o.ev.length,"quote")}`; }
+    n.meta=`${x.cur.length?t("map.count.people",{n:x.cur.length}):t("map.node.no_one_now")} · ${kindLabel(x.sol.kind)}`;
+    n.meta2=x.stop.length?t("map.node.stopped",{n:x.stop.length}):""; }
+  else { const o=n.ref; n.lines=wrap(o.plain,chars); n.meta=`${t("map.count.people",{n:o.people.length})} · ${t("map.count.quotes",{n:o.ev.length})}`; }
   n.h = 18 + n.lines.length*17 + 16 + (n.meta2?14:0);
   n.kids.forEach(measure);
 }
@@ -1019,11 +1120,11 @@ function nodeMatches(n){
   if(n.type==="cap") return null;
   const hits=[];
   if(personHL){ if(n.type==="step") hits.push(n.ref.people.includes(personHL)||n.ref.outs.some(o=>o.people.includes(personHL))||n.ref.solPeople.includes(personHL)); else if(n.type==="out") hits.push(n.ref.people.includes(personHL)); else if(n.type==="sol") hits.push(n.ref.ev.some(e=>e.interview===personHL)); else hits.push(null); }
-  if(searchHL){ const q=searchHL; let t="";
-    if(n.type==="step") t=n.ref.text+" "+n.ref.ev.map(e=>e.quote).join(" ")+" "+n.ref.outs.map(o=>o.text+" "+o.ev.map(e=>e.quote).join(" ")).join(" ")+" "+n.ref.solText;
-    else if(n.type==="out") t=n.ref.text+" "+n.ref.ev.map(e=>e.quote+" "+(e.name||"")).join(" ");
-    else if(n.type==="sol") t=n.ref.sol.name+" "+kindOf(n.ref.sol.kind)[0]+" "+n.ref.ev.map(e=>e.quote).join(" ");
-    else t=""; hits.push(n.type==="step"||n.type==="out"||n.type==="sol"? t.toLowerCase().includes(q):null); }
+  if(searchHL){ const q=searchHL; let hay="";
+    if(n.type==="step") hay=n.ref.text+" "+n.ref.ev.map(e=>e.quote).join(" ")+" "+n.ref.outs.map(o=>o.text+" "+o.ev.map(e=>e.quote).join(" ")).join(" ")+" "+n.ref.solText;
+    else if(n.type==="out") hay=n.ref.text+" "+n.ref.ev.map(e=>e.quote+" "+(e.name||"")).join(" ");
+    else if(n.type==="sol") hay=n.ref.sol.name+" "+kindLabel(n.ref.sol.kind)+" "+n.ref.ev.map(e=>e.quote).join(" ");
+    hits.push(n.type==="step"||n.type==="out"||n.type==="sol"? hay.toLowerCase().includes(q):null); }
   // a picked solution or group lights up the steps where people use it; measures step back
   if(solHL){ if(n.type==="step") hits.push(n.ref.sols.some(x=>solOn(x.sol))); else if(n.type==="sol") hits.push(solOn(n.ref.sol)); else if(n.type==="out") hits.push(false); else hits.push(null); }
   const decided=hits.filter(h=>h!==null);
@@ -1038,15 +1139,15 @@ function render(keepId){
   flat.forEach(n=>{
     // a group caption: an icon and a few words over the boxes it names, with no box, no line and no click
     if(n.type==="cap"){ const ty=n.h-5;
-      N.push(`<g class="mk-cap ${n.kind}" transform="translate(${n.x},${n.y})" aria-hidden="true"><use href="#mk-i-${n.kind}" x="3" y="${ty-11}" width="13" height="13"/><text x="22" y="${ty}">${n.kind==="out"?"Measures of success":"What they use today"}</text></g>`);
+      N.push(`<g class="mk-cap ${n.kind}" transform="translate(${n.x},${n.y})" aria-hidden="true"><use href="#mk-i-${n.kind}" x="3" y="${ty-11}" width="13" height="13"/><text x="22" y="${ty}">${esc(n.kind==="out"?t("map.cap.out"):t("map.cap.sol"))}</text></g>`);
       return; }
     const m = anyHL?nodeMatches(n):null;
     n.dim = anyHL && m===false;
     if(n.parent){ const p=n.parent; const x1=p.x+p.w, y1=p.y+p.h/2, x2=n.x, y2=n.y+n.h/2, mx=(x1+x2)/2;
       E.push(`<path class="edge${n.type==="out"?" mk-e-out":""}${n.dim?" dim":""}" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/>`); }
     const isSol = n.type==="sol", gone = isSol && !n.ref.cur.length, kind = isSol ? (KINDS[n.ref.sol.kind] ? n.ref.sol.kind : "other") : "";
-    const label = isSol ? `${gone?"Stopped using":"Used today"}: ${n.ref.sol.name}, ${n.meta}${n.meta2?", "+n.meta2:""}`
-      : n.type==="step" ? `Step ${n.ref.key}: ${n.ref.text}` : n.type==="out" ? `Measure of success: ${n.ref.plain}` : (n.lines||[]).join(" ");
+    const label = isSol ? t(gone?"map.node.sol_gone":"map.node.sol_used", {name:n.ref.sol.name, details:joinList([n.meta, n.meta2].filter(Boolean))})
+      : n.type==="step" ? t("map.node.step", {key:n.ref.key, text:n.ref.text}) : n.type==="out" ? t("map.node.out", {text:n.ref.plain}) : (n.lines||[]).join(" ");
     let g=`<g class="node ${n.type}${isSol?" mk-k-"+kind:""}${gone?" gone":""}${n.dim?" dim":""}${anyHL&&m===true?" hit":""}${selected===n.id?" sel":""}" data-id="${esc(n.id)}" transform="translate(${n.x},${n.y})" tabindex="0" role="button" aria-label="${esc(label)}">`;
     // a solution is a pill; steps and measures are boxes with small corners
     g+=`<rect class="box" width="${n.w}" height="${n.h}" rx="${n.type==="root"?14:n.type==="stage"?10:isSol?Math.min(n.h/2,26):6}"/>`;
@@ -1063,7 +1164,7 @@ function render(keepId){
     n.lines.forEach((l,i)=>{ g+=`<text class="t1" x="${tx}" y="${22+i*17}">${esc(l)}</text>`; });
     g+=`<text class="t2" x="${tx}" y="${22+n.lines.length*17+4}">${esc(n.meta)}</text>`;
     if(n.meta2) g+=`<text class="t2" x="${tx}" y="${22+n.lines.length*17+18}">${esc(n.meta2)}</text>`;
-    if(n.type==="step" && n.ref.allPeople.length<3){ g+=`<circle class="thinflag" cx="${n.w-12}" cy="12" r="5"><title>Needs more conversations</title></circle>`; }
+    if(n.type==="step" && n.ref.allPeople.length<3){ g+=`<circle class="thinflag" cx="${n.w-12}" cy="12" r="5"><title>${th("map.node.thin")}</title></circle>`; }
     if(n.type==="step" && n.ref.outs.length){ const open=expanded.has(n.id);
       g+=`<g class="tog" transform="translate(${n.w},${n.h/2})"><circle r="11"/><text text-anchor="middle" y="4">${open?"−":"+"}</text></g>`; }
     g+=`</g>`; N.push(g);
@@ -1113,31 +1214,31 @@ const mkStep = key => `<span class="mk-numh">${esc(key)}</span>`;
 const mkOut = () => mkIcon("out","mk-c-out");
 const mkSol = k => { const kind=KINDS[k]?k:"other"; return `<i class="mk-dot mk-k-${kind}">${mkIcon(kind)}</i>`; };
 function tipFor(n){
-  if(n.type==="root") return `<div class="tk">${many()?`Core job ${esc(M.job)}`:"The main goal"}</div><div class="tt">${esc(M.goal)}</div><div class="tm">What these customers are trying to get done, in their words. Everything else on the map hangs off it.</div><div class="tc">Click for who does it</div>`;
-  if(n.type==="stage") return `<div class="tk">Stage · ${esc(n.key)}</div><div class="tt">${esc(n.name)}</div><div class="tm">${esc(n.desc)}</div>`;
-  if(n.type==="step"){ const s=n.ref; return `<div class="tk">${mkStep(s.key)}A step in their job</div><div class="tt">${esc(s.text)}</div>
-    <div class="tm">${plural(s.allPeople.length,"person","people")} talked about this step. Click to see ${plural(s.outs.length,"measure")} of how they judge it, with their exact words.</div>
-    ${s.allPeople.length<3?`<div class="tc" style="color:var(--amber)">Needs more conversations</div>`:""}`; }
+  if(n.type==="root") return `<div class="tk">${many()?th("map.root.job",{id:esc(M.job)}):th("map.root.goal")}</div><div class="tt">${esc(M.goal)}</div><div class="tm">${th("map.tip.root")}</div><div class="tc">${th("map.tip.root_click")}</div>`;
+  if(n.type==="stage") return `<div class="tk">${th("map.tip.stage",{key:esc(n.key)})}</div><div class="tt">${esc(n.name)}</div><div class="tm">${esc(n.desc)}</div>`;
+  if(n.type==="step"){ const s=n.ref; return `<div class="tk">${mkStep(s.key)}${th("map.node.step_kind")}</div><div class="tt">${esc(s.text)}</div>
+    <div class="tm">${th("map.tip.step",{n:s.allPeople.length, measures:th("map.count.measures",{n:s.outs.length})})}</div>
+    ${s.allPeople.length<3?`<div class="tc" style="color:var(--amber)">${th("map.node.thin")}</div>`:""}`; }
   if(n.type==="sol"){ const x=n.ref, q=(x.curEv[0]||x.stopEv[0]);
-    return `<div class="tk">${mkSol(x.sol.kind)}${x.cur.length?"What they use for this step":"Stopped using it for this step"}</div><div class="tt">${esc(x.sol.name)}</div>
-    <div class="tm">${esc(kindOf(x.sol.kind)[0])}${M.groupById[x.sol.group]&&x.sol.group?` · ${esc(M.groupById[x.sol.group].name)}`:""}</div>
-    <div class="tm">${x.cur.length?`Used here by ${esc(names(x.cur))}.`:"No one here uses it now."}${x.stop.length?` Stopped: ${esc(names(x.stop))}.`:""}</div>
-    ${q?`<div class="tm" style="margin-top:5px;font-style:italic">“${esc(short(q.quote,130))}”</div>`:""}<div class="tc">Click for what they said</div>`; }
-  const o=n.ref; return `<div class="tk">${mkOut()}A measure of success</div><div class="tt">${esc(o.plain)}</div>
-    <div class="tm">Said by ${o.people.map(id=>esc(M.ivById[id]?.name||id)).join(", ")||"no one yet"}.</div>
-    ${o.ev[0]?`<div class="tm" style="margin-top:5px;font-style:italic">“${esc(o.ev[0].quote.length>130?o.ev[0].quote.slice(0,127)+"…":o.ev[0].quote)}”</div>`:""}<div class="tc">Click for all quotes</div>`;
+    return `<div class="tk">${mkSol(x.sol.kind)}${x.cur.length?th("map.tip.sol_used"):th("map.tip.sol_gone")}</div><div class="tt">${esc(x.sol.name)}</div>
+    <div class="tm">${esc(kindLabel(x.sol.kind))}${M.groupById[x.sol.group]&&x.sol.group?` · ${esc(M.groupById[x.sol.group].name)}`:""}</div>
+    <div class="tm">${esc(sentences(x.cur.length?t("map.tip.used_by",{names:names(x.cur)}):t("map.tip.no_one"), x.stop.length?t("map.tip.stopped_by",{names:names(x.stop)}):""))}</div>
+    ${q?`<div class="tm" style="margin-top:5px;font-style:italic">${esc(quoted(short(q.quote,130)))}</div>`:""}<div class="tc">${th("map.tip.sol_click")}</div>`; }
+  const o=n.ref; return `<div class="tk">${mkOut()}${th("map.node.out_kind")}</div><div class="tt">${esc(o.plain)}</div>
+    <div class="tm">${esc(t("map.tip.said_by",{names:joinList(o.people.map(id=>M.ivById[id]?.name||id))||t("map.tip.no_one_yet")}))}</div>
+    ${o.ev[0]?`<div class="tm" style="margin-top:5px;font-style:italic">${esc(quoted(o.ev[0].quote.length>130?o.ev[0].quote.slice(0,127)+"…":o.ev[0].quote))}</div>`:""}<div class="tc">${th("map.tip.out_click")}</div>`;
 }
 function renderLegend(){
   const sols = showSols && M.hasSols;
   document.getElementById("legend").classList.toggle("wide", sols);
   // the key draws each kind of box the way the map does, so the shapes are learned at a glance
   document.getElementById("legend").innerHTML = `
-    <div class="mk-key"><span class="mk-kstep"><b>${esc(M.steps[0]?.key||"1")}</b>Step</span><span class="mk-kout">${mkOut()}Measure of success</span>${sols?`<span class="mk-ksol">${mkSol("")}Used today</span>`:""}</div>
-    <div class="row"><b style="color:var(--ink)">Green bar: how many people said it</b></div>
-    <div class="row"><span><i class="sw" style="background:var(--ev1)"></i>1</span><span><i class="sw" style="background:var(--ev2)"></i>2–3</span><span><i class="sw" style="background:var(--ev3)"></i>4–5</span><span><i class="sw" style="background:var(--ev4)"></i>6+</span><span><i class="sw" style="background:var(--amber);border-radius:50%;width:10px"></i>needs more voices</span></div>
-    ${sols ? `<div class="row"><b style="color:var(--ink)">What they use today, by kind</b></div>
-    <div class="row">${Object.entries(KINDS).map(([k,[l]])=>`<span>${mkSol(k)}${esc(l)}</span>`).join("")}<span><i class="sw dash"></i>dashed = stopped using</span></div>` : ""}
-    <div class="row">Click a step's + to see how customers judge it. Drag or scroll to move. Pinch or Ctrl + scroll to zoom.</div>`;
+    <div class="mk-key"><span class="mk-kstep"><b>${esc(M.steps[0]?.key||"1")}</b>${th("map.legend.step")}</span><span class="mk-kout">${mkOut()}${th("map.legend.out")}</span>${sols?`<span class="mk-ksol">${mkSol("")}${th("map.legend.sol")}</span>`:""}</div>
+    <div class="row"><b style="color:var(--ink)">${th("map.legend.green")}</b></div>
+    <div class="row"><span><i class="sw" style="background:var(--ev1)"></i>1</span><span><i class="sw" style="background:var(--ev2)"></i>2–3</span><span><i class="sw" style="background:var(--ev3)"></i>4–5</span><span><i class="sw" style="background:var(--ev4)"></i>6+</span><span><i class="sw" style="background:var(--amber);border-radius:50%;width:10px"></i>${th("map.legend.thin")}</span></div>
+    ${sols ? `<div class="row"><b style="color:var(--ink)">${th("map.legend.kinds")}</b></div>
+    <div class="row">${Object.entries(KINDS).map(([k,[l]])=>`<span>${mkSol(k)}${esc(t(l))}</span>`).join("")}<span><i class="sw dash"></i>${th("map.legend.dashed")}</span></div>` : ""}
+    <div class="row">${th("map.legend.help")}</div>`;
 }
 
 /* ---------- pan and zoom ---------- */
@@ -1227,9 +1328,9 @@ document.getElementById("q").addEventListener("input",e=>{
     updatePill(); render(); },180);
 });
 function updatePill(){
-  const parts=[]; if(personHL) parts.push(`What ${M.ivById[personHL]?.name} added`); if(searchHL) parts.push(`Matches for “${searchHL}”`);
+  const parts=[]; if(personHL) parts.push(t("map.pill.person", {name:M.ivById[personHL]?.name})); if(searchHL) parts.push(t("map.pill.search", {q:quoted(searchHL)}));
   if(solHL){ const s=solHL.kind==="group"?M.groupById[solHL.id]:M.solById[solHL.id];
-    if(s) parts.push(solHL.kind==="group"?`Steps where people use one of “${s.name}”`:`Steps where people use ${s.name}`); }
+    if(s) parts.push(solHL.kind==="group"?t("map.pill.group", {name:quoted(s.name)}):t("map.pill.sol", {name:s.name})); }
   document.getElementById("pill").hidden=!parts.length; document.getElementById("pillText").textContent=parts.join(" · ");
 }
 document.getElementById("pillX").onclick=()=>{ personHL=null; searchHL=null; solHL=null; document.getElementById("q").value=""; document.querySelectorAll(".person").forEach(b=>b.setAttribute("aria-pressed","false")); updatePill(); render(); };
@@ -1283,33 +1384,34 @@ document.getElementById("viewsw").addEventListener("keydown",e=>{
   setView(next[0]); document.getElementById(next[1]).focus();
 });
 function renderSolView(){
-  const sc=M.sols, job=many()?` for ${jobName(M.job)}`:"";
+  const sc=M.sols;
   const maxM=Math.max(1,...sc.groups.flatMap(g=>g.items.map(x=>x.ment)));
   const stepsIn = list => `<span>${list.map(a=>`<span class="sline">${esc(a.step.text)}</span>`).join("")}</span>`;
+  const col = key => esc(t(key));
   const row = x => `<tr data-row="${esc(x.sol.id)}"${solOn(x.sol)?' class="on"':""}>
-      <th scope="row" data-l="Solution"><button type="button" class="solname" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button></th>
-      <td data-l="Type">${ktag(x.sol.kind)}</td>
-      <td data-l="Mentions"><span class="mcell"><span class="mbar" aria-hidden="true"><i style="width:${Math.round(100*x.ment/maxM)}%"></i></span>${x.ment}</span></td>
-      <td data-l="People">${esc(names(x.cur))}</td>
-      <td data-l="Steps">${stepsIn(x.at.filter(a=>a.cur.length))}</td></tr>`;
+      <th scope="row" data-l="${col("map.sol.col.solution")}"><button type="button" class="solname" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button></th>
+      <td data-l="${col("map.sol.col.type")}">${ktag(x.sol.kind)}</td>
+      <td data-l="${col("map.sol.col.mentions")}"><span class="mcell"><span class="mbar" aria-hidden="true"><i style="width:${Math.round(100*x.ment/maxM)}%"></i></span>${x.ment}</span></td>
+      <td data-l="${col("map.sol.col.people")}">${esc(names(x.cur))}</td>
+      <td data-l="${col("map.sol.col.steps")}">${stepsIn(x.at.filter(a=>a.cur.length))}</td></tr>`;
   const group = g => `<tbody><tr class="ghead"><th colspan="5" scope="colgroup"><button type="button" class="gbtn" data-group="${esc(g.g.id)}" aria-pressed="${!!solHL && solHL.kind==="group" && solHL.id===g.g.id}">
-      <span class="gname">${esc(g.g.name)}</span><span class="gnum">${plural(g.ment,"mention")} · ${plural(g.people.length,"person","people")}</span>
-      ${g.g.why?`<span class="gwhy"><b>Why grouped:</b> ${esc(g.g.why)}</span>`:""}</button></th></tr>${g.items.map(row).join("")}</tbody>`;
+      <span class="gname">${esc(g.g.name)}</span><span class="gnum">${th("map.count.mentions",{n:g.ment})} · ${th("map.count.people",{n:g.people.length})}</span>
+      ${g.g.why?`<span class="gwhy"><b>${th("map.sol.why_grouped")}</b> ${esc(g.g.why)}</span>`:""}</button></th></tr>${g.items.map(row).join("")}</tbody>`;
   const why = x => { const e=x.stopEv.find(v=>x.stop.includes(v.interview))||x.stopEv[0];
-    return e?`<span class="why">“${esc(short(e.quote,140))}”<small>${esc(M.ivById[e.interview]?.name||"")}</small></span>`:`<span class="hint">No reason recorded.</span>`; };
+    return e?`<span class="why">${esc(quoted(short(e.quote,140)))}<small>${esc(M.ivById[e.interview]?.name||"")}</small></span>`:`<span class="hint">${th("map.sol.no_reason")}</span>`; };
   const goneRow = x => `<tr data-row="${esc(x.sol.id)}"${solOn(x.sol)?' class="on"':""}>
-      <th scope="row" data-l="Solution"><button type="button" class="solname" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button></th>
-      <td data-l="Type">${ktag(x.sol.kind)}</td>
-      <td data-l="Who stopped">${esc(names(x.stop))}</td>
-      <td data-l="Step">${stepsIn(x.at.filter(a=>a.stop.length))}</td>
-      <td data-l="Why they stopped">${why(x)}</td></tr>`;
+      <th scope="row" data-l="${col("map.sol.col.solution")}"><button type="button" class="solname" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button></th>
+      <td data-l="${col("map.sol.col.type")}">${ktag(x.sol.kind)}</td>
+      <td data-l="${col("map.sol.col.who_stopped")}">${esc(names(x.stop))}</td>
+      <td data-l="${col("map.sol.col.step")}">${stepsIn(x.at.filter(a=>a.stop.length))}</td>
+      <td data-l="${col("map.sol.col.why_stopped")}">${why(x)}</td></tr>`;
   solview.innerHTML = `<div class="solin">
-    <h2>Solutions in use today${esc(job)}</h2>
-    <p class="hint" style="margin:0">What people rely on now to get a step done: products and apps, everyday tools, other people and their own methods. They are grouped by the work they compete for. Click a name to read what people said.</p>
-    ${sc.groups.length?`<div class="twrap"><table class="soltable"><thead><tr><th scope="col" style="width:24%">Solution</th><th scope="col" style="width:14%">Type</th><th scope="col" style="width:12%">Mentions</th><th scope="col" style="width:20%">People</th><th scope="col">Steps</th></tr></thead>
-      ${sc.groups.map(group).join("")}</table></div>`:`<p class="hint">${sc.items.length?"No one uses any of them now.":"No solutions are recorded for this core job yet."}${many()?" Pick another core job above.":""}</p>`}
-    ${sc.gone.length?`<h3>Stopped using</h3><p class="hint" style="margin:0">Things people used for a step and then dropped. Their reasons often point at what matters.</p>
-      <div class="twrap"><table class="soltable"><thead><tr><th scope="col" style="width:24%">Solution</th><th scope="col" style="width:14%">Type</th><th scope="col" style="width:16%">Who stopped</th><th scope="col" style="width:22%">Step</th><th scope="col">Why they stopped</th></tr></thead>
+    <h2>${many()?th("map.sol.title_job",{job:esc(jobName(M.job))}):th("map.sol.title")}</h2>
+    <p class="hint" style="margin:0">${th("map.sol.intro")}</p>
+    ${sc.groups.length?`<div class="twrap"><table class="soltable"><thead><tr><th scope="col" style="width:24%">${th("map.sol.col.solution")}</th><th scope="col" style="width:14%">${th("map.sol.col.type")}</th><th scope="col" style="width:12%">${th("map.sol.col.mentions")}</th><th scope="col" style="width:20%">${th("map.sol.col.people")}</th><th scope="col">${th("map.sol.col.steps")}</th></tr></thead>
+      ${sc.groups.map(group).join("")}</table></div>`:`<p class="hint">${esc(sentences(sc.items.length?t("map.sol.none_now"):t("map.sol.none_yet"), many()?t("map.common.pick_job"):""))}</p>`}
+    ${sc.gone.length?`<h3>${th("map.sol.stopped_title")}</h3><p class="hint" style="margin:0">${th("map.sol.stopped_intro")}</p>
+      <div class="twrap"><table class="soltable"><thead><tr><th scope="col" style="width:24%">${th("map.sol.col.solution")}</th><th scope="col" style="width:14%">${th("map.sol.col.type")}</th><th scope="col" style="width:16%">${th("map.sol.col.who_stopped")}</th><th scope="col" style="width:22%">${th("map.sol.col.step")}</th><th scope="col">${th("map.sol.col.why_stopped")}</th></tr></thead>
       <tbody>${sc.gone.map(goneRow).join("")}</tbody></table></div>`:""}
   </div>`;
 }
@@ -1319,35 +1421,36 @@ solview.addEventListener("click",e=>{
   const tr=e.target.closest("tr[data-row]"); if(tr) pickSol(tr.dataset.row);
 });
 /* ---------- Value themes view ---------- */
-const HL_KINDS = [["pain","Pain"],["struggle","Struggle"],["desire","Desire"]];
-function themeCard(t){
+const HL_KINDS = [["pain","map.theme.hl.pain"],["struggle","map.theme.hl.struggle"],["desire","map.theme.hl.desire"]];
+/* a customer's words, with who said them and where they come from */
+const quoteHTML = q => { const iv=M.ivById[String(q.interview)], src=srcLabel(q.source);
+  return `<blockquote class="${q.source==="interviewer_notes"?"para":""}">${esc(quoted(q.quote))}<span class="src"><button type="button" class="linkbtn" data-person="${esc(String(q.interview))}">${esc(iv?.name||q.name||t("map.common.person_fallback",{id:q.interview}))}</button>${src?` · ${esc(src)}`:""}</span></blockquote>`; };
+function themeCard(tm){
   const total = scopeTotal();
-  const outRow = o => { const also=o.themes.filter(x=>x!==t);
-    return `<button class="oitem" type="button" data-go="${esc(o.id)}"><span>${esc(o.text)}${also.length?`<small>Also in: ${esc(also.map(x=>x.label).join(", "))}</small>`:""}</span>${dots(o.people.length)}</button>`; };
-  const solRow = u => `<button class="oitem" type="button" data-sol="${esc(u.sol.id)}"><span>${esc(u.sol.name)}</span><span class="meta">${ktag(u.sol.kind)}<span>${u.cur.length?`${u.cur.length} use it`:"no one now"}${u.stop.length?`, ${u.stop.length} stopped`:""}</span></span></button>`;
-  const quote = h => { const iv=M.ivById[h.interview], src=SRC[h.source];
-    return `<blockquote class="${h.source==="interviewer_notes"?"para":""}">“${esc(h.quote)}”<span class="src"><button type="button" class="linkbtn" data-person="${esc(h.interview)}">${esc(iv?.name||h.name||("Interview "+h.interview))}</button>${src?` · ${esc(src[0])}`:""}</span></blockquote>`; };
-  const said = HL_KINDS.map(([k,l])=>{ const hs=t.hl.filter(h=>h.kind===k); return hs.length?`<div class="hlk"><span class="tag">${l}</span>${hs.map(quote).join("")}</div>`:""; }).join("");
-  return `<article class="tcard" aria-labelledby="th-${esc(t.id)}">
-    <div><h3 id="th-${esc(t.id)}">${esc(t.label)}</h3>${t.need?`<p class="tneed">${esc(t.need)}</p>`:""}</div>
-    <div class="tsig">${meter(t.people.length, total)}
-      <span>${plural(t.quotes,"quote")} on ${plural(t.outs.length,"measure")} of success${t.dropped.length?` · ${plural(t.dropped.length,"person","people")} dropped a solution here`:""}</span>
-      <small>Counted from these conversations. Not a survey score.</small></div>
-    ${t.people.length===1?`<div class="flag">This theme rests on one person so far.</div>`:""}
-    ${t.why?`<p class="twhy">${esc(t.why)}</p>`:""}
-    <div><div class="sect">Measures of success it groups (${t.outs.length})</div><div class="olist">${t.outs.map(outRow).join("")||`<p class="hint">None of its measures are on the map any more.</p>`}</div></div>
-    <div><div class="sect">What people use today for this (${t.using.length})</div><div class="olist">${t.using.map(solRow).join("")||`<p class="hint">No one named a solution for these steps yet.</p>`}</div></div>
-    ${said?`<div><div class="sect">In their words</div>${said}</div>`:""}
+  const outRow = o => { const also=o.themes.filter(x=>x!==tm);
+    return `<button class="oitem" type="button" data-go="${esc(o.id)}"><span>${esc(o.text)}${also.length?`<small>${esc(t("map.theme.also_in",{themes:joinList(also.map(x=>x.label))}))}</small>`:""}</span>${dots(o.people.length)}</button>`; };
+  const solRow = u => `<button class="oitem" type="button" data-sol="${esc(u.sol.id)}"><span>${esc(u.sol.name)}</span><span class="meta">${ktag(u.sol.kind)}<span>${esc(joinList([u.cur.length?t("map.theme.use_it",{n:u.cur.length}):t("map.common.no_one_now"), u.stop.length?t("map.common.stopped",{n:u.stop.length}):""].filter(Boolean)))}</span></span></button>`;
+  const said = HL_KINDS.map(([k,l])=>{ const hs=tm.hl.filter(h=>h.kind===k); return hs.length?`<div class="hlk"><span class="tag">${th(l)}</span>${hs.map(quoteHTML).join("")}</div>`:""; }).join("");
+  const signal = th("map.theme.signal",{quotes:th("map.count.quotes",{n:tm.quotes}), outcomes:th("map.count.outcomes",{n:tm.outs.length})});
+  return `<article class="tcard" aria-labelledby="th-${esc(tm.id)}">
+    <div><h3 id="th-${esc(tm.id)}">${esc(tm.label)}</h3>${tm.need?`<p class="tneed">${esc(tm.need)}</p>`:""}</div>
+    <div class="tsig">${meter(tm.people.length, total)}
+      <span>${signal}${tm.dropped.length?` · ${th("map.theme.dropped",{n:tm.dropped.length})}`:""}</span>
+      <small>${th("map.theme.counted")}</small></div>
+    ${tm.people.length===1?`<div class="flag">${th("map.theme.one_person")}</div>`:""}
+    ${tm.why?`<p class="twhy">${esc(tm.why)}</p>`:""}
+    <div><div class="sect">${th("map.theme.outs_title",{count:tm.outs.length})}</div><div class="olist">${tm.outs.map(outRow).join("")||`<p class="hint">${th("map.theme.outs_none")}</p>`}</div></div>
+    <div><div class="sect">${th("map.theme.using_title",{count:tm.using.length})}</div><div class="olist">${tm.using.map(solRow).join("")||`<p class="hint">${th("map.theme.using_none")}</p>`}</div></div>
+    ${said?`<div><div class="sect">${th("map.theme.words_title")}</div>${said}</div>`:""}
   </article>`;
 }
 function renderThemeView(){
-  const job=many()?` for ${jobName(M.job)}`:"";
   themeview.innerHTML = `<div class="solin">
-    <h2>Value themes${esc(job)}</h2>
-    <p class="hint" style="margin:0">A few needs, in the customers' words, that gather the measures of success serving the same judgment. Use them to sort ideas: every idea should serve one theme. The numbers show how many people raised a theme in these conversations. They show how well it is supported, not how much it matters across the market.</p>
-    ${M.themesStale?`<div class="flag">These themes are out of date: conversations or measures of success were added or changed after they were written. Ask your assistant to update the value themes.</div>`:""}
-    ${M.themes.length?`<div class="tgrid">${M.themes.map(themeCard).join("")}</div>`:`<p class="hint">No value themes for this core job yet.${many()?" Pick another core job above.":""}</p>`}
-    ${M.loose.length?`<h3>In no theme yet (${M.loose.length})</h3><p class="hint" style="margin:0">Measures of success that fit none of the themes, or were added after the themes were written.</p>
+    <h2>${many()?th("map.theme.title_job",{job:esc(jobName(M.job))}):th("map.theme.title")}</h2>
+    <p class="hint" style="margin:0">${th("map.theme.intro")}</p>
+    ${M.themesStale?`<div class="flag">${th("map.theme.stale")}</div>`:""}
+    ${M.themes.length?`<div class="tgrid">${M.themes.map(themeCard).join("")}</div>`:`<p class="hint">${esc(sentences(t("map.theme.none"), many()?t("map.common.pick_job"):""))}</p>`}
+    ${M.loose.length?`<h3>${th("map.theme.loose_title",{count:M.loose.length})}</h3><p class="hint" style="margin:0">${th("map.theme.loose_intro")}</p>
       <div class="olist" style="max-width:720px">${M.loose.map(o=>`<button class="oitem" type="button" data-go="${esc(o.id)}"><span>${esc(o.text)}</span>${dots(o.people.length)}</button>`).join("")}</div>`:""}
   </div>`;
 }
@@ -1356,38 +1459,40 @@ themeview.addEventListener("click",e=>{
   const b=e.target.closest("[data-sol]"); if(b){ pickSol(b.dataset.sol); return; }
   const p=e.target.closest("[data-person]"); if(p) openPerson(p.dataset.person);
 });
-function ktag(k){ const [l,v]=kindOf(k); return `<span class="ktag"><i style="background:var(${v})"></i>${esc(l)}</span>`; }
+function ktag(k){ const [l,v]=kindOf(k); return `<span class="ktag"><i style="background:var(${v})"></i>${esc(t(l))}</span>`; }
 
 /* ---------- Overview view ---------- */
 /* The study as a short story: who, their goal, today, the gaps, the needs, the focus. The sentences come from the
    KB's overview layer, written by the assistant; the counts, the needs and the themes are computed here. */
 const overview=document.getElementById("overview");
 let nextOpen=false, overSpy=null;
-const OV_STEPS = [["The people","who you listened to"],["Their goal","what they try to get done"],["Today","how they do it now"],
-  ["What goes wrong","where today's way fails them"],["The needs","what they want to get better"],["Where to start","what to build for first"]];
-const OV_SURE = ["A first guess","Early signs","A clear pattern","Checked with a survey"];
+const OV_STEPS = [["map.ov.rail.people","map.ov.rail.people_sub"],["map.ov.rail.goal","map.ov.rail.goal_sub"],["map.ov.rail.today","map.ov.rail.today_sub"],
+  ["map.ov.rail.gaps","map.ov.rail.gaps_sub"],["map.ov.rail.needs","map.ov.rail.needs_sub"],["map.ov.rail.focus","map.ov.rail.focus_sub"]];
+const OV_SURE = ["map.ov.sure.guess","map.ov.sure.early","map.ov.sure.clear","map.ov.sure.survey"];
 /* what to do next: [track name, {status:[label, color]}, [[field, label]]] */
 const OV_NEXT = {
-  learn:["Keep learning",{now:["Do this now","go"],enough:["Enough for now","wait"]},[["why","Why"],["ask","Ask"],["tip","Tip"]]],
-  prototype:["Prototype",{ready:["Ready to sketch","try"],early:["Too early to sketch","wait"]},[["why","Why"],["test","Test it"],["later","Leave for later"]]],
-  market:["Go to market",{ready:["Ready to test","try"],early:["Too early to sell","wait"]},[["who","Who first"],["words","Their words"],["unknown","Not known yet"]]]
+  learn:["map.ov.track.learn",{now:["map.ov.track.learn_now","go"],enough:["map.ov.track.learn_enough","wait"]},[["why","map.ov.field.why"],["ask","map.ov.field.ask"],["tip","map.ov.field.tip"]]],
+  prototype:["map.ov.track.prototype",{ready:["map.ov.track.prototype_ready","try"],early:["map.ov.track.prototype_early","wait"]},[["why","map.ov.field.why"],["test","map.ov.field.test"],["later","map.ov.field.later"]]],
+  market:["map.ov.track.market",{ready:["map.ov.track.market_ready","try"],early:["map.ov.track.market_early","wait"]},[["who","map.ov.field.who"],["words","map.ov.field.words"],["unknown","map.ov.field.unknown"]]]
 };
-const OV_GAP = {pain:"A problem today", struggle:"They tried a fix, and it did not work"};
+const OV_GAP = {pain:"map.ov.gaps.pain", struggle:"map.ov.gaps.struggle"};
 /* the note under a gap: what kind of gap it is, and the solutions it concerns */
-const ovGapNote = (kind, names) => !names.length ? (OV_GAP[kind]||"")
-  : kind==="struggle" ? `Tried, and it did not work: ${names.join(", ")}` : `${OV_GAP[kind]||"A problem"}, even with ${names.join(", ")}`;
-const lowerFirst = s => { s=String(s||""); return /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase()+s.slice(1) : s; };
-const fullStop = s => { s=String(s||"").trim(); return s && !/[.!?]$/.test(s) ? s+"." : s; };
+const ovGapNote = (kind, names) => !names.length ? (hasKey(OV_GAP,kind) ? t(OV_GAP[kind]) : "")
+  : kind==="struggle" ? t("map.ov.gaps.struggle_with", {names:joinList(names)})
+  : kind==="pain" ? t("map.ov.gaps.pain_with", {names:joinList(names)}) : t("map.ov.gaps.other_with", {names:joinList(names)});
+/* English only: a sentence put after a colon starts in lowercase. Other languages keep the statement as written. */
+const lowerFirst = s => { s=String(s||""); return UI.en && /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase()+s.slice(1) : s; };
+const fullStop = s => { s=String(s||"").trim(); return s && !/[.!?。！？।؟]$/.test(s) ? s+t("map.text.full_stop") : s; };
 function overScope(){ const j=M.jobById[M.job]; return (many() && j ? j.people : M.ivs.map(i=>i.id)).map(id=>M.ivById[id]).filter(Boolean); }
 /* How sure: fewer than 3 conversations is a hunch; a clear pattern needs 8 or more, with the last 2 adding at most 2 new needs. */
 function overSure(scope){
   const order=[...scope].sort((a,b)=>(a.date||"").localeCompare(b.date||"")||a.id.localeCompare(b.id,undefined,{numeric:true}));
   const n=order.length, last=new Set(order.slice(-2).map(i=>i.id)), early=new Set(order.slice(0,-2).map(i=>i.id));
   const fresh=M.outs.filter(o=>o.people.some(p=>last.has(p)) && !o.people.some(p=>early.has(p))).length;
-  const level = n<3 ? 1 : (n>=8 && fresh<=2) ? 3 : 2, added = fresh ? plural(fresh,"new need") : "no new needs";
-  const text = level===1 ? `Only ${plural(n,"conversation")} so far. Treat this page as a first guess, and talk to at least 3 people before you act on it.`
-    : level===2 ? `${plural(n,"conversation")} so far, and the last 2 added ${added}.${fresh>2?" So you have not heard everything yet.":""} You can trust a pattern once you have about 8 conversations and new ones stop adding needs.`
-    : `${plural(n,"conversation")}, and the last 2 added ${added}. The picture is stable. A survey of more people can now show how much each need matters.`;
+  const level = n<3 ? 1 : (n>=8 && fresh<=2) ? 3 : 2, added = fresh ? t("map.ov.sure.new_needs",{n:fresh}) : t("map.ov.sure.no_new");
+  const text = level===1 ? t("map.ov.sure.text_guess",{n})
+    : level===2 ? sentences(t("map.ov.sure.text_early",{n, added}), fresh>2 ? t("map.ov.sure.not_all") : "", t("map.ov.sure.trust"))
+    : t("map.ov.sure.text_clear",{n, added});
   return {level, text};
 }
 /* Key unmet needs: the needs most people raised, ahead where today's solutions at that step are weak
@@ -1398,19 +1503,18 @@ function overNeeds(){
     const st=M.steps.find(s=>s.key===o.step), at=st?st.sols:[], cur=at.filter(x=>x.cur.length), kinds=new Set(cur.map(x=>x.sol.kind));
     const stopped=uniq(at.flatMap(x=>x.stop)), product=cur.find(x=>x.sol.kind==="product"), hand=cur.length>0 && !product;
     const why=[];
-    if(product) why.push(`They use ${product.sol.name}.`);
-    else if(hand) why.push(kinds.has("own_method")||kinds.has("everyday_tool") ? "By hand." : "They ask other people.");
-    else if(!stopped.length) why.push("Nobody said yet.");
-    if(stopped.length) why.push(`${plural(stopped.length,"person","people")} gave up what they used for this.`);
-    return {o, why:why.join(" "), weak:(stopped.length?2:0)+(hand?1:0)};
+    if(product) why.push(t("map.ov.needs.use", {name:product.sol.name}));
+    else if(hand) why.push(kinds.has("own_method")||kinds.has("everyday_tool") ? t("map.ov.needs.by_hand") : t("map.ov.needs.ask_others"));
+    else if(!stopped.length) why.push(t("map.ov.needs.nobody"));
+    if(stopped.length) why.push(t("map.ov.needs.gave_up", {n:stopped.length}));
+    return {o, why:sentences(...why), weak:(stopped.length?2:0)+(hand?1:0)};
   }).sort((a,b)=>b.o.people.length-a.o.people.length || b.weak-a.weak || b.o.ev.length-a.o.ev.length).slice(0,5);
 }
-const ovHeard = (n,total) => `<span class="ov-heard"><i style="--w:${Math.round(100*n/Math.max(1,total))}%"></i>${n} of ${total}</span>`;
-const ovQuote = q => { if(!q || !q.quote) return ""; const iv=M.ivById[String(q.interview)], src=SRC[q.source];
-  return `<blockquote class="${q.source==="interviewer_notes"?"para":""}">“${esc(q.quote)}”<span class="src"><button type="button" class="linkbtn" data-person="${esc(String(q.interview))}">${esc(iv?.name||q.name||("Interview "+q.interview))}</button>${src?` · ${esc(src[0])}`:""}</span></blockquote>`; };
+const ovHeard = (n,total) => `<span class="ov-heard"><i style="--w:${Math.round(100*n/Math.max(1,total))}%"></i>${th("map.ov.heard",{count:n, total})}</span>`;
+const ovQuote = q => !q || !q.quote ? "" : quoteHTML(q);
 const ovStep = (n,ask,answer,body) => `<section class="ov-blk ov-step" id="ov-s${n}"><p class="ov-ask"><b>${n}</b>${ask}</p><h2 class="ov-ans">${esc(fullStop(answer))}</h2>${body}</section>`;
-const ovText = t => t ? `<p class="ov-body">${esc(t)}</p>` : "";
-const OV_ASK = `Ask your assistant to "write the overview".`;
+const ovText = text => text ? `<p class="ov-body">${esc(text)}</p>` : "";
+const ovAsk = () => th("map.ov.ask");
 
 /* Who the study is about, the subject of every sentence below. The assistant writes it in the overview; an older
    overview, or none, falls back to the core job's executor with the plain person icon. */
@@ -1426,113 +1530,115 @@ function ovWho(ov, scope){
   const w=ovWhoOf(ov); if(!w) return "";
   const faces=scope.slice(0,8), more=scope.length-faces.length;
   return `<section class="ov-blk ov-who" id="ov-who">
-    <p class="ov-note">Who this study is about</p>
+    <p class="ov-note">${th("map.ov.who.title")}</p>
     <div class="ov-whohead">${ovRole(w.icon)}<div class="ov-whotext">
       <h2 class="ov-whoname">${esc(w.label || fullStop(w.text))}</h2>
-      <p class="ov-body">${w.label && w.text ? esc(fullStop(w.text))+" " : ""}<span>Everything below is seen from their side.</span></p></div></div>
-    ${scope.length?`<div class="ov-whofoot"><span class="ov-faces">${faces.map(i=>`<button type="button" data-person="${esc(i.id)}" title="${esc(i.name)}" aria-label="What ${esc(i.name)} said">${esc((i.name||"?").trim()[0]||"?")}</button>`).join("")}${more>0?`<span>+${more}</span>`:""}</span>
-      <span>You talked to ${plural(scope.length,"person","people")} like this.</span></div>`:""}
-    ${w.others.length?`<p class="ov-note">Also in the story, but not the focus: ${w.others.map(esc).join(" · ")}.</p>`:""}
+      <p class="ov-body">${w.label && w.text ? esc(fullStop(w.text))+" " : ""}<span>${th("map.ov.who.side")}</span></p></div></div>
+    ${scope.length?`<div class="ov-whofoot"><span class="ov-faces">${faces.map(i=>`<button type="button" data-person="${esc(i.id)}" title="${esc(i.name)}" aria-label="${esc(t("map.ov.who.said",{name:i.name}))}">${esc((i.name||"?").trim()[0]||"?")}</button>`).join("")}${more>0?`<span>+${more}</span>`:""}</span>
+      <span>${th("map.ov.who.talked",{n:scope.length})}</span></div>`:""}
+    ${w.others.length?`<p class="ov-note">${esc(t("map.ov.who.others",{names:w.others.join(" · ")}))}</p>`:""}
   </section>`;
 }
 function ovLead(ov, scope){
   const sure=overSure(scope);
   return `<section class="ov-blk ov-lead">
-    <p class="ov-note">The main finding so far${many()?` for ${esc(jobName(M.job))}`:""}</p>
+    <p class="ov-note">${many()?th("map.ov.lead.title_job",{job:esc(jobName(M.job))}):th("map.ov.lead.title")}</p>
     ${ov ? `<h2 class="ov-bl">${esc(fullStop(ov.bottom_line))}</h2>
-      ${ov.why||ov.opening?`<p class="ov-body">${esc(fullStop(ov.why))} ${ov.opening?`<b>Where a new product could help:</b> ${esc(lowerFirst(fullStop(ov.opening)))}`:""}</p>`:""}
-      ${M.overStale?`<div class="flag">These findings were written before the latest conversations. Ask your assistant to update the overview.</div>`:""}`
-      : `<div class="ov-todo"><b>No written findings yet.</b> ${OV_ASK} The counts on this page come straight from the conversations.</div>`}
-    <div class="ov-sure"><p class="ov-note">How sure is this?</p>
-      <ol class="ov-gauge" aria-label="${esc(OV_SURE[sure.level-1])}, level ${sure.level} of 4">${OV_SURE.map((l,i)=>`<li class="${i+1<sure.level?"done":i+1===sure.level?"now":""}">${l}</li>`).join("")}</ol>
+      ${ov.why||ov.opening?`<p class="ov-body">${esc(fullStop(ov.why))} ${ov.opening?`<b>${th("map.ov.lead.opening")}</b> ${esc(lowerFirst(fullStop(ov.opening)))}`:""}</p>`:""}
+      ${M.overStale?`<div class="flag">${th("map.ov.lead.stale")}</div>`:""}`
+      : `<div class="ov-todo"><b>${th("map.ov.lead.none")}</b> ${ovAsk()} ${th("map.ov.lead.counts")}</div>`}
+    <div class="ov-sure"><p class="ov-note">${th("map.ov.sure.title")}</p>
+      <ol class="ov-gauge" aria-label="${esc(t("map.ov.sure.aria",{name:t(OV_SURE[sure.level-1]), level:sure.level}))}">${OV_SURE.map((l,i)=>`<li class="${i+1<sure.level?"done":i+1===sure.level?"now":""}">${th(l)}</li>`).join("")}</ol>
       <p class="ov-note">${esc(sure.text)}</p></div>
   </section>`;
 }
 function ovNext(ov){
   const nx=ov && ov.next && typeof ov.next==="object" ? ov.next : null;
-  const tracks=nx ? Object.keys(OV_NEXT).filter(k=>nx[k] && nx[k].action).map(k=>{ const [name,st,fields]=OV_NEXT[k], t=nx[k], [lbl,cls]=st[t.status]||["",""];
-    return {k, name, t, fields, pill:lbl?`<b class="ov-pill ${cls}">${lbl}</b>`:""}; }) : [];
-  if(!tracks.length) return `<section class="ov-blk ov-next" id="ov-next"><div class="ov-nexttog"><span class="ov-ntitle"><b>What to do next</b></span></div><div class="ov-todo"><b>No suggestions yet.</b> ${OV_ASK}</div></section>`;
+  const tracks=nx ? Object.keys(OV_NEXT).filter(k=>nx[k] && nx[k].action).map(k=>{ const [name,st,fields]=OV_NEXT[k], tr=nx[k], [lbl,cls]=st[tr.status]||["",""];
+    return {k, name:th(name), t:tr, fields, pill:lbl?`<b class="ov-pill ${cls}">${th(lbl)}</b>`:""}; }) : [];
+  if(!tracks.length) return `<section class="ov-blk ov-next" id="ov-next"><div class="ov-nexttog"><span class="ov-ntitle"><b>${th("map.ov.next.title")}</b></span></div><div class="ov-todo"><b>${th("map.ov.next.none")}</b> ${ovAsk()}</div></section>`;
   const val = (f,v) => Array.isArray(v) ? v.map(x=>f==="ask"||f==="words"?`<q>${esc(x)}</q>`:esc(x)).join(" ") : esc(v);
-  const link = {learn:`<button type="button" class="ov-lk" data-ov-view="next">See what to ask next</button>`,
-    prototype:M.hasThemes?`<button type="button" class="ov-lk" data-ov-view="themes">See the value themes</button>`:""};
+  const link = {learn:`<button type="button" class="ov-lk" data-ov-view="next">${th("map.ov.next.see_ask")}</button>`,
+    prototype:M.hasThemes?`<button type="button" class="ov-lk" data-ov-view="themes">${th("map.ov.next.see_themes")}</button>`:""};
   const card = x => `<div class="ov-track"><p class="ov-tname">${x.name} ${x.pill}</p><h3>${esc(fullStop(x.t.action))}</h3>
-    <dl>${x.fields.filter(([f])=>x.t[f] && x.t[f].length).map(([f,l])=>`<div><dt>${l}</dt><dd>${val(f,x.t[f])}</dd></div>`).join("")}</dl>${link[x.k]||""}</div>`;
+    <dl>${x.fields.filter(([f])=>x.t[f] && x.t[f].length).map(([f,l])=>`<div><dt>${th(l)}</dt><dd>${val(f,x.t[f])}</dd></div>`).join("")}</dl>${link[x.k]||""}</div>`;
   return `<section class="ov-blk ov-next" id="ov-next">
     <button type="button" class="ov-nexttog" id="ovNextTog" aria-expanded="${nextOpen}" aria-controls="ovNextBody">
-      <span class="ov-ntitle"><b>What to do next</b><span class="ov-nsum">${tracks.map(x=>`<span>${x.name} ${x.pill}</span>`).join("")}</span></span>
-      <span class="ov-ncta"><span id="ovNextLbl">${nextOpen?"Hide the next steps":`Show your ${tracks.length} next ${tracks.length===1?"step":"steps"}`}</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 6l5 5 5-5"/></svg></span>
+      <span class="ov-ntitle"><b>${th("map.ov.next.title")}</b><span class="ov-nsum">${tracks.map(x=>`<span>${x.name} ${x.pill}</span>`).join("")}</span></span>
+      <span class="ov-ncta"><span id="ovNextLbl">${nextOpen?th("map.ov.next.hide"):th("map.ov.next.show",{n:tracks.length})}</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 6l5 5 5-5"/></svg></span>
     </button>
     <div class="ov-nextbody" id="ovNextBody"${nextOpen?"":" hidden"}><div class="ov-tracks">${tracks.map(card).join("")}</div>
-      <p class="ov-note">Suggestions from your assistant, based on the findings below. They are advice, not findings.</p></div>
+      <p class="ov-note">${th("map.ov.next.advice")}</p></div>
   </section>`;
 }
 function ovPeople(ov, scope){
   const sec=ov && ov.people || {}, first=scope.find(i=>i.whoEv.length);
   const quote=sec.quote || (first ? {...first.whoEv[0], interview:first.id} : null);
   const dates=scope.map(i=>i.date).filter(Boolean).sort();
-  const answer=sec.answer || `${plural(scope.length,"conversation")} with ${M.executor?lowerFirst(M.executor):"people who do this job"}`;
-  return ovStep(1,"Who did you listen to?",answer,`${ovText(sec.text)}
-    <div class="ov-people">${scope.map(i=>`<button type="button" class="ov-person" data-person="${esc(i.id)}"><i>${esc((i.name||"?").trim()[0]||"?")}</i>${esc(i.name)} <small>${plural(i.quoteCount,"quote")}</small></button>`).join("")}</div>
+  const answer=sec.answer || t("map.ov.people.answer",{n:scope.length, who:M.executor?lowerFirst(M.executor):t("map.ov.people.who_default")});
+  const foot = dates.length ? th("map.ov.people.foot_dates",{n:scope.length, from:esc(fmtDate(dates[0])), to:esc(fmtDate(dates[dates.length-1]))}) : th("map.ov.people.foot",{n:scope.length});
+  return ovStep(1,th("map.ov.people.ask"),answer,`${ovText(sec.text)}
+    <div class="ov-people">${scope.map(i=>`<button type="button" class="ov-person" data-person="${esc(i.id)}"><i>${esc((i.name||"?").trim()[0]||"?")}</i>${esc(i.name)} <small>${th("map.count.quotes",{n:i.quoteCount})}</small></button>`).join("")}</div>
     ${ovQuote(quote)}
-    <div class="ov-foot"><p class="ov-note">${plural(scope.length,"conversation")}${dates.length?` between ${fmtDate(dates[0])} and ${fmtDate(dates[dates.length-1])}`:""}. Every finding on this page rests on their exact words.</p><button type="button" class="ov-lk" data-ov-view="people">See what each person said</button></div>`);
+    <div class="ov-foot"><p class="ov-note">${foot}</p><button type="button" class="ov-lk" data-ov-view="people">${th("map.ov.people.see")}</button></div>`);
 }
 function ovGoal(){
   const part = ([key,label,tip]) => { const steps=M.steps.filter(s=>s.stage===key), n=new Set(steps.flatMap(s=>s.allPeople)).size;
-    return `<div class="ov-part ${n<3?"c0":n<4?"c1":n<6?"c2":"c3"}" title="${esc(tip)}"><i></i><b>${label}</b><span>${!steps.length?"nothing heard yet":n<3?"ask more people":plural(n,"person","people")}</span></div>`; };
-  return ovStep(2,"What are they trying to get done?",M.goal,`
-    <p class="ov-body">This is the task they want done, whatever tool they use. It is split into eight parts, from planning to wrapping up. Each bar shows how many people told you about that part.</p>
+    return `<div class="ov-part ${n<3?"c0":n<4?"c1":n<6?"c2":"c3"}" title="${esc(t(tip))}"><i></i><b>${th(label)}</b><span>${!steps.length?th("map.ov.goal.nothing"):n<3?th("map.ov.goal.ask_more"):th("map.count.people",{n})}</span></div>`; };
+  return ovStep(2,th("map.ov.goal.ask"),M.goal,`
+    <p class="ov-body">${th("map.ov.goal.intro")}</p>
     <div class="ov-parts">${STAGES.map(part).join("")}</div>
-    <div class="ov-foot"><p class="ov-note">A stronger green means more people talked about that part. "Ask more people" means fewer than 3 did.</p><button type="button" class="ov-lk" data-ov-view="map">Open the map of all ${plural(M.steps.length,"step")}</button></div>`);
+    <div class="ov-foot"><p class="ov-note">${th("map.ov.goal.legend")}</p><button type="button" class="ov-lk" data-ov-view="map">${th("map.ov.goal.open_map",{n:M.steps.length})}</button></div>`);
 }
 function ovToday(ov){
   const sec=ov && ov.today || {}, sc=M.sols, groups=sc?sc.groups.slice(0,4):[];
   const row = g => { const kinds={}; g.items.forEach(x=>{ kinds[x.sol.kind]=(kinds[x.sol.kind]||0)+1; });
     const kind=Object.keys(KINDS).filter(k=>kinds[k]).sort((a,b)=>kinds[b]-kinds[a])[0]||"", gone=new Set(sc.gone.filter(x=>x.sol.group===g.g.id).flatMap(x=>x.stop)).size;
-    return `<tr><th scope="row"><button type="button" class="ov-lk" data-group="${esc(g.g.id)}">${esc(g.g.name)}</button></th><td class="sm">${esc(g.items.slice(0,4).map(x=>x.sol.name).join(", "))}${g.items.length>4?` and ${g.items.length-4} more`:""}</td>
-      <td class="sm">${ktag(kind)}</td><td class="num">${plural(g.people.length,"person","people")}${gone?`<div class="sm">${gone} gave one up</div>`:""}</td></tr>`; };
-  const answer=sec.answer || (sc && sc.inUse ? `They named ${plural(sc.inUse,"thing")} they use today` : "Nobody named what they use today yet");
-  return ovStep(3,"How do they do it today?",answer,`${ovText(sec.text)}
-    ${groups.length?`<table class="ov-tbl"><thead><tr><th scope="col">What they need to do</th><th scope="col">What they use</th><th scope="col">Kind of tool</th><th scope="col">How many</th></tr></thead><tbody>${groups.map(row).join("")}</tbody></table>
-    <div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="sol">See all ${plural(sc.items.length,"solution")}</button></div>`
-    :`<p class="ov-note">Products, everyday tools, other people and own methods show up here once a conversation names them.</p>`}`);
+    const shown=joinList(g.items.slice(0,4).map(x=>x.sol.name));
+    return `<tr><th scope="row"><button type="button" class="ov-lk" data-group="${esc(g.g.id)}">${esc(g.g.name)}</button></th><td class="sm">${esc(g.items.length>4?t("map.ov.today.more",{names:shown, n:g.items.length-4}):shown)}</td>
+      <td class="sm">${ktag(kind)}</td><td class="num">${th("map.count.people",{n:g.people.length})}${gone?`<div class="sm">${th("map.ov.today.gave_up",{n:gone})}</div>`:""}</td></tr>`; };
+  const answer=sec.answer || (sc && sc.inUse ? t("map.ov.today.answer",{n:sc.inUse}) : t("map.ov.today.none"));
+  return ovStep(3,th("map.ov.today.ask"),answer,`${ovText(sec.text)}
+    ${groups.length?`<table class="ov-tbl"><thead><tr><th scope="col">${th("map.ov.today.col_need")}</th><th scope="col">${th("map.ov.today.col_use")}</th><th scope="col">${th("map.ov.today.col_kind")}</th><th scope="col">${th("map.ov.today.col_count")}</th></tr></thead><tbody>${groups.map(row).join("")}</tbody></table>
+    <div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="sol">${th("map.ov.today.see_all",{n:sc.items.length})}</button></div>`
+    :`<p class="ov-note">${th("map.ov.today.empty")}</p>`}`);
 }
 function ovGaps(ov){
   const sec=ov && ov.gaps || {}, items=Array.isArray(sec.items)?sec.items.filter(g=>g && g.label):[], sc=M.sols;
   const stopped=sc?new Set(sc.gone.flatMap(x=>x.stop)).size:0;
   const gap = g => { const sols=(Array.isArray(g.solutions)?g.solutions:[]).map(id=>M.solById[String(id)]).filter(Boolean).map(s=>s.name);
     return `<div class="ov-fall"><div><h3>${esc(g.label)}</h3><p>${esc(g.text||"")}</p><p class="ov-with">${esc(ovGapNote(g.kind, sols))}</p></div>${ovQuote(g.quote)}</div>`; };
-  const answer=sec.answer || (stopped ? `${plural(stopped,"person","people")} gave up something they used, and said why` : "Not written yet");
-  return ovStep(4,"What goes wrong for them today?",answer, items.length
-    ? `<div><div class="ov-cols"><span>What goes wrong</span><span>In their words</span></div>${items.map(gap).join("")}</div>`
-    : `<div class="ov-todo">What goes wrong is not written yet. ${OV_ASK}</div>${stopped?`<div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="sol">See what people stopped using</button></div>`:""}`);
+  const answer=sec.answer || (stopped ? t("map.ov.gaps.answer",{n:stopped}) : t("map.ov.gaps.not_written"));
+  return ovStep(4,th("map.ov.gaps.ask"),answer, items.length
+    ? `<div><div class="ov-cols"><span>${th("map.ov.gaps.col_wrong")}</span><span>${th("map.ov.gaps.col_words")}</span></div>${items.map(gap).join("")}</div>`
+    : `<div class="ov-todo">${th("map.ov.gaps.todo")} ${ovAsk()}</div>${stopped?`<div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="sol">${th("map.ov.gaps.see_stopped")}</button></div>`:""}`);
 }
 function ovNeeds(ov, total){
   const sec=ov && ov.needs || {}, rows=overNeeds();
-  const answer=sec.answer || (rows.length ? `Most of all: ${lowerFirst(rows[0].o.plain)}` : "No needs heard yet");
-  return ovStep(5,"What do they most want to get better?",answer,`${ovText(sec.text)}
-    <p class="ov-note">The needs most people talked about, and what they do about them today. The numbers count people in these conversations, not survey results. The map calls these needs "measures of success".</p>
-    ${rows.length?`<table class="ov-tbl"><thead><tr><th scope="col">What they want</th><th scope="col">What they do today</th><th scope="col">How many said it</th></tr></thead><tbody>${rows.map(r=>
+  const answer=sec.answer || (rows.length ? t("map.ov.needs.answer",{need:lowerFirst(rows[0].o.plain)}) : t("map.ov.needs.none"));
+  return ovStep(5,th("map.ov.needs.ask"),answer,`${ovText(sec.text)}
+    <p class="ov-note">${th("map.ov.needs.intro")}</p>
+    ${rows.length?`<table class="ov-tbl"><thead><tr><th scope="col">${th("map.ov.needs.col_want")}</th><th scope="col">${th("map.ov.needs.col_today")}</th><th scope="col">${th("map.ov.needs.col_count")}</th></tr></thead><tbody>${rows.map(r=>
       `<tr><th scope="row"><button type="button" class="ov-lk" data-go="${esc(r.o.id)}">${esc(r.o.plain)}</button></th><td class="sm">${esc(r.why)}</td><td>${ovHeard(r.o.people.length,total)}</td></tr>`).join("")}</tbody></table>
-    <div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="map">See all ${plural(M.outs.length,"need")} on the map</button></div>`:""}`);
+    <div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="map">${th("map.ov.needs.see_all",{n:M.outs.length})}</button></div>`:""}`);
 }
 function ovFocus(ov, total){
   const sec=ov && ov.focus || {}, themes=M.themes.slice(0,5);
-  const answer=sec.answer || (themes.length ? `Start where most people agree: ${lowerFirst(themes[0].label)}` : "The needs are not grouped yet");
-  return ovStep(6,"What should you build for first?",answer,`${ovText(sec.text)}
-    ${themes.length?`<p class="ov-note">The needs are grouped into ${plural(M.themes.length,"bigger need")}, written the way customers would say them. Pick one to build for first. Every idea should serve one of them.${M.themesStale?" These groups are out of date.":""}</p>
-    <div>${themes.map((t,i)=>`<button type="button" class="ov-theme${i?"":" first"}" data-theme="${esc(t.id)}"><span class="tl">${esc(t.label)}</span>${t.need?`<span class="tn">${esc(t.need)}</span>`:""}${ovHeard(t.people.length,total)}</button>`).join("")}</div>
-    <div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="themes">See the themes with their needs and quotes</button></div>`
-    :`<div class="ov-todo">Value themes group the needs into a few bigger needs to build for. Ask your assistant to "build the value themes".</div>`}`);
+  const answer=sec.answer || (themes.length ? t("map.ov.focus.answer",{theme:lowerFirst(themes[0].label)}) : t("map.ov.focus.none"));
+  return ovStep(6,th("map.ov.focus.ask"),answer,`${ovText(sec.text)}
+    ${themes.length?`<p class="ov-note">${esc(sentences(t("map.ov.focus.intro",{n:M.themes.length}), M.themesStale?t("map.ov.focus.stale"):""))}</p>
+    <div>${themes.map((tm,i)=>`<button type="button" class="ov-theme${i?"":" first"}" data-theme="${esc(tm.id)}"><span class="tl"${i?"":` data-first="${esc(t("map.ov.focus.first"))}"`}>${esc(tm.label)}</span>${tm.need?`<span class="tn">${esc(tm.need)}</span>`:""}${ovHeard(tm.people.length,total)}</button>`).join("")}</div>
+    <div class="ov-foot"><span></span><button type="button" class="ov-lk" data-ov-view="themes">${th("map.ov.focus.see")}</button></div>`
+    :`<div class="ov-todo">${th("map.ov.focus.todo")}</div>`}`);
 }
 function renderOverView(){
   const ov=M.over, scope=overScope(), total=Math.max(1,scope.length), who=ovWhoOf(ov);
   overview.innerHTML = `<div class="ov-page">
-    <nav class="ov-rail" aria-label="How the story builds">${who?`<button type="button" class="ov-railwho" data-ov-go="ov-who">${ovRole(who.icon)}<span><small>About</small><b>${esc(who.label||who.text)}</b></span></button>`:""}<p>The story, step by step</p>
-      <ol>${OV_STEPS.map(([a,b],i)=>`<li><button type="button" data-ov-go="ov-s${i+1}"><b>${i+1}</b><span>${a}<small>${b}</small></span></button></li>`).join("")}</ol>
-      ${ov && ov.next?`<button type="button" class="ov-railnext" data-ov-next>What to do next</button>`:""}</nav>
+    <nav class="ov-rail" aria-label="${esc(t("map.ov.rail.aria"))}">${who?`<button type="button" class="ov-railwho" data-ov-go="ov-who">${ovRole(who.icon)}<span><small>${th("map.ov.rail.about")}</small><b>${esc(who.label||who.text)}</b></span></button>`:""}<p>${th("map.ov.rail.title")}</p>
+      <ol>${OV_STEPS.map(([a,b],i)=>`<li><button type="button" data-ov-go="ov-s${i+1}"><b>${i+1}</b><span>${th(a)}<small>${th(b)}</small></span></button></li>`).join("")}</ol>
+      ${ov && ov.next?`<button type="button" class="ov-railnext" data-ov-next>${th("map.ov.next.title")}</button>`:""}</nav>
     <article class="ov-sheet">${ovWho(ov,scope)}${ovLead(ov,scope)}${ovNext(ov)}${ovPeople(ov,scope)}${ovGoal()}${ovToday(ov)}${ovGaps(ov)}${ovNeeds(ov,total)}${ovFocus(ov,total)}
-      ${ov && ov.next?`<button type="button" class="ov-end" data-ov-next><span>That is the story so far.</span><b>See what to do next</b></button>`:""}</article>${ovMade()}</div>`;
+      ${ov && ov.next?`<button type="button" class="ov-end" data-ov-next><span>${th("map.ov.end.text")}</span><b>${th("map.ov.end.see")}</b></button>`:""}</article>${ovMade()}</div>`;
   if(overSpy) overSpy.disconnect();
   if("IntersectionObserver" in window){
     overSpy=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting) overview.querySelectorAll("[data-ov-go]").forEach(b=>b.classList.toggle("on", b.dataset.ovGo===e.target.id)); }),{root:overview, rootMargin:"-25% 0px -65% 0px"});
@@ -1542,18 +1648,18 @@ function renderOverView(){
 /* When this file was made, and by which version: kb_tool map stamps it. A KB opened from a file has no stamp. */
 function ovMade(){
   const g=M.made; if(!g) return "";
-  const t=new Date(g.at), when=isNaN(t) ? String(g.at)
-    : t.toLocaleString(undefined,{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
-  const by=g.plugin ? `the <a href="${pwUrl("overview-footer")}" target="_blank" rel="noopener">Product Weaver</a> plugin ${esc(g.plugin)}` : `kb_tool ${esc(g.tool||"")}`;
-  return `<p class="ov-made"${g.plugin&&g.tool?` title="kb_tool ${esc(g.tool)}"`:""}>This file was made by ${by} on <time datetime="${esc(g.at)}">${esc(when)}</time>.</p>`;
+  const at=new Date(g.at), when=isNaN(at) ? String(g.at)
+    : at.toLocaleString(locale(),{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
+  const by=g.plugin ? th("map.made.plugin",{brand:`<a href="${pwUrl("overview-footer")}" target="_blank" rel="noopener">${BRAND}</a>`, version:esc(g.plugin)}) : `kb_tool ${esc(g.tool||"")}`;
+  return `<p class="ov-made"${g.plugin&&g.tool?` title="kb_tool ${esc(g.tool)}"`:""}>${th("map.made.by",{by, when:`<time datetime="${esc(g.at)}">${esc(when)}</time>`})}</p>`;
 }
 function setNextOpen(open){
   nextOpen=open; const tog=document.getElementById("ovNextTog"); if(!tog) return;
   tog.setAttribute("aria-expanded", String(open)); document.getElementById("ovNextBody").hidden=!open;
   const n=overview.querySelectorAll(".ov-track").length;
-  document.getElementById("ovNextLbl").textContent = open ? "Hide the next steps" : `Show your ${n} next ${n===1?"step":"steps"}`;
+  document.getElementById("ovNextLbl").textContent = open ? t("map.ov.next.hide") : t("map.ov.next.show",{n});
 }
-function showTab(name){ const t=document.querySelector(`.tab[data-tab="${name}"]`); if(t) t.click(); }
+function showTab(name){ const tab=document.querySelector(`.tab[data-tab="${name}"]`); if(tab) tab.click(); }
 overview.addEventListener("click",e=>{
   const at = sel => e.target.closest(sel);
   let b;
@@ -1580,100 +1686,103 @@ function setDrawer(kind,title,body,mark){ document.getElementById("dKind").inner
   document.getElementById("dBody").querySelectorAll("[data-sol]").forEach(b=>b.addEventListener("click",()=>pickSol(b.dataset.sol)));
   document.getElementById("dBody").querySelectorAll("[data-group]").forEach(b=>b.addEventListener("click",()=>pickGroup(b.dataset.group)));
 }
-function meter(n, total){ const t=Math.max(1,total||M.ivs.length); return `<div class="meter"><span><b>${plural(n,"person","people")}</b> of ${t}</span><span class="bar"><i style="width:${Math.round(100*n/t)}%"></i></span></div>`; }
+function meter(n, total){ const all=Math.max(1,total||M.ivs.length); return `<div class="meter"><span>${th("map.drawer.meter",{people:`<b>${th("map.count.people",{n})}</b>`, total:all})}</span><span class="bar"><i style="width:${Math.round(100*n/all)}%"></i></span></div>`; }
 function quotesHTML(ev){
-  if(!ev.length) return `<p class="hint">No quotes yet.</p>`;
+  if(!ev.length) return `<p class="hint">${th("map.drawer.no_quotes")}</p>`;
   const by={}; ev.forEach(e=>{ (by[e.interview]=by[e.interview]||[]).push(e); });
-  return Object.entries(by).map(([id,es])=>{ const iv=M.ivById[id]; return `<div class="qgroup"><div class="qwho"><button type="button" data-person="${esc(id)}">${esc(iv?.name||("Interview "+id))}</button><small>${esc(iv?.who||"")}</small></div>`+
-    es.map(e=>{ const s=SRC[e.source]||["Source not stated",""]; return `<blockquote class="${e.source==="interviewer_notes"?"para":""}">“${esc(e.quote)}”<span class="src">${esc(s[0])}</span></blockquote>`; }).join("")+`</div>`; }).join("");
+  return Object.entries(by).map(([id,es])=>{ const iv=M.ivById[id]; return `<div class="qgroup"><div class="qwho"><button type="button" data-person="${esc(id)}">${esc(iv?.name||t("map.common.person_fallback",{id}))}</button><small>${esc(iv?.who||"")}</small></div>`+
+    es.map(e=>`<blockquote class="${e.source==="interviewer_notes"?"para":""}">${esc(quoted(e.quote))}<span class="src">${esc(srcLabel(e.source)||t("map.src.unknown"))}</span></blockquote>`).join("")+`</div>`; }).join("");
 }
-function dots(n){ let h=""; for(let i=0;i<5;i++) h+=`<i class="${i<Math.min(5,n)?"on":""}"></i>`; return `<span class="dots" aria-label="${plural(n,"person","people")}">${h}</span>`; }
+function dots(n){ let h=""; for(let i=0;i<5;i++) h+=`<i class="${i<Math.min(5,n)?"on":""}"></i>`; return `<span class="dots" aria-label="${esc(t("map.count.people",{n}))}">${h}</span>`; }
 function openDetails(n){
   if(n.type==="root"){
     const job=M.jobById[M.job];
     const linked = job ? M.ivs.filter(i=>i.main===job.id || i.also.includes(job.id)) : M.ivs;
-    setDrawer(many()?`Core job ${M.job}`:"The main goal",M.goal||"Not set yet",`
-      <div class="explain">This is what the customers are trying to get done, written in plain words and without naming any product. Every step and measure on the map serves this goal.</div>
-      ${many()?`<div class="explain">These conversations revealed ${M.jobs.length} core jobs, each with its own steps and measures. Switch between them with the buttons under the title.</div>`:""}
-      ${M.executor?`<div><div class="sect">Who does it</div><p>${esc(M.executor)}</p></div>`:""}
-      ${M.goalStatus==="proposed"?`<div class="flag">This goal is still a proposal. The team should confirm it reads true for the people interviewed.</div>`:""}
-      <div><div class="sect">How each person describes their own goal</div><div class="feel">${linked.map(i=>`<div><b>${esc(i.name)}:</b> ${esc(i.goal)}${job&&i.main!==job.id?` <small>(also does this job)</small>`:""}</div>`).join("")||`<p class="hint">No one is linked to it yet.</p>`}</div></div>`);
+    setDrawer(many()?t("map.root.job",{id:M.job}):t("map.root.goal"),M.goal||t("map.root.not_set"),`
+      <div class="explain">${th("map.drawer.root.explain")}</div>
+      ${many()?`<div class="explain">${th("map.drawer.root.jobs",{n:M.jobs.length})}</div>`:""}
+      ${M.executor?`<div><div class="sect">${th("map.drawer.root.who")}</div><p>${esc(M.executor)}</p></div>`:""}
+      ${M.goalStatus==="proposed"?`<div class="flag">${th("map.drawer.root.proposed")}</div>`:""}
+      <div><div class="sect">${th("map.drawer.root.goals")}</div><div class="feel">${linked.map(i=>`<div><b>${esc(i.name)}:</b> ${esc(i.goal)}${job&&i.main!==job.id?` <small>${th("map.drawer.root.also")}</small>`:""}</div>`).join("")||`<p class="hint">${th("map.drawer.root.none")}</p>`}</div></div>`);
     return;
   }
   if(n.type==="stage"){
-    setDrawer("Stage",n.name,`<div class="explain">${esc(n.desc)} Method term: <b>${esc(n.key)}</b>.</div>
+    setDrawer(t("map.drawer.stage.kind"),n.name,`<div class="explain">${esc(n.desc)} ${th("map.drawer.stage.term",{term:`<b>${esc(n.key)}</b>`})}</div>
       <div class="olist">${n.kids.map(k=>`<button class="oitem" type="button" data-go="${k.id}"><span>${esc(k.ref.text)}</span>${dots(k.ref.allPeople.length)}</button>`).join("")}</div>`);
     return;
   }
   if(n.type==="step"){ const s=n.ref;
-    setDrawer("A step in their job",s.text,`
+    setDrawer(t("map.node.step_kind"),s.text,`
       ${meter(s.allPeople.length)}
-      ${s.allPeople.length<3?`<div class="flag">Only ${plural(s.allPeople.length,"person","people")} talked about this step so far. One or two more conversations would show if it holds up.</div>`:""}
+      ${s.allPeople.length<3?`<div class="flag">${th("map.drawer.step.thin",{n:s.allPeople.length})}</div>`:""}
       ${s.covers?`<div class="explain">${esc(s.covers)}</div>`:""}
-      <div><div class="sect">How they judge this step (${s.outs.length})</div><div class="olist">${s.outs.slice().sort((a,b)=>b.people.length-a.people.length).map(o=>`<button class="oitem" type="button" data-go="${o.id}"><span>${esc(o.plain)}</span>${dots(o.people.length)}</button>`).join("")||`<p class="hint">None yet.</p>`}</div></div>
+      <div><div class="sect">${th("map.drawer.step.outs",{count:s.outs.length})}</div><div class="olist">${s.outs.slice().sort((a,b)=>b.people.length-a.people.length).map(o=>`<button class="oitem" type="button" data-go="${o.id}"><span>${esc(o.plain)}</span>${dots(o.people.length)}</button>`).join("")||`<p class="hint">${th("map.common.none_yet")}</p>`}</div></div>
       ${M.hasSols?stepSolsHTML(s):""}
-      <div><div class="sect">What people said while describing it</div>${quotesHTML(s.ev)}</div>`, mkStep(s.key));
+      <div><div class="sect">${th("map.drawer.step.quotes")}</div>${quotesHTML(s.ev)}</div>`, mkStep(s.key));
     return;
   }
   if(n.type==="sol"){ openSolution(n.ref.sol.id); return; }
   const o=n.ref, step=M.allSteps.find(s=>s.key===o.step);
-  setDrawer("A measure of success",o.plain,`
+  setDrawer(t("map.node.out_kind"),o.plain,`
     ${meter(o.people.length)}
-    <div class="explain">Customers use this to judge whether <b>${esc(step?.text||"this step")}</b> went well. The fewer problems here, the better the step goes for them.</div>
-    <div class="formal"><b>Formal statement:</b> ${esc(o.text)} <span style="opacity:.7">(#${esc(o.oid)})</span></div>
-    ${o.people.length===1?`<div class="flag">Heard from one person so far. Worth testing in the next conversation.</div>`:""}
-    <div><div class="sect">In their own words (${plural(o.ev.length,"quote")})</div>${quotesHTML(o.ev)}</div>`, mkOut());
+    <div class="explain">${th("map.drawer.out.explain",{step:`<b>${esc(step?.text||t("map.drawer.out.this_step"))}</b>`})}</div>
+    <div class="formal"><b>${th("map.drawer.out.formal")}</b> ${esc(o.text)} <span style="opacity:.7">(#${esc(o.oid)})</span></div>
+    ${o.people.length===1?`<div class="flag">${th("map.drawer.out.one")}</div>`:""}
+    <div><div class="sect">${th("map.drawer.out.words",{quotes:th("map.count.quotes",{n:o.ev.length})})}</div>${quotesHTML(o.ev)}</div>`, mkOut());
 }
 function openPerson(id){
   const i=M.ivById[id]; if(!i) return;
   const solN=i.solsUsed.length+i.solsStopped.length;
-  const list=(arr,label)=>arr.length?`<div><div class="sect">${label}</div><div class="feel">${arr.map(j=>`<div>${esc(j.statement)}</div>`).join("")}</div></div>`:"";
-  setDrawer("A conversation",i.name,`
-    <div class="tags">${i.date?`<span class="tag">${esc(fmtDate(i.date))}</span>`:""}${i.format?`<span class="tag">${esc(i.format)}</span>`:""}${i.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>
-    <div><div class="sect">Who they are</div><p style="margin:0">${esc(i.who)}</p></div>
-    <div><div class="sect">What they are trying to get done</div><p style="margin:0"><b>${esc(i.goal)}</b></p>${i.goalEv[0]?`<blockquote style="margin-top:6px">“${esc(i.goalEv[0].quote)}”<span class="src">${esc((SRC[i.goalEv[0].source]||[""])[0])}</span></blockquote>`:""}</div>
-    ${M.jobs.length&&(many()||!i.main)?`<div><div class="sect">Core jobs</div><div class="olist">${i.main?`<button class="oitem" type="button" data-job="${esc(i.main)}"><span><b>Main:</b> ${esc(jobName(i.main))}</span></button>`:`<div class="flag">Their own job fits none of the core jobs in this study.${i.whyNone?" "+esc(i.whyNone):""}</div>`}${i.also.map(j=>`<button class="oitem" type="button" data-job="${esc(j)}"><span><b>Also:</b> ${esc(jobName(j))}</span></button>`).join("")}</div></div>`:""}
+  const jobList=(arr,label)=>arr.length?`<div><div class="sect">${label}</div><div class="feel">${arr.map(j=>`<div>${esc(j.statement)}</div>`).join("")}</div></div>`:"";
+  const bold = (key, n) => `<b>${th(key,{n})}</b>`;
+  const added = solN ? th("map.drawer.person.added_sols",{quotes:bold("map.count.quotes",i.quoteCount), steps:bold("map.count.steps",i.steps.length), measures:bold("map.count.measures",i.outs.length), solutions:bold("map.count.solutions",solN)})
+    : th("map.drawer.person.added",{quotes:bold("map.count.quotes",i.quoteCount), steps:bold("map.count.steps",i.steps.length), measures:bold("map.count.measures",i.outs.length)});
+  setDrawer(t("map.drawer.person.kind"),i.name,`
+    <div class="tags">${i.date?`<span class="tag">${esc(fmtDate(i.date))}</span>`:""}${i.format?`<span class="tag">${esc(i.format)}</span>`:""}${i.tags.map(tag=>`<span class="tag">${esc(tag)}</span>`).join("")}</div>
+    <div><div class="sect">${th("map.drawer.person.who")}</div><p style="margin:0">${esc(i.who)}</p></div>
+    <div><div class="sect">${th("map.drawer.person.goal")}</div><p style="margin:0"><b>${esc(i.goal)}</b></p>${i.goalEv[0]?`<blockquote style="margin-top:6px">${esc(quoted(i.goalEv[0].quote))}<span class="src">${esc(srcLabel(i.goalEv[0].source))}</span></blockquote>`:""}</div>
+    ${M.jobs.length&&(many()||!i.main)?`<div><div class="sect">${th("map.jobs.label")}</div><div class="olist">${i.main?`<button class="oitem" type="button" data-job="${esc(i.main)}"><span><b>${th("map.drawer.person.main")}</b> ${esc(jobName(i.main))}</span></button>`:`<div class="flag">${esc(sentences(t("map.drawer.person.no_job"), i.whyNone))}</div>`}${i.also.map(j=>`<button class="oitem" type="button" data-job="${esc(j)}"><span><b>${th("map.drawer.person.also")}</b> ${esc(jobName(j))}</span></button>`).join("")}</div></div>`:""}
     ${i.note?`<div class="flag">${esc(i.note)}</div>`:""}
-    ${list(i.emotional,"How they want to feel")}
-    ${list(i.social,"How they want to be seen")}
-    ${list(i.related,"Other jobs they juggle")}
-    ${i.solsUsed.length?`<div><div class="sect">What they use today</div><div class="olist">${i.solsUsed.map(solItem).join("")}</div></div>`:""}
-    ${i.solsStopped.length?`<div><div class="sect">What they stopped using</div><div class="olist">${i.solsStopped.map(solItem).join("")}</div></div>`:""}
-    <div class="callout">This conversation added <b>${plural(i.quoteCount,"quote")}</b> to <b>${plural(i.steps.length,"step")}</b>${solN?`, <b>${plural(i.outs.length,"measure")}</b> of success and <b>${plural(solN,"solution")}</b>`:` and <b>${plural(i.outs.length,"measure")}</b> of success`}. They are lit up on the map.</div>`);
+    ${jobList(i.emotional,th("map.drawer.person.feel"))}
+    ${jobList(i.social,th("map.drawer.person.seen"))}
+    ${jobList(i.related,th("map.drawer.person.other_jobs"))}
+    ${i.solsUsed.length?`<div><div class="sect">${th("map.drawer.person.uses")}</div><div class="olist">${i.solsUsed.map(solItem).join("")}</div></div>`:""}
+    ${i.solsStopped.length?`<div><div class="sect">${th("map.drawer.person.stopped")}</div><div class="olist">${i.solsStopped.map(solItem).join("")}</div></div>`:""}
+    <div class="callout">${added}</div>`);
 }
 const solItem = s => `<button class="oitem" type="button" data-sol="${esc(s.id)}"><span>${esc(s.name)}</span><span class="meta">${ktag(s.kind)}</span></button>`;
 const scopeTotal = () => many() && M.jobById[M.job] ? M.jobById[M.job].people.length : M.ivs.length;
 /* step drawer: what people use for this step today, and what they dropped */
 function stepSolsHTML(s){
   const now=s.sols.filter(x=>x.cur.length), gone=s.sols.filter(x=>x.stop.length);
-  return `<div><div class="sect">What they use today (${now.length})</div>
-    <div class="olist">${now.map(x=>`<button class="oitem" type="button" data-sol="${esc(x.sol.id)}"><span>${esc(x.sol.name)}</span><span class="meta">${ktag(x.sol.kind)}<span>${plural(x.cur.length,"person","people")}</span></span></button>`).join("")||`<p class="hint">No one named one for this step yet.</p>`}</div>
-    ${gone.length?`<p class="hint" style="margin:6px 0 0">Stopped using: ${gone.map(x=>`<button type="button" class="linkbtn" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button> (${esc(names(x.stop))})`).join(", ")}</p>`:""}</div>`;
+  return `<div><div class="sect">${th("map.drawer.step.uses",{count:now.length})}</div>
+    <div class="olist">${now.map(x=>`<button class="oitem" type="button" data-sol="${esc(x.sol.id)}"><span>${esc(x.sol.name)}</span><span class="meta">${ktag(x.sol.kind)}<span>${th("map.count.people",{n:x.cur.length})}</span></span></button>`).join("")||`<p class="hint">${th("map.drawer.step.uses_none")}</p>`}</div>
+    ${gone.length?`<p class="hint" style="margin:6px 0 0">${th("map.drawer.step.stopped",{items:gone.map(x=>`<button type="button" class="linkbtn" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button> (${esc(names(x.stop))})`).join(esc(t("map.text.list_sep")))})}</p>`:""}</div>`;
 }
 function openSolution(id){
   const s=M.solById[id]; if(!s) return;
   const inJob=M.sols.items.find(x=>x.sol===s), sc=inJob||M.solAll.items.find(x=>x.sol===s); if(!sc) return;
   const g=s.group?M.groupById[s.group]:null, other=many()?s.jobs.filter(j=>j!==M.job):[];
-  const where=a=>`${a.cur.length?plural(a.cur.length,"person","people"):"no one now"}${a.stop.length?`, ${a.stop.length} stopped`:""}`;
-  setDrawer(sc.cur.length?"A solution in use today":"A solution people stopped using", s.name, `
-    <div class="tags"><span class="tag">${ktag(s.kind)}</span>${g?`<button type="button" class="tag" data-group="${esc(g.id)}" title="Show the whole group">Group: ${esc(g.name)}</button>`:""}</div>
-    ${g&&g.why?`<div class="explain"><b>Why it is grouped with others:</b> ${esc(g.why)}</div>`:""}
-    ${sc.cur.length?meter(sc.cur.length, inJob?scopeTotal():M.ivs.length):`<div class="flag">No one in these conversations uses it now. ${plural(sc.stop.length,"person","people")} stopped using it.</div>`}
-    <div><div class="sect">Used for</div><div class="olist">${sc.at.map(a=>`<button class="oitem" type="button" data-go="${esc(a.step.id)}"><span>${esc(a.step.text)}</span><span class="meta">${where(a)}</span></button>`).join("")}</div></div>
-    ${sc.curEv.length?`<div><div class="sect">What they said (${plural(sc.curEv.length,"quote")})</div>${quotesHTML(sc.curEv)}</div>`:""}
-    ${sc.stopEv.length?`<div><div class="sect">Why they stopped</div>${quotesHTML(sc.stopEv)}</div>`:""}
-    ${other.length&&inJob?`<p class="hint" style="margin:0">Also used in ${other.map(j=>`<button type="button" class="linkbtn" data-job="${esc(j)}">${esc(jobName(j))}</button>`).join(", ")}. The numbers above count ${esc(jobName(M.job))} only.</p>`:""}`, mkSol(s.kind));
+  const where=a=>joinList([a.cur.length?t("map.count.people",{n:a.cur.length}):t("map.common.no_one_now"), a.stop.length?t("map.common.stopped",{n:a.stop.length}):""].filter(Boolean));
+  setDrawer(sc.cur.length?t("map.drawer.sol.kind_used"):t("map.drawer.sol.kind_gone"), s.name, `
+    <div class="tags"><span class="tag">${ktag(s.kind)}</span>${g?`<button type="button" class="tag" data-group="${esc(g.id)}" title="${esc(t("map.drawer.sol.group_tip"))}">${esc(t("map.drawer.sol.group",{name:g.name}))}</button>`:""}</div>
+    ${g&&g.why?`<div class="explain"><b>${th("map.drawer.sol.why")}</b> ${esc(g.why)}</div>`:""}
+    ${sc.cur.length?meter(sc.cur.length, inJob?scopeTotal():M.ivs.length):`<div class="flag">${th("map.drawer.sol.gone",{n:sc.stop.length})}</div>`}
+    <div><div class="sect">${th("map.drawer.sol.used_for")}</div><div class="olist">${sc.at.map(a=>`<button class="oitem" type="button" data-go="${esc(a.step.id)}"><span>${esc(a.step.text)}</span><span class="meta">${esc(where(a))}</span></button>`).join("")}</div></div>
+    ${sc.curEv.length?`<div><div class="sect">${th("map.drawer.sol.said",{quotes:th("map.count.quotes",{n:sc.curEv.length})})}</div>${quotesHTML(sc.curEv)}</div>`:""}
+    ${sc.stopEv.length?`<div><div class="sect">${th("map.sol.col.why_stopped")}</div>${quotesHTML(sc.stopEv)}</div>`:""}
+    ${other.length&&inJob?`<p class="hint" style="margin:0">${th("map.drawer.sol.also",{jobs:other.map(j=>`<button type="button" class="linkbtn" data-job="${esc(j)}">${esc(jobName(j))}</button>`).join(esc(t("map.text.list_sep"))), job:esc(jobName(M.job))})}</p>`:""}`, mkSol(s.kind));
 }
 function openGroup(id){
   const g=M.groupById[id]; if(!g) return;
   const its=M.sols.items.filter(x=>x.sol.group===id).sort((a,b)=>b.cur.length-a.cur.length||b.ment-a.ment);
   const ppl=[...new Set(its.flatMap(x=>x.cur))];
-  setDrawer("A group of solutions", g.name, `
-    ${g.why?`<div class="explain"><b>Why grouped:</b> ${esc(g.why)}</div>`:`<div class="explain">These solutions have not been sorted into a group yet.</div>`}
+  setDrawer(t("map.drawer.group.kind"), g.name, `
+    ${g.why?`<div class="explain"><b>${th("map.sol.why_grouped")}</b> ${esc(g.why)}</div>`:`<div class="explain">${th("map.drawer.group.unsorted")}</div>`}
     ${meter(ppl.length, scopeTotal())}
-    <div><div class="sect">Solutions in this group (${its.length})</div><div class="olist">${its.map(x=>`<button class="oitem" type="button" data-sol="${esc(x.sol.id)}"><span>${esc(x.sol.name)}</span><span class="meta">${ktag(x.sol.kind)}<span>${x.cur.length?plural(x.cur.length,"person","people"):"stopped"}</span></span></button>`).join("")}</div></div>
-    <div><div class="sect">Who uses one of them</div>${ppl.length?`<p style="margin:0">${ppl.map(p=>`<button type="button" class="linkbtn" data-person="${esc(p)}">${esc(M.ivById[p]?.name||p)}</button>`).join(", ")}</p>`:`<p class="hint">No one uses one now.</p>`}</div>
-    ${many()?`<p class="hint" style="margin:0">Counted for ${esc(jobName(M.job))}.</p>`:""}`);
+    <div><div class="sect">${th("map.drawer.group.list",{count:its.length})}</div><div class="olist">${its.map(x=>`<button class="oitem" type="button" data-sol="${esc(x.sol.id)}"><span>${esc(x.sol.name)}</span><span class="meta">${ktag(x.sol.kind)}<span>${x.cur.length?th("map.count.people",{n:x.cur.length}):th("map.drawer.group.stopped")}</span></span></button>`).join("")}</div></div>
+    <div><div class="sect">${th("map.drawer.group.who")}</div>${ppl.length?`<p style="margin:0">${ppl.map(p=>`<button type="button" class="linkbtn" data-person="${esc(p)}">${esc(M.ivById[p]?.name||p)}</button>`).join(esc(t("map.text.list_sep")))}</p>`:`<p class="hint">${th("map.drawer.group.none")}</p>`}</div>
+    ${many()?`<p class="hint" style="margin:0">${th("map.drawer.group.counted",{job:esc(jobName(M.job))})}</p>`:""}`);
 }
 
 /* ---------- tooltip ---------- */
@@ -1684,57 +1793,65 @@ function moveTip(e){ const pad=14; let x=(e.clientX??e.target.getBoundingClientR
 function hideTip(){ tip.hidden=true; }
 
 /* ---------- tabs, modals, loading ---------- */
-document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
-  document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected",String(x===t)));
-  ["people","progress","next"].forEach(k=>document.getElementById("pane-"+k).hidden=(k!==t.dataset.tab));
+document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected",String(x===tab)));
+  ["people","progress","next"].forEach(k=>document.getElementById("pane-"+k).hidden=(k!==tab.dataset.tab));
 }));
 const modal=document.getElementById("modal");
 function openModal(html){ document.getElementById("mBody").innerHTML=html; modal.hidden=false; document.getElementById("mClose").focus(); }
 document.getElementById("mClose").onclick=()=>modal.hidden=true;
 modal.addEventListener("click",e=>{ if(e.target===modal) modal.hidden=true; });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(!modal.hidden) modal.hidden=true; else closeDrawer(); } });
+const gloss = (term, text) => `<dt>${th(term)}</dt><dd>${text}</dd>`;
 document.getElementById("btnRead").onclick=()=>openModal(`
-  <h2 id="mTitle">How to read this map</h2>
-  <p>The map shows what customers are trying to get done and how they judge whether it went well. It reads left to right.</p>
+  <h2 id="mTitle">${th("map.help.title")}</h2>
+  <p>${th("map.help.intro")}</p>
   <dl class="gloss">
-    ${M.hasOver?`<dt>Overview</dt><dd>The study as a short story in six steps: the people, their goal, how they do it today, where that falls short, what they want to get better, and where a new solution should focus. Each step links to the view that holds the detail. Start there.</dd>`:""}
-    <dt>The main goal</dt><dd>The blue box. What these customers are trying to get done, with no product named.</dd>
-    ${many()?`<dt>Core jobs</dt><dd>These people do ${M.jobs.length} different jobs, so the study has ${M.jobs.length} main goals, A, B and so on. Each has its own map. Pick one with the buttons under the title.</dd>`:""}
-    <dt>Stages</dt><dd>The light blue labels: Plan, Gather, Set up, Check, Do it, Watch, Adjust, Wrap up. Almost any job moves through these.</dd>
-    <dt>Steps</dt><dd>White cards with a number, such as ${esc(M.steps[0]?.key||"A.1")}. What customers actually do inside each stage, in order.</dd>
-    <dt>Measures of success</dt><dd>Green boxes with a target. Open a step with + to see them, under "Measures of success". Each one is a way customers judge that step, such as "less time to find a load". They are written so a survey can later ask how much each one matters.</dd>
-    <dt>Green bar</dt><dd>On the left of steps and measures: how many people said it. Darker green means more people.</dd>
-    <dt>Amber dot</dt><dd>Fewer than 3 people talked about this step. It needs more conversations.</dd>
-    ${M.hasSols?`<dt>Solutions in use today</dt><dd>Rounded pills with a colored icon for the kind. The products, everyday tools, other people and own methods people rely on now to get a step done. They are grouped by the work they compete for, and each group says why. Turn on Show solutions to see them beside each step, under "What they use today", or open the Solutions view for the full list.</dd>
-    <dt>Stopped using</dt><dd>Something people used for a step and then dropped. On the map it has a dashed outline. Why they stopped is often a clue to what matters.</dd>`:""}
-    ${M.hasThemes?`<dt>Value themes</dt><dd>A few needs, each written as "Help me…", that gather the measures of success serving the same judgment, often across several steps. Open the Value themes view to see each theme with its measures, what people use today and what they said. Sort ideas into them.</dd>`:""}
-    <dt>Moving around</dt><dd>Drag or scroll to move. Pinch, or hold Ctrl or ⌘ and scroll, to zoom; the + and − buttons zoom too. Fit brings the whole map back.</dd>
+    ${M.hasOver?gloss("map.help.over.term",th("map.help.over.text")):""}
+    ${gloss("map.help.goal.term",th("map.help.goal.text"))}
+    ${many()?gloss("map.help.jobs.term",th("map.help.jobs.text",{n:M.jobs.length})):""}
+    ${gloss("map.help.stages.term",th("map.help.stages.text",{stages:esc(joinList(STAGES.map(st=>t(st[1]))))}))}
+    ${gloss("map.help.steps.term",th("map.help.steps.text",{key:esc(M.steps[0]?.key||"A.1")}))}
+    ${gloss("map.help.outs.term",th("map.help.outs.text"))}
+    ${gloss("map.help.green.term",th("map.help.green.text"))}
+    ${gloss("map.help.amber.term",th("map.help.amber.text"))}
+    ${M.hasSols?gloss("map.help.sols.term",th("map.help.sols.text"))+"\n    "+gloss("map.help.stopped.term",th("map.help.stopped.text")):""}
+    ${M.hasThemes?gloss("map.help.themes.term",th("map.help.themes.text")):""}
+    ${gloss("map.help.move.term",th("map.help.move.text"))}
   </dl>
-  <p>Click any box to read the exact quotes behind it. Pick a person on the left to see what their conversation added.</p>`);
+  <p>${th("map.help.outro")}</p>`);
 document.getElementById("btnBuilt").onclick=()=>openModal(`
-  <h2 id="mTitle">How this map was built</h2>
+  <h2 id="mTitle">${th("map.built.title")}</h2>
   <ol>
-    <li><b>Talk to customers.</b> ${plural(M.ivs.length,"conversation")}, each kept as a transcript or as notes.</li>
-    <li><b>Pull out exact quotes.</b> Every claim on the map rests on sentences copied word for word. A script checks each quote against its transcript and refuses anything that doesn't match.</li>
-    <li><b>Write each insight in a standard form.</b> Steps describe what people do. Measures of success describe how they judge it. Neither names a product, so the map stays true no matter what we build.</li>
-    <li><b>Count the voices.</b> The map shows how many people said each thing. That shows how well supported it is, not how much it matters. A survey of a larger group answers that next.</li>
-    <li><b>Keep it honest.</b> Summaries written by the interviewer are labeled as such and shown with an amber edge. Thin spots are flagged, not hidden.</li>
+    <li><b>${th("map.built.talk")}</b> ${th("map.built.talk_text",{n:M.ivs.length})}</li>
+    <li><b>${th("map.built.quotes")}</b> ${th("map.built.quotes_text")}</li>
+    <li><b>${th("map.built.form")}</b> ${th("map.built.form_text")}</li>
+    <li><b>${th("map.built.count")}</b> ${th("map.built.count_text")}</li>
+    <li><b>${th("map.built.honest")}</b> ${th("map.built.honest_text")}</li>
   </ol>
-  <p class="hint">Method: Outcome-Driven Innovation, a jobs-to-be-done approach. You don't need to know it to read the map.</p>
+  <p class="hint">${th("map.built.method")}</p>
   ${M.caveat?`<div class="err">${esc(M.caveat)}</div>`:""}
-  <div class="cta"><span>This map was made with the free Product Weaver skill for AI assistants. The full Product Weaver experience is at <a href="${pwUrl("built-panel")}" target="_blank" rel="noopener">productweaver.com</a>.</span></div>`);
+  <div class="cta"><span>${th("map.built.cta",{brand:BRAND, site:`<a href="${pwUrl("built-panel")}" target="_blank" rel="noopener">${SITE}</a>`})}</span></div>`);
 const fileIn=document.getElementById("file");
 document.getElementById("btnOpen").onclick=()=>fileIn.click();
 fileIn.onchange=()=>{ if(fileIn.files[0]) readFile(fileIn.files[0]); fileIn.value=""; };
-function readFile(f){ const r=new FileReader(); r.onload=()=>{ try{ const txt=String(r.result); const data=f.name.endsWith(".json")?JSON.parse(txt):jsyaml.load(txt); load(data); }catch(err){ openModal(`<h2 id="mTitle">That file didn't load</h2><div class="err">${esc(err.message)}</div><p>Open the knowledge base YAML file, <b>.pw-kb/pw-kb.yaml</b> in your workspace. The folder is hidden: on a Mac, press Cmd+Shift+. in the file dialog to show it.</p>`); } }; r.readAsText(f); }
+function readFile(f){ const r=new FileReader(); r.onload=()=>{ try{ const txt=String(r.result);
+    if(!f.name.endsWith(".json") && typeof jsyaml==="undefined") throw new Error(t("map.file.no_yaml"));
+    const data=f.name.endsWith(".json")?JSON.parse(txt):jsyaml.load(txt); load(data); }
+  catch(err){ openModal(`<h2 id="mTitle">${th("map.file.error_title")}</h2><div class="err">${esc(err.message)}</div><p>${th("map.file.error_help",{path:"<b>.pw-kb/pw-kb.yaml</b>"})}</p>`); } }; r.readAsText(f); }
 let dragDepth=0; const dropEl=document.getElementById("drop");
 addEventListener("dragenter",e=>{ e.preventDefault(); dragDepth++; dropEl.hidden=false; });
 addEventListener("dragleave",()=>{ dragDepth=Math.max(0,dragDepth-1); if(!dragDepth) dropEl.hidden=true; });
 addEventListener("dragover",e=>e.preventDefault());
 addEventListener("drop",e=>{ e.preventDefault(); dragDepth=0; dropEl.hidden=true; const f=e.dataTransfer.files[0]; if(f) readFile(f); });
 
+/* A KB dropped onto the map brings its own language; a file that does not load leaves the map as it was. */
 function load(raw){
-  M=build(raw); chooseJob(null); expanded=new Set(); selected=null; personHL=null; searchHL=null; solHL=null; showSols=false; closeDrawer();
+  if(!raw || typeof raw!=="object") throw new Error(t("map.file.empty"));
+  const was={...UI}, wasCache=labelCache;
+  setLanguage(raw);
+  try{ M=build(raw); }catch(err){ Object.assign(UI, was); labelCache=wasCache; applyLabels(); throw err; }
+  chooseJob(null); expanded=new Set(); selected=null; personHL=null; searchHL=null; solHL=null; showSols=false; closeDrawer();
   nextOpen=false; syncSolControls(); setView(M.hasOver?"over":"map", true); if(overMode) renderOverView();
   renderHeader(); renderJobs(); renderPeople(); renderProgress(); renderNext(); updatePill();
   render(); requestAnimationFrame(()=>fit(true));

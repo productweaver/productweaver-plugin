@@ -3,6 +3,33 @@
 Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning.
 
+## 0.7.0 — 2026-11-12
+
+- **A study can be in the interviews' language.** When a new study starts
+  and the interviews are not in English, the assistant asks once, with your
+  assistant's own question buttons, whether to write the study in the
+  interviews' language or in English. The choices are named in their own
+  language, for example "Italiano, come le interviste" and "English", and the
+  question comes together with the git question, so you are asked once. Your
+  answer is kept in the study (`meta.language`), and later batches follow it.
+- **Everything you read follows that language.** The statements, the
+  overview and the value themes are written in it, and so are the map's own
+  buttons, headings and help, and the review sheet. The assistant translates
+  the map's and the review sheet's text once, at the start of the study, and
+  keeps it in `.pw-kb/labels.yaml`. Quotes stay in the words people used.
+  Studies made before this version stay in English.
+- The writing checks follow the language too: about a fifth more words in
+  most languages, letters instead of words in Chinese, Japanese and Thai, and
+  the English openings "Minimize…" and "Help me…" are checked in English
+  studies only. A study can set its own openings in `meta.style`.
+- The review sheet now writes "1 core job" and "1 interview", not "1 core
+  jobs".
+- `kb_tool` 0.10.0: `init --language`, and a new `labels` command that sets a
+  new study's language, writes the text still to translate, and checks and
+  keeps the translation (`--add`). The map's and the review sheet's English
+  text ships as `assets/labels-en.js`; if you copied the tool into
+  `.pw-kb/tools/`, copy it with the template.
+
 ## 0.6.0 — 2026-11-12
 
 - **The Overview now starts with who the study is about.** A card at the top

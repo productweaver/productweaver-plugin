@@ -11,8 +11,11 @@ A study lives in one folder, .pw-kb/ at the root of the workspace: the KB .pw-kb
 patches/, backups/, logs/, transcripts/ (a copy of every transcript the KB cites), review.md and discovery-map.html.
 
 Commands
-  init      .pw-kb/pw-kb.yaml --project NAME [--interviewer NAME]
-                                                              start an empty KB
+  init      .pw-kb/pw-kb.yaml --project NAME [--interviewer NAME] [--language CODE]
+                                                              start an empty KB, in English unless --language says
+  labels    <kb.yaml> [--language CODE] [--add FILE] [--json] set the study's language (before the first interview);
+                                                              write the map's and review sheet's text still to write
+                                                              in it, or check and keep that text (--add)
   context   <kb.yaml> [--json]                                compact view of the KB to map new evidence against
   merge     <kb.yaml> <patch.yaml> [--transcripts DIR ...] [--dry-run] [--json]
                                                               check every quote and reference, fold the patch in and
@@ -73,7 +76,7 @@ try:
 except ImportError:  # pragma: no cover - depends on the machine
     _jsonschema = None
 
-__version__ = "0.9.0"
+__version__ = "0.10.0"
 SCHEMA_VERSION = 2
 
 BRAND = "Product Weaver"
@@ -95,16 +98,19 @@ PATCH_SECTIONS = ("interviews", "bootstrap", "step_evidence", "outcome_evidence"
                   "solution_groups", "new_solutions", "solution_evidence", "proposed_changes")
 SOLUTION_KINDS = ["product", "everyday_tool", "people", "own_method"]
 SOLUTION_STATUS = ["current", "stopped"]
-KIND_LABELS = {"product": "product or app", "everyday_tool": "everyday tool", "people": "other people",
-               "own_method": "own method"}
+KIND_LABELS = {"product": "review.kind.product", "everyday_tool": "review.kind.everyday_tool",
+               "people": "review.kind.people", "own_method": "review.kind.own_method"}  # the review sheet's names
 PATCH_KEYS = (*PATCH_SECTIONS, "provenance")  # every top-level key a patch may carry
 PROVENANCE_KEYS = ("assistant", "model", "started", "transcripts_read", "notes")
 LOG_FOLDER, LOG_FILE = "logs", "kb_tool.jsonl"
 KB_FOLDER, KB_FILE, COPIES = ".pw-kb", "pw-kb.yaml", "transcripts"  # <workspace root>/.pw-kb/pw-kb.yaml
 KB_HOME = f"{KB_FOLDER}/{KB_FILE}"
+# The study's language. The map's and the review sheet's own text comes from LABELS_FILE (English, in the skill's
+# assets/), and for a study in another language from STUDY_LABELS (in .pw-kb/), which `labels` writes.
+ENGLISH = "en"
+LABELS_FILE, STUDY_LABELS = "labels-en.js", "labels.yaml"
 OLD_TRANSCRIPTS = "Interviews"  # where earlier versions kept a study's transcripts: <study>/Interviews/
 MOVED_ON_MIGRATE = ("patches", "backups", LOG_FOLDER, "review.md", "discovery-map.html")
-DIRECTION = re.compile(r"^(Minimize|Maximize|Increase|Reduce) ")
 JOB_ID = re.compile(r"^[A-Z]{1,2}$")
 STEP_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+$")
 OUTCOME_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+\.[0-9]+$")
@@ -133,7 +139,7 @@ NEXT_TRACKS = {"learn": (("now", "enough"), ("why", "ask", "tip")),
                "prototype": (("ready", "early"), ("why", "test", "later")),
                "market": (("ready", "early"), ("who", "words", "unknown"))}
 NEXT_LISTS = {"ask": 2, "words": 3}  # fields that are lists, and how many items each may hold
-SCORE_WORDS = re.compile(r"\d\s?%|\bpercent\b|\b(opportunity|importance|satisfaction) (score|rating)s?\b",
+SCORE_WORDS = re.compile(r"\d\s?[%％٪]|\bpercent\b|\b(opportunity|importance|satisfaction) (score|rating)s?\b",
                          re.IGNORECASE)
 # The overview is read by people new to the method. Words of the method are refused, vague business words get a
 # warning; each comes with the plain words to use. A space in a pattern also matches a hyphen.
@@ -315,7 +321,7 @@ class Run:
         for key, value in sorted(vars(args).items()):
             if key in hidden or value in (None, False):
                 continue
-            paths = ("patch", "themes", "out", "template", "schema", "to")
+            paths = ("patch", "themes", "out", "template", "schema", "to", "add")
             public[key] = self.relative(value) if key in paths else value
         roots = getattr(args, "transcripts", None) or []
         if roots:  # a root that is a single file would name an interviewee; log folders only
@@ -374,10 +380,11 @@ class _Dumper(yaml.SafeDumper):
         return True
 
 
-def save_yaml(data: Json, path: str) -> None:
-    """Write atomically: dump to a temporary file, reload it, then replace the target."""
+def save_yaml(data: Json, path: str, header: str = "") -> None:
+    """Write atomically: dump to a temporary file, reload it, then replace the target. `header` is a comment on top."""
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as handle:
+        handle.write("".join(f"# {line}\n" for line in header.splitlines()))
         yaml.dump(data, handle, Dumper=_Dumper, sort_keys=False, allow_unicode=True, width=110)
     with open(tmp, encoding="utf-8") as handle:
         yaml.safe_load(handle)  # never leave a file in place that will not load
@@ -430,6 +437,201 @@ def skill_file(folder: str, name: str, given: str | None = None) -> str | None:
         if os.path.isfile(candidate):
             return candidate
     return None
+
+
+# ---------- language and labels ----------
+# A study is written in one language, chosen when it starts: meta.language, a BCP 47 code such as it, pt-BR or
+# zh-Hans. A KB without it is English. The statements are the assistant's; the map's and the review sheet's own text
+# comes from labels: English in the skill's LABELS_FILE, the study's own in .pw-kb/STUDY_LABELS. A label the study
+# lacks, or holds in a broken form, shows in English, so a translation can never break the map or the review sheet.
+LANGUAGE = re.compile(r"^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|\d{3}))?$")
+PLURAL_FORMS = ("zero", "one", "two", "few", "many", "other")
+PLACEHOLDER = re.compile(r"\{([a-z_]+)\}")
+LABELS_MARKER = re.compile(r"^var PW_LABELS_EN = ", re.M)  # the line that opens the table, never a comment
+NO_SPACES = {"zh": 2.0, "ja": 2.5, "th": 4.0, "lo": 4.0, "km": 4.0, "my": 4.0}  # letters per English word
+WORDIER = 1.2  # languages written with spaces use about a fifth more words than English for the same statement
+_english: dict[str, Json] = {}
+
+
+def normalize_language(code: str) -> str:
+    """it, pt-BR, zh-Hans: the case BCP 47 uses. Refuses anything that is not a language code."""
+    parts = str(code or "").strip().replace("_", "-").split("-")
+    fixed = [parts[0].lower()] + [p.title() if len(p) == 4 else p.upper() for p in parts[1:]]
+    language = "-".join(fixed)
+    if not LANGUAGE.match(language):
+        raise KbError(f"'{code}' is not a language code; use a BCP 47 code such as en, it, pt-BR or zh-Hans",
+                      code="language_invalid")
+    return language
+
+
+def study_language(kb: Json) -> str:
+    return str(kb["meta"].get("language") or ENGLISH)
+
+
+def base_language(language: str) -> str:
+    return language.split("-", maxsplit=1)[0].lower()
+
+
+def english_table() -> Json:
+    """{"labels": {key: text}, "notes": {key: note}} from the skill's labels-en.js, read once."""
+    path = skill_file("assets", LABELS_FILE)
+    if not path:
+        raise KbError(f"{LABELS_FILE} not found: keep it in the skill's assets/ folder, next to "
+                      "discovery-map-template.html", code="skill_file_missing")
+    if path not in _english:
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        found, end = LABELS_MARKER.search(text), text.rfind(";")
+        try:
+            table = json.loads(text[found.end():end]) if found and found.end() < end else None
+        except ValueError:
+            table = None
+        if not isinstance(table, dict) or not isinstance(table.get("labels"), dict):
+            raise KbError(f"{path} is not a label table: keep it as the skill ships it", code="skill_file_invalid")
+        table.setdefault("notes", {})
+        _english[path] = table
+    return _english[path]
+
+
+def _slavic(n: int, *, one_is_only_1: bool = False, rest: str = "many") -> str:
+    """Russian, Ukrainian, Belarusian (rest many), Polish (one only for 1), Croatian, Serbian, Bosnian (rest other)."""
+    if n % 10 == 1 and n % 100 != 11 and (n == 1 or not one_is_only_1):
+        return "one"
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return "few"
+    return rest
+
+
+def _arabic(n: int) -> str:
+    small = {0: "zero", 1: "one", 2: "two"}.get(n)
+    return small or ("few" if 3 <= n % 100 <= 10 else "many" if 11 <= n % 100 <= 99 else "other")
+
+
+PLURAL_RULES: dict[str, Callable[[int], str]] = {
+    **dict.fromkeys(("ja", "zh", "ko", "th", "vi", "id", "ms", "lo", "km", "my"), lambda n: "other"),
+    **dict.fromkeys(("fr", "hi", "fa", "bn"), lambda n: "one" if n in (0, 1) else "other"),
+    **dict.fromkeys(("ru", "uk", "be"), _slavic),
+    "pl": lambda n: _slavic(n, one_is_only_1=True),
+    **dict.fromkeys(("hr", "sr", "bs"), lambda n: _slavic(n, rest="other")),
+    **dict.fromkeys(("cs", "sk"), lambda n: "one" if n == 1 else "few" if 2 <= n <= 4 else "other"),
+    "ar": _arabic,
+    "he": lambda n: {1: "one", 2: "two"}.get(n, "other"),
+}
+
+
+def plural_category(language: str, n: int) -> str:
+    """The CLDR plural form of a whole number in a language: one, few, many and so on. Covers the common systems;
+    any other language counts one and other, and a form a label lacks falls back to other."""
+    base = "fr" if language in ("pt", "pt-BR") else base_language(language)  # Brazilian Portuguese counts 0 as one
+    rule = PLURAL_RULES.get(base)
+    return rule(abs(int(n))) if rule else ("one" if abs(int(n)) == 1 else "other")
+
+
+def needed_forms(language: str, english: Json) -> list[str]:
+    """The plural forms a language needs for a plural label: for every number from 0, or from 2 when the English
+    label has no `one` because the map never shows it with 1."""
+    found = {plural_category(language, n) for n in range(0 if "one" in english else 2, 200)} | {"other"}
+    return [form for form in PLURAL_FORMS if form in found]
+
+
+def fill(text: str, values: Json) -> str:
+    """Put the values into a label's {name} places. A name with no value stays as it is."""
+    return PLACEHOLDER.sub(lambda m: str(values[m.group(1)]) if m.group(1) in values else m.group(0), text)
+
+
+def _problem(why: str, *, code: str) -> tuple[str, str]:
+    return code, why
+
+
+def label_problem(value: Any, english: Any) -> tuple[str, str] | None:
+    """(code, why) when a study's text for a label cannot be used, else None. It must be text with the English
+    label's {name} places, no markup, and for a plural label one text per plural form, `other` among them."""
+    def one(text: Any, wanted: set[str]) -> tuple[str, str] | None:
+        if not isinstance(text, str):
+            return _problem("is not text: put it in quotes", code="labels_empty")
+        if not text.strip() and re.search(r"\w", wanted_text(english)):
+            return _problem("is empty", code="labels_empty")
+        if "<" in text or ">" in text:
+            return _problem("holds < or >; labels hold no markup", code="labels_markup")
+        if set(PLACEHOLDER.findall(text)) != wanted:
+            names = ", ".join("{" + p + "}" for p in sorted(wanted)) or "none"
+            return _problem(f"must keep exactly these places: {names}", code="labels_placeholder")
+        return None
+
+    if isinstance(english, dict):
+        if not isinstance(value, dict) or "other" not in value or set(value) - set(PLURAL_FORMS):
+            return _problem("needs one text per plural form (zero, one, two, few, many, other), with other",
+                            code="labels_plural")
+        problems = [one(form, set(PLACEHOLDER.findall(english["other"]))) for form in value.values()]
+        return next((p for p in problems if p), None)
+    return one(value, set(PLACEHOLDER.findall(english)))
+
+
+def wanted_text(english: Any) -> str:
+    return english["other"] if isinstance(english, dict) else str(english)
+
+
+def labels_path(kb_path: str) -> str:
+    return os.path.join(os.path.dirname(os.path.abspath(kb_path)), STUDY_LABELS)
+
+
+def stored_labels(kb: Json, kb_path: str) -> Json:
+    """The study's own labels as labels.yaml holds them, for the study's language; {} when there are none."""
+    path = labels_path(kb_path)
+    if base_language(study_language(kb)) == ENGLISH or not os.path.isfile(path):
+        return {}
+    try:
+        data = load_yaml(path)
+    except KbError:
+        return {}
+    if not isinstance(data, dict) or str(data.get("language")) != study_language(kb):
+        return {}
+    labels = data.get("labels")
+    return {str(k): v for k, v in labels.items()} if isinstance(labels, dict) else {}
+
+
+def study_labels(kb: Json, kb_path: str) -> tuple[Json, int]:
+    """(the study's usable labels, how many labels show in English for want of one). English studies need none."""
+    if base_language(study_language(kb)) == ENGLISH:
+        return {}, 0
+    english = english_table()["labels"]
+    own = {k: v for k, v in stored_labels(kb, kb_path).items() if k in english and not label_problem(v, english[k])}
+    return own, len(english) - len(own)
+
+
+class Text:
+    """The words of the review sheet in the study's language: `text(key, name=value)`. English where the study has
+    no label, and the key itself if even English lacks it, so a test catches it."""
+
+    def __init__(self, language: str = ENGLISH, own: Json | None = None) -> None:
+        self.language = language
+        self.english = english_table()["labels"]
+        self.own = own or {}
+
+    def __call__(self, key: str, **values: Any) -> str:
+        label, language = self.own.get(key), self.language
+        if label is None:
+            label, language = self.english.get(key, key), ENGLISH
+        if isinstance(label, dict):
+            label = label.get(plural_category(language, int(values.get("n", 0)))) or label["other"]
+        return fill(str(label), values)
+
+
+def study_text(kb: Json, kb_path: str) -> tuple[Text, int]:
+    own, missing = study_labels(kb, kb_path)
+    return Text(study_language(kb), own), missing
+
+
+def count_words(text: str, language: str = ENGLISH) -> int:
+    """Words, the way the length limits count them. In a language written without spaces (Chinese, Japanese, Thai
+    and its neighbours) the letters count instead, a few to a word, plus any word in Latin letters."""
+    per_word = NO_SPACES.get(base_language(language))
+    if not per_word:
+        return len(text.split())
+    latin = re.findall(r"[A-Za-z0-9][\w.'’-]*", text, flags=re.ASCII)
+    rest = re.sub(r"[A-Za-z0-9][\w.'’-]*", " ", text, flags=re.ASCII)
+    letters = sum(1 for ch in rest if ch.isalnum())
+    return len(latin) + int(-(-letters // per_word))  # letters ÷ per word, rounded up
 
 
 # ---------- where a study lives ----------
@@ -1267,7 +1469,10 @@ def structure_problems(kb: Json, schema_path: str | None = None) -> list[str]:
 
 # ---------- clarity ----------
 BANNED_NAMES = {"(": "brackets", ";": "a semicolon", "e.g.": "an example", "i.e.": "an aside",
-                " and/or ": "and/or", "/": "a slash"}
+                " and/or ": "and/or", "/": "a slash", "（": "brackets", "；": "a semicolon", "／": "a slash",
+                "؛": "a semicolon"}  # the last four: the full-width and Arabic forms
+DIRECTIONS = ["Minimize ", "Maximize ", "Increase ", "Reduce "]  # how an outcome starts, in an English study
+NEED_START = "Help me "  # how a value theme's need starts, in an English study
 
 
 @dataclass
@@ -1281,30 +1486,47 @@ class Style:
     banned: list[str] = field(default_factory=lambda: list(BANNED_NAMES))
     idioms: list[str] = field(default_factory=lambda: ["bread and butter", "in and out"])
     acronyms: list[str] = field(default_factory=lambda: ["OTR", "US", "UK", "EU"])
+    language: str = ENGLISH
+    # The fixed openings of an outcome and of a theme's need. An English study has them; a study in another language
+    # has none to check unless meta.style sets its own (directions: [...], need_start: ...).
+    directions: list[str] = field(default_factory=lambda: list(DIRECTIONS))
+    need_start: str = NEED_START
+
+    @property
+    def english(self) -> bool:
+        return base_language(self.language) == ENGLISH
 
 
 def style_of(kb: Json) -> Style:
-    style = Style()
+    style = Style(language=study_language(kb))
     given = kb["meta"].get("style") or {}
     if not isinstance(given, dict):
-        raise KbError("meta.style must be a mapping with any of: limits, banned, idioms, acronyms",
-                      code="style_invalid")
+        raise KbError("meta.style must be a mapping with any of: limits, banned, idioms, acronyms, directions, "
+                      "need_start", code="style_invalid")
+    if not style.english:
+        style.directions, style.need_start = [], ""
+        if base_language(style.language) not in NO_SPACES:  # the same statement takes more words than in English
+            style.limits = {k: int(-(-v * WORDIER // 1)) for k, v in style.limits.items()}
+        if base_language(style.language) == "el":  # in Greek, ; is the question mark
+            style.banned = [token for token in style.banned if token != ";"]
     limits = given.get("limits") or {}
     if not isinstance(limits, dict):
         raise KbError("meta.style.limits must be a mapping such as {outcome: 16}", code="style_invalid")
     style.limits.update({str(k): int(v) for k, v in limits.items()})
-    for name in ("banned", "idioms", "acronyms"):
+    for name in ("banned", "idioms", "acronyms", "directions"):
         if name in given:
             if not isinstance(given[name], list):
                 raise KbError(f"meta.style.{name} must be a list", code="style_invalid")
             setattr(style, name, [str(x) for x in given[name]])
+    if "need_start" in given:
+        style.need_start = str(given["need_start"] or "")
     return style
 
 
 def clarity(text: str, kind: str, label: str, style: Style, report: Report) -> None:
     """Reviewers read these statements cold. Keep each one short, single-idea and free of asides."""
     statement = (text or "").strip()
-    words = len(statement.split())
+    words = count_words(statement, style.language)
     limit = style.limits.get(kind)
     if limit and words > limit:
         report.error(f"clarity: {label} has {words} words (max {limit} for this kind of statement): '{statement}'",
@@ -1317,7 +1539,7 @@ def clarity(text: str, kind: str, label: str, style: Style, report: Report) -> N
     if re.search(r"\betc\b", statement):
         report.error(f"clarity: {label} ends a list with etc.; name the items or drop the list: '{statement}'",
                      code="clarity_etc")
-    if kind in ("job", "step") and re.search(r"\b(and|or)\b", statement) \
+    if kind in ("job", "step") and style.english and re.search(r"\b(and|or)\b", statement) \
             and not any(idiom in statement for idiom in style.idioms):
         report.warn(f"clarity: {label} may hold two jobs ('and'/'or'): '{statement}'", code="clarity_two_jobs")
     found = re.findall(r"\b[A-Z]{2,}\b", statement) if kind != "solution" else []  # product names keep their letters
@@ -1841,9 +2063,10 @@ def check_new_outcomes(patch: Json, ctx: Checks) -> None:
         if step not in ctx.steps:
             ctx.report.error(f"{label}: step {step} does not exist", code="step_missing")
         clarity(statement, "outcome", f"new outcome (step {step})", ctx.style, ctx.report)
-        if not DIRECTION.match(statement):
-            ctx.report.error(f"{label}: an outcome must start with Minimize, Maximize, Increase or Reduce",
-                             code="outcome_direction")
+        if ctx.style.directions and not statement.startswith(tuple(ctx.style.directions)):
+            names = [d.strip() for d in ctx.style.directions]
+            starts = " or ".join([", ".join(names[:-1]), names[-1]] if len(names) > 1 else names)
+            ctx.report.error(f"{label}: an outcome must start with {starts}", code="outcome_direction")
         key = (job_of(step), norm(statement).lower())
         if key in seen:
             ctx.report.error(f"{label}: duplicates {seen[key]}; send it as outcome_evidence",
@@ -2141,7 +2364,7 @@ def check_proposals(patch: Json, ctx: Checks) -> None:
             clarity(proposal["proposal"], kind, label, ctx.style, ctx.report)
         if proposal.get("why"):
             clarity(str(proposal["why"]), "rationale", f"{label} why", ctx.style, ctx.report)
-        if len(str(proposal.get("rationale", "")).split()) > limit:
+        if count_words(str(proposal.get("rationale", "")), ctx.style.language) > limit:
             ctx.report.error(f"clarity: {label} rationale is over {limit} words; say why in one plain sentence",
                              code="rationale_length")
         for problem in proposal_problems(refs, proposal):
@@ -2828,9 +3051,10 @@ def _check_theme_text(ctx: ThemeChecks, theme: Json, label: str) -> None:
     clarity(theme["label"], "theme", f"{label} label", ctx.style, ctx.report)
     clarity(theme["need"], "need", f"{label} need", ctx.style, ctx.report)
     clarity(theme["why"], "rationale", f"{label} why", ctx.style, ctx.report)
-    if theme["need"] and not theme["need"].startswith("Help me "):
-        ctx.report.error(f"{label}: the need must start with 'Help me', in the customer's voice: '{theme['need']}'",
-                         code="theme_need_form")
+    start = ctx.style.need_start
+    if start and theme["need"] and not theme["need"].startswith(start):
+        ctx.report.error(f"{label}: the need must start with '{start.strip()}', in the customer's voice: "
+                         f"'{theme['need']}'", code="theme_need_form")
     text = f"{theme['label']} {theme['need']}".lower()
     named = [name for name in ctx.solutions if name.lower() in text]
     if named:
@@ -3424,7 +3648,8 @@ def cmd_init(args: argparse.Namespace) -> int:
                       f"from there, not init {args.kb}", code="kb_location")
     if os.path.exists(args.kb):
         raise KbError(f"{args.kb} exists; refusing to overwrite", code="kb_exists")
-    kb = ensure({"meta": {"project": args.project, "method": "Outcome-Driven Innovation (Ulwick)",
+    language = normalize_language(args.language) if args.language else ENGLISH
+    kb = ensure({"meta": {"project": args.project, "language": language, "method": "Outcome-Driven Innovation (Ulwick)",
                           "interviewer": args.interviewer or "", "created": today(), "interview_count": 0}})
     kb["job_map"]["stages"] = [{"key": k, "name": k.capitalize()} for k in STAGES]
     kb["changelog"].append(changelog_entry(args.run, "init"))
@@ -3433,8 +3658,10 @@ def cmd_init(args: argparse.Namespace) -> int:
     save_kb(kb, args.kb)
     args.run.note(written=True)
     note = git_note(args.kb)
-    args.run.note(git=bool(note))
-    print(f"created {args.kb}" + (f"\n{note}" if note else ""))
+    args.run.note(git=bool(note), language=language)
+    print(f"created {args.kb} (language {language})" + (f"\n{note}" if note else ""))
+    if base_language(language) != ENGLISH:  # a scripted start: the labels to write come with it
+        labels_todo(kb, args, language)
     return 0
 
 
@@ -3468,7 +3695,8 @@ def context_data(kb: Json) -> Json:
              "related_interviews": job.get("related_interviews", []), "steps": _job_steps(kb, str(job["id"]))}
             for job in kb["core_jobs"]]
     people = people_data(kb)
-    return {"project": kb["meta"].get("project", ""), "interview_count": len(kb["interviews"]),
+    return {"project": kb["meta"].get("project", ""), "language": study_language(kb),
+            "interview_count": len(kb["interviews"]),
             "core_jobs": jobs, "people": people, "unlinked": [p["id"] for p in people if not p["job"]],
             "segments": {k: v.get("name", "") for k, v in (kb.get("clusters") or {}).items()},
             "processed_files": sorted(interviews_by_file(kb)),
@@ -3529,7 +3757,11 @@ def _person_line(person: Json) -> str:
 
 
 def _print_jobs(data: Json) -> None:
-    print(f"PROJECT {data['project']}  interviews={data['interview_count']}  core jobs={len(data['core_jobs'])}")
+    print(f"PROJECT {data['project']}  language={data['language']}  interviews={data['interview_count']}  "
+          f"core jobs={len(data['core_jobs'])}")
+    if data.get("labels_missing"):
+        print(f"LABELS: {data['labels_missing']} labels of the map and the review sheet have no {data['language']} "
+              "text yet; write them first: kb_tool labels .pw-kb/pw-kb.yaml")
     if not data["core_jobs"]:
         print("CORE JOB: (none yet: bootstrap)")
     for job in data["core_jobs"]:
@@ -3558,7 +3790,9 @@ def _print_solutions(data: Json) -> None:
 
 
 def cmd_context(args: argparse.Namespace) -> int:
-    data = context_data(load_kb(args.kb))
+    kb = load_kb(args.kb)
+    data = context_data(kb)
+    data["labels_missing"] = study_labels(kb, args.kb)[1]
     if args.json:
         print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
         return 0
@@ -3588,94 +3822,121 @@ def cmd_context(args: argparse.Namespace) -> int:
 
 
 # ---------- review ----------
-def describe_proposal(proposal: Json) -> str:
-    return {"new_step": f"Add a step to core job {proposal.get('job')}",
-            "reword_step": f"Reword step {proposal.get('target')}",
-            "reword_outcome": f"Reword outcome {proposal.get('target')}",
-            "reword_core_job": f"Reword core job {proposal.get('target')}",
-            "merge_outcomes": f"Merge outcome {proposal.get('merge')} into {proposal.get('target')}",
-            "move_outcome": f"Move outcome {proposal.get('target')} to step {proposal.get('to_step')}",
-            "new_segment": "Add a segment", "new_core_job": "Add a core job",
-            "confirm_core_job": f"Confirm core job {proposal.get('target')}",
-            "move_step": f"Move step {proposal.get('target')} to core job {proposal.get('to_job')}",
-            "relink_interview": f"Link interview {proposal.get('target')} to "
-                                + (f"core job {proposal['job']}" if proposal.get("job") else "no core job"),
-            "merge_solutions": f"Merge solution {proposal.get('merge')} into {proposal.get('target')}",
-            "move_solution": f"Move solution {proposal.get('target')} to group {proposal.get('to_group')}",
-            "reword_solution": f"Rename solution {proposal.get('target')}",
-            "reword_solution_group": f"Rename solution group {proposal.get('target')}",
-            }.get(str(proposal.get("type")), "Change")
+# The review sheet's words come from labels, so it reads in the study's language. Each table names its labels in
+# full, so a test can check that every label the code uses exists.
+PROPOSAL_LABELS = {"new_step": "review.proposal.new_step", "reword_step": "review.proposal.reword_step",
+                   "reword_outcome": "review.proposal.reword_outcome",
+                   "reword_core_job": "review.proposal.reword_core_job",
+                   "merge_outcomes": "review.proposal.merge_outcomes", "move_outcome": "review.proposal.move_outcome",
+                   "new_segment": "review.proposal.new_segment", "new_core_job": "review.proposal.new_core_job",
+                   "confirm_core_job": "review.proposal.confirm_core_job", "move_step": "review.proposal.move_step",
+                   "relink_interview": "review.proposal.relink_interview",
+                   "merge_solutions": "review.proposal.merge_solutions",
+                   "move_solution": "review.proposal.move_solution",
+                   "reword_solution": "review.proposal.reword_solution",
+                   "reword_solution_group": "review.proposal.reword_solution_group"}
+STAGE_LABELS = {"define": "review.stage.define", "locate": "review.stage.locate", "prepare": "review.stage.prepare",
+                "confirm": "review.stage.confirm", "execute": "review.stage.execute",
+                "monitor": "review.stage.monitor", "modify": "review.stage.modify",
+                "conclude": "review.stage.conclude"}
+LAYER_LABELS = {"survey": "review.layer.survey", "simulation": "review.layer.simulation",
+                "value_themes": "review.layer.value_themes", "overview": "review.layer.overview",
+                "use_cases": "review.layer.use_cases"}
 
 
-def _review_head(kb: Json, live_outcomes: list[Json]) -> list[str]:
+def describe_proposal(proposal: Json, text: Text | None = None) -> str:
+    text = text or Text()
+    kind = str(proposal.get("type"))
+    if kind == "relink_interview" and not proposal.get("job"):
+        return text("review.proposal.unlink_interview", target=proposal.get("target"))
+    values = {key: proposal.get(key) for key in ("job", "target", "merge", "to_step", "to_job", "to_group")}
+    return text(PROPOSAL_LABELS.get(kind, "review.proposal.other"), **values)
+
+
+def kind_text(text: Text, kind: Any) -> str:
+    return text(KIND_LABELS[str(kind)]) if str(kind) in KIND_LABELS else str(kind)
+
+
+def _review_head(kb: Json, live_outcomes: list[Json], text: Text) -> list[str]:
     in_use = [s for s in live_solutions(kb) if s.get("interviews")]
-    solutions = f" · {len(in_use)} solutions in use" if "current_solutions" in kb else ""
-    lines = [f"# {kb['meta'].get('project', 'ODI study')}: review sheet", "",
-             f"{len(kb['interviews'])} interviews · {len(kb['core_jobs'])} core jobs · "
-             f"{len(kb['job_map']['steps'])} job steps · {len(live_outcomes)} outcomes{solutions} · updated {today()}",
-             ""]
+    solutions = " · " + text("review.count.solutions_in_use", n=len(in_use)) if "current_solutions" in kb else ""
+    project = kb["meta"]["project"] if "project" in kb["meta"] else text("review.project_default")
+    counts = " · ".join([text("review.count.interviews", n=len(kb["interviews"])),
+                         text("review.count.core_jobs", n=len(kb["core_jobs"])),
+                         text("review.count.steps", n=len(kb["job_map"]["steps"])),
+                         text("review.count.outcomes", n=len(live_outcomes))])
+    updated = text("review.updated", date=today())
+    lines = ["# " + text("review.title", project=project), "", f"{counts}{solutions} · {updated}", ""]
     if not kb["core_jobs"]:
-        return lines + ["**Core job:** not set yet", ""]
+        return lines + [f"**{text('review.core_job')}:** {text('review.not_set')}", ""]
+    proposed = f" *({text('review.proposed')})*"
     for job in kb["core_jobs"]:
-        lines.append(f"- **Core job {job['id']}:** {job['statement']}"
-                     + (" *(proposed)*" if job.get("status") == "proposed" else ""))
+        name = text("review.core_job_id", id=job["id"])
+        lines.append(f"- **{name}:** {job['statement']}" + (proposed if job.get("status") == "proposed" else ""))
     return lines + [""]
 
 
-def _review_decisions(kb: Json) -> list[str]:
+def _review_decisions(kb: Json, text: Text) -> list[str]:
     pending = [p for p in kb["proposed_changes"] if p.get("status") == "pending"]
-    lines = ["## Decisions waiting for you", ""]
+    lines = ["## " + text("review.h.decisions"), ""]
     if not pending:
-        return lines + ["None.", ""]
+        return lines + [text("review.none"), ""]
+    why = text("review.why")
     for proposal in pending:
-        lines.append(f"- **{proposal['id']} · {describe_proposal(proposal)}:** {proposal['proposal']}. "
-                     f"*Why:* {proposal['rationale']}")
-    return lines + ["", "Reply approve or reject for each, by ID.", ""]
+        lines.append(f"- **{proposal['id']} · {describe_proposal(proposal, text)}:** {proposal['proposal']}. "
+                     f"*{why}:* {proposal['rationale']}")
+    return lines + ["", text("review.reply"), ""]
 
 
-def _new_solution_lines(kb: Json, since: str) -> list[str]:
+def _new_solution_lines(kb: Json, since: str, text: Text) -> list[str]:
     groups = groups_of(kb)
-    lines = [f"- New solution group **{group.get('name', '')}:** {group.get('why', '')}"
-             for group in groups.values() if since and str(group.get("added", "")) >= since]
+    lines = []
+    for group in groups.values():
+        if since and str(group.get("added", "")) >= since:
+            name = "**" + str(group.get("name", "")) + ":**"
+            lines.append(f"- {text('review.new_group', name=name)} {group.get('why', '')}")
     for solution in live_solutions(kb):
         if since and str(solution.get("added", "")) >= since:
             group = groups.get(str(solution.get("group")), {}).get("name", solution.get("group"))
-            lines.append(f"- New solution **{solution['id']} {solution.get('name', '')}** "
-                         f"({KIND_LABELS.get(str(solution.get('kind')), solution.get('kind'))}), in *{group}*")
+            named = "**" + f"{solution['id']} {solution.get('name', '')}" + "**"
+            lines.append("- " + text("review.new_solution", solution=named, kind=kind_text(text, solution.get("kind")),
+                                     group=f"*{group}*"))
     return lines
 
 
-def _review_new(kb: Json, since: str, new_outcomes: set[str]) -> list[str]:
+def _review_new(kb: Json, since: str, new_outcomes: set[str], text: Text) -> list[str]:
     new_interviews = [i for i in kb["interviews"] if since and str(i.get("added", "")) >= since]
-    solution_lines = _new_solution_lines(kb, since)
+    solution_lines = _new_solution_lines(kb, since, text)
     if not (new_interviews or new_outcomes or solution_lines):
         return []
-    lines = [f"## New since {since}", ""]
+    lines = ["## " + text("review.h.new", date=since), ""]
     for record in new_interviews:
-        link = f"core job {main_job(record)}" if main_job(record) else "no core job yet"
-        lines.append(f"- **{record['id']} {record.get('name', '')}:** {record['job_executor']['statement']} "
-                     f"Core job: *{record['core_functional_job']['statement']}* ({link})")
+        job = main_job(record)
+        link = text("review.core_job_ref", id=job) if job else text("review.no_core_job_yet")
+        own = text("review.new_interview_job", job=f"*{record['core_functional_job']['statement']}*", link=link)
+        lines.append(f"- **{record['id']} {record.get('name', '')}:** {record['job_executor']['statement']} {own}")
     for outcome in kb["desired_outcomes"]["outcomes"]:
         if outcome["id"] in new_outcomes:
-            lines.append(f"- New outcome **{outcome['id']}:** {outcome['statement']}")
+            label = text("review.new_outcome", id=f"**{outcome['id']}:**")
+            lines.append(f"- {label} {outcome['statement']}")
     return lines + solution_lines + [""]
 
 
-def _review_map(kb: Json, live_outcomes: list[Json], new_outcomes: set[str]) -> list[str]:
+def _review_map(kb: Json, live_outcomes: list[Json], new_outcomes: set[str], text: Text) -> list[str]:
     by_step: dict[str, list[Json]] = {}
     for outcome in live_outcomes:
         by_step.setdefault(str(outcome["step"]), []).append(outcome)
     lines: list[str] = []
     for index, job in enumerate(kb["core_jobs"]):
-        lines += [f"## Core job {job['id']}: {job['statement']}", ""]
+        lines += [f"## {text('review.core_job_id', id=job['id'])}: {job['statement']}", ""]
         if index == 0:
-            lines += ["Numbers in brackets show how many interviews support each line. ● marks what is new.", ""]
+            lines += [text("review.map_hint"), ""]
         ordered = sorted((s for s in kb["job_map"]["steps"] if s.get("job") == job["id"]), key=lambda s: int(s["n"]))
         for stage in STAGES:
             steps = [s for s in ordered if s.get("stage") == stage]
             if not steps:
                 continue
-            lines.append(f"### {stage.capitalize()}")
+            lines.append("### " + text(STAGE_LABELS[stage]))
             for step in steps:
                 lines.append(f"**{step_key(step)} {step['statement']}** [{step.get('coverage', 0)}]")
                 for outcome in by_step.get(step_key(step), []):
@@ -3686,41 +3947,43 @@ def _review_map(kb: Json, live_outcomes: list[Json], new_outcomes: set[str]) -> 
     return lines
 
 
-def _solution_line(solution: Json, steps: dict[str, Json], names: dict[str, str]) -> str:
-    used = ", ".join(f"{steps[s]['statement']} ({s})" if s in steps else s for s in solution_steps(solution))
-    people = ", ".join(names.get(i, i) for i in solution.get("interviews", []))
-    stopped = ", ".join(names.get(i, i) for i in solution.get("stopped_by", []))
-    kind = KIND_LABELS.get(str(solution.get("kind")), str(solution.get("kind")))
-    return (f"- **{solution['id']} {solution.get('name', '')}** ({kind}) [{len(solution.get('interviews', []))}] "
-            f"{people or 'nobody now'} · {plural(solution.get('quote_count', 0), 'mention')} · used for: {used}"
-            + (f" · stopped: {stopped}" if stopped else ""))
+def _solution_line(solution: Json, steps: dict[str, Json], names: dict[str, str], text: Text) -> str:
+    sep = text("review.list_sep")
+    used = sep.join(f"{steps[s]['statement']} ({s})" if s in steps else s for s in solution_steps(solution))
+    people = sep.join(names.get(i, i) for i in solution.get("interviews", []))
+    stopped = sep.join(names.get(i, i) for i in solution.get("stopped_by", []))
+    mentions = text("review.count.mentions", n=solution.get("quote_count", 0))
+    return (f"- **{solution['id']} {solution.get('name', '')}** ({kind_text(text, solution.get('kind'))}) "
+            f"[{len(solution.get('interviews', []))}] {people or text('review.nobody_now')} · {mentions} · "
+            + text("review.used_for", steps=used)
+            + (" · " + text("review.stopped", people=stopped) if stopped else ""))
 
 
 def plural(count: int, word: str) -> str:
     return f"{count} {word}{'' if count == 1 else 's'}"
 
 
-def _review_solutions(kb: Json) -> list[str]:
+def _review_solutions(kb: Json, text: Text) -> list[str]:
     solutions = live_solutions(kb)
     if not solutions:
         return []
     steps, names = steps_by_id(kb), {str(r["id"]): str(r.get("name", "")) for r in kb["interviews"]}
-    lines = ["## Current solutions", "", "What people use today to get a step done, grouped by the work they compete "
-             "for. Numbers in brackets show how many people use each one now.", ""]
+    lines = ["## " + text("review.h.solutions"), "", text("review.solutions_intro"), ""]
+    why = text("review.why_grouped")
     for key, group in groups_of(kb).items():
         members = sorted((s for s in solutions if s.get("group") == key and s.get("interviews")),
                          key=lambda s: (-len(s.get("interviews", [])), -s.get("quote_count", 0)))
         if members:
-            lines += [f"### {group.get('name', key)}", "", f"*Why grouped:* {group.get('why', '')}", ""]
-            lines += [_solution_line(s, steps, names) for s in members] + [""]
+            lines += [f"### {group.get('name', key)}", "", f"*{why}:* {group.get('why', '')}", ""]
+            lines += [_solution_line(s, steps, names, text) for s in members] + [""]
     gone = [s for s in solutions if not s.get("interviews")]
     if gone:
-        lines += ["### Stopped using", "", "Nobody interviewed uses these any more. The quotes say why.", ""]
-        lines += [_solution_line(s, steps, names) for s in gone] + [""]
+        lines += ["### " + text("review.h.stopped"), "", text("review.stopped_intro"), ""]
+        lines += [_solution_line(s, steps, names, text) for s in gone] + [""]
     return lines
 
 
-def _review_themes(kb: Json) -> list[str]:
+def _review_themes(kb: Json, text: Text) -> list[str]:
     themes = themes_of(kb)
     if not themes:
         return []
@@ -3730,38 +3993,37 @@ def _review_themes(kb: Json) -> list[str]:
         return [f"- {outcomes[o]['statement']} ({o}) [{outcomes[o].get('interview_count', 0)}]"
                 for o in ids if o in outcomes]
 
-    stale = " They are out of date: outcomes were added or changed since." if "value_themes" in stale_layers(kb) \
-        else ""
-    lines = ["## Value themes", "", "Needs that group the outcomes, to sort ideas into. Numbers in brackets show how "
-             f"many people voiced a theme's outcomes: a signal from interviews, not a survey score.{stale}", ""]
+    stale = " " + text("review.themes_stale") if "value_themes" in stale_layers(kb) else ""
+    lines = ["## " + text("review.h.themes"), "", text("review.themes_intro") + stale, ""]
     many = len(kb["core_jobs"]) > 1
     for theme in sorted(themes, key=lambda t: (job_index(str(t["job"])), -t.get("interview_count", 0))):
-        where = f" (core job {theme['job']})" if many else ""
+        where = f" ({text('review.core_job_ref', id=theme['job'])})" if many else ""
         lines += [f"### {theme.get('label', '')} [{theme.get('interview_count', 0)}]{where}", "",
                   f"*{theme.get('need', '')}*", ""]
         lines += ([theme["why"], ""] if theme.get("why") else []) + rows(theme_outcomes(theme)) + [""]
     left = unassigned_outcomes(kb)
     if left:
-        lines += ["### In no theme yet", ""] + rows(left) + [""]
+        lines += ["### " + text("review.h.no_theme"), ""] + rows(left) + [""]
     return lines
 
 
-def _review_people(kb: Json) -> list[str]:
+def _review_people(kb: Json, text: Text) -> list[str]:
     jobs = jobs_by_id(kb)
     named = [r for r in kb["interviews"] if main_job(r) or related_links(r)] if len(jobs) > 1 else []
+    sep, also_word = text("review.list_sep"), text("review.also")
     lines = []
     if named:
-        lines += ["## People and their jobs", ""]
+        lines += ["## " + text("review.h.people"), ""]
         for record in named:
             parts = [f"{jobs[j]['statement']} ({j})" for j in [main_job(record)] if j and j in jobs]
             also = [f"{jobs[j]['statement']} ({j})" for j in dict.fromkeys(related_links(record))
                     if j in jobs and j != main_job(record)]
-            text = ", ".join(parts) + (", also " if parts and also else "also " if also else "") + ", ".join(also)
-            lines.append(f"- **{record['id']} {record.get('name', '')}:** {text}")
+            joint = f"{sep}{also_word} " if parts and also else f"{also_word} " if also else ""
+            lines.append(f"- **{record['id']} {record.get('name', '')}:** {sep.join(parts)}{joint}{sep.join(also)}")
         lines.append("")
     unlinked = [r for r in kb["interviews"] if not main_job(r)]
     if unlinked:
-        lines += ["## Not linked to any core job", ""]
+        lines += ["## " + text("review.h.unlinked"), ""]
         for record in unlinked:
             note = unlinked_reason(record) or record.get("analyst_note") or record["core_functional_job"]["statement"]
             lines.append(f"- **{record['id']} {record.get('name', '')}:** {note}")
@@ -3780,47 +4042,230 @@ def ask_next(kb: Json, job: str) -> tuple[list[Json], int]:
     return thin[:ASK_NEXT], max(len(thin) - ASK_NEXT, 0)
 
 
-def _review_tail(kb: Json) -> list[str]:
+def _review_tail(kb: Json, text: Text) -> list[str]:
     lines = []
     picks = [(job, *ask_next(kb, str(job["id"]))) for job in kb["core_jobs"]]
     if any(steps for _, steps, _ in picks):
-        lines += ["## Ask about these next", "", f"The steps that fewest interviews support (fewer than {THIN_STEP}), "
-                  f"at most {ASK_NEXT} per core job:", ""]
+        lines += ["## " + text("review.h.ask"), "", text("review.ask_intro", thin=THIN_STEP, max=ASK_NEXT), ""]
     for job, steps, rest in picks:
         if steps and len(kb["core_jobs"]) > 1:
             lines.append(f"**{job['statement']} ({job['id']})**")
         lines += [f"- {step_key(s)} {s['statement']} [{s.get('coverage', 0)}]" for s in steps]
         if rest:
-            lines.append(f"- *{plural(rest, 'more step')} with fewer than {THIN_STEP}*")
+            lines.append(f"- *{text('review.count.more_steps', n=rest, thin=THIN_STEP)}*")
         if steps:
             lines.append("")
-    stale = [k.replace("_", " ") for k in stale_layers(kb)]
+    stale = [text(LAYER_LABELS[k]) if k in LAYER_LABELS else k.replace("_", " ") for k in stale_layers(kb)]
     if stale:
-        lines += [f"*Out of date until rebuilt: {', '.join(stale)}.*", ""]
-    lines += ["---", "", f"*Made with [{BRAND}]({REVIEW_LINK}), the free ODI skill for AI assistants. "
-                         f"Get the full {BRAND} experience at [productweaver.com]({REVIEW_LINK}).*", ""]
+        lines += [f"*{text('review.out_of_date', layers=text('review.list_sep').join(stale))}*", ""]
+    footer = text("review.footer", brand_link=f"[{BRAND}]({REVIEW_LINK})", brand=BRAND,
+                  site_link=f"[productweaver.com]({REVIEW_LINK})")
+    lines += ["---", "", f"*{footer}*", ""]
     return lines
 
 
-def review_lines(kb: Json, since: str) -> list[str]:
+def review_lines(kb: Json, since: str, text: Text | None = None) -> list[str]:
+    text = text or Text()
     live_outcomes = [o for o in kb["desired_outcomes"]["outcomes"] if not o.get("merged_into")]
     new_outcomes = {o["id"] for o in kb["desired_outcomes"]["outcomes"] if since and str(o.get("added", "")) >= since}
-    return (_review_head(kb, live_outcomes) + _review_decisions(kb) + _review_new(kb, since, new_outcomes)
-            + _review_map(kb, live_outcomes, new_outcomes) + _review_solutions(kb) + _review_themes(kb)
-            + _review_people(kb) + _review_tail(kb))
+    return (_review_head(kb, live_outcomes, text) + _review_decisions(kb, text)
+            + _review_new(kb, since, new_outcomes, text) + _review_map(kb, live_outcomes, new_outcomes, text)
+            + _review_solutions(kb, text) + _review_themes(kb, text) + _review_people(kb, text)
+            + _review_tail(kb, text))
+
+
+def labels_missing_note(args: argparse.Namespace, kb: Json, missing: int) -> None:
+    """After review or map: say how many labels still show in English, so the assistant writes them."""
+    if not missing:
+        return
+    report = Report()
+    report.warn(f"labels: {missing} of {len(english_table()['labels'])} labels have no {study_language(kb)} text yet, "
+                f"so they show in English. Run: kb_tool labels {args.kb}", code="labels_missing")
+    args.run.add_report(report)
+    args.run.note(labels={"missing": missing})
+    print(report.warnings[0])
 
 
 def cmd_review(args: argparse.Namespace) -> int:
     """Write a plain-language sheet for people who review the KB: what changed, what needs a decision, the map."""
     kb = load_kb(args.kb)
+    text, missing = study_text(kb, args.kb)
     last = next((c for c in reversed(kb["changelog"]) if c.get("action") in ("merge", "init")), {})
     since = args.since or str(last.get("date", ""))
     out = args.out or os.path.join(os.path.dirname(os.path.abspath(args.kb)), "review.md")
     with open(out, "w", encoding="utf-8") as handle:
-        handle.write("\n".join(review_lines(kb, since)))
+        handle.write("\n".join(review_lines(kb, since, text)))
     args.run.note(out=args.run.relative(out), since=since)
     print(f"wrote {out}")
+    labels_missing_note(args, kb, missing)
     return 0
+
+
+# ---------- labels ----------
+# A study in another language than English needs the map's and the review sheet's own text in that language. The
+# assistant writes it once: `labels` hands it a file with every label still in English, the assistant writes the
+# same file back in the study's language, and `labels --add` checks it and keeps it in .pw-kb/labels.yaml.
+LABELS_HEADER = """{made}
+The text of the discovery map and the review sheet, to write in the study's language: {language}.
+- Replace each English text with the same text in that language, in plain everyday words, as a person who does
+  not know the method would say it. Address the reader informally, as most apps in that language do.
+- Keep every {{name}} exactly: the tool fills it in, and the comment above a label says what it holds. A number in
+  a {{name}} can be 1, so write the sentence to read right for any number, for example with the number after a colon.
+- A plural label lists one text per plural form the language needs for it. Translate each; keep {{n}} in each.
+- Pick one word for each idea that comes back, and use it in every label: the main goal (the review sheet calls it
+  the core job), a step, a stage, a measure of success (the review sheet's outcome), a value theme, and a solution,
+  which is what people use today.
+- Words in quote marks that the reader types to their assistant are translated too. Keep ODI, YAML and the names
+  of files and commands as they are.
+- Keep every text in double quotes, so apostrophes are safe. \\n inside a text is a line break: keep it.
+  You may drop these comments.
+A label you leave out stays in English. Then run: kb_tool labels {kb} --add <this file>"""
+STUDY_LABELS_HEADER = ("Written by kb_tool labels: the study's own text for the discovery map and the review sheet.\n"
+                       "Change it with kb_tool labels --add, not by hand.")
+
+
+def _set_language(kb: Json, args: argparse.Namespace) -> None:
+    """Set the study's language. Only while the study has no interviews: the statements are written in it."""
+    language = normalize_language(args.language)
+    if kb["meta"].get("language") == language:
+        return
+    if language == study_language(kb) and kb["interviews"]:
+        return  # an older English study without the field, asked to stay English
+    if kb["interviews"]:
+        raise KbError(f"the study already holds interviews written in {study_language(kb)}, so its language cannot "
+                      f"change to {language}", code="language_locked")
+    args.run.note(backup=args.run.relative(backup(args.kb)))
+    kb["meta"]["language"] = language
+    save_kb(kb, args.kb)
+    args.run.note(written=True)
+    print(f"study language: {language}")
+
+
+def _todo_path(kb_path: str, language: str) -> str:
+    folder = os.path.join(os.path.dirname(kb_path) or ".", "patches")
+    os.makedirs(folder, exist_ok=True)
+    stem = os.path.join(folder, f"{today()}-labels-{language}")
+    path, counter = f"{stem}.yaml", 2
+    while os.path.exists(path):
+        path, counter = f"{stem}-{counter}.yaml", counter + 1
+    return path
+
+
+def labels_todo(kb: Json, args: argparse.Namespace, language: str) -> int:
+    """Write the file of labels the study still lacks, in English, for the assistant to write in its language."""
+    table = english_table()
+    own, _ = study_labels(kb, args.kb)
+    todo = [key for key in table["labels"] if key not in own]
+    args.run.note(labels={"missing": len(todo)})
+    if not todo:
+        print(f"every label has {language} text; nothing to write")
+        return 0
+    path = _todo_path(args.kb, language)
+    header = LABELS_HEADER.format(made=MADE_WITH, language=language, kb=args.kb)
+    lines = [f"# {line}" for line in header.splitlines()] + [f"language: {language}", "labels:"]
+    for key in todo:
+        if key in table["notes"]:
+            lines.append(f"  # {table['notes'][key]}")
+        value = table["labels"][key]
+        if isinstance(value, dict):  # one text per form the language needs, in English to start with
+            value = {form: value.get(form) or value.get("one" if form == "one" else "other") or value["other"]
+                     for form in needed_forms(language, value)}
+        dumped = yaml.safe_dump(value, allow_unicode=True, default_flow_style=True, default_style='"', width=100000,
+                                sort_keys=False)
+        dumped = dumped[:-len("\n...\n")] if dumped.endswith("\n...\n") else dumped.rstrip("\n")  # a lone scalar
+        lines.append(f"  {key}: {dumped}")
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+    args.run.note(out=args.run.relative(path))
+    print(f"wrote {path}: {len(todo)} of {len(table['labels'])} labels to write in {language}\n"
+          f"Then run: kb_tool labels {args.kb} --add {path}")
+    return 0
+
+
+def _read_labels_file(path: str, language: str) -> Json:
+    data = load_yaml(path)
+    if not isinstance(data, dict) or not isinstance(data.get("labels"), dict):
+        raise KbError(f"{path} must hold `language` and `labels`, a mapping of label keys to text",
+                      code="labels_file")
+    try:
+        given = normalize_language(str(data.get("language") or ""))
+    except KbError:
+        given = str(data.get("language"))
+    if given != language:
+        raise KbError(f"{path} is for language '{data.get('language')}', but the study is written in {language}",
+                      code="labels_language")
+    return {str(key): value for key, value in data["labels"].items()}
+
+
+def _check_labels(given: Json, language: str, report: Report) -> Json:
+    """The labels that can be kept. Every problem goes to the report."""
+    english, good = english_table()["labels"], {}
+    for key, value in given.items():
+        if key not in english:
+            report.error(f"{key}: no such label; copy the keys from the file `kb_tool labels` wrote",
+                         code="labels_unknown")
+            continue
+        problem = label_problem(value, english[key])
+        if problem:
+            report.error(f"{key}: {problem[1]}", code=problem[0])
+            continue
+        if value == english[key] and re.search(r"[A-Za-z]{3}", PLACEHOLDER.sub("", wanted_text(english[key]))):
+            report.warn(f"{key}: the same as the English text; fine for a name, otherwise write it in {language}",
+                        code="labels_same")
+        forms = needed_forms(language, english[key]) if isinstance(value, dict) else []
+        lacking = [form for form in forms if form not in value]
+        if lacking:
+            report.warn(f"{key}: has no {', '.join(lacking)} form; numbers that take it in {language} show the "
+                        "other form", code="labels_plural_form")
+        good[key] = value
+    return good
+
+
+def _add_labels(kb: Json, args: argparse.Namespace, language: str) -> int:
+    given = _read_labels_file(args.add, language)
+    report = Report()
+    good = _check_labels(given, language, report)
+    args.run.add_report(report)
+    result: Json = {"ok": not report.errors, "language": language, "added": 0, "run_id": args.run.id,
+                    "errors": report.errors, "warnings": report.warnings}
+    lines = [f"WARN {w}" for w in report.warnings]
+    if report.errors:
+        args.run.note(labels={"refused": len(report.errors)})
+        lines += [f"\n{len(report.errors)} problem(s); nothing written:"] + [f"  - {e}" for e in report.errors]
+    else:
+        english = english_table()["labels"]
+        kept = {k: v for k, v in stored_labels(kb, args.kb).items()
+                if k in english and not label_problem(v, english[k])}
+        kept.update(good)
+        ordered = {key: kept[key] for key in english if key in kept}  # the English order: by area, not by letter
+        save_yaml({"language": language, "labels": ordered}, labels_path(args.kb), STUDY_LABELS_HEADER)
+        missing = len(english) - len(ordered)
+        result.update(added=len(good), missing=missing)
+        args.run.note(labels={"added": len(good), "missing": missing}, out=args.run.relative(labels_path(args.kb)))
+        lines.append(f"added {len(good)} labels in {language} to {labels_path(args.kb)}; "
+                     + (f"{missing} still show in English: run kb_tool labels {args.kb} for the list"
+                        if missing else "every label has its text"))
+        lines.append("Run review and map again to show them.")
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print("\n".join(lines))
+    return 0 if result["ok"] else 1
+
+
+def cmd_labels(args: argparse.Namespace) -> int:
+    """Set the study's language, write the labels it still lacks for the assistant, or take them back (--add)."""
+    kb = load_kb(args.kb)
+    if args.language:
+        _set_language(kb, args)
+    language = study_language(kb)
+    args.run.note(language=language)
+    if base_language(language) == ENGLISH:
+        if args.add:
+            raise KbError("the study is written in English; it needs no labels", code="labels_language")
+        print(f"the study is written in {language}: no labels needed")
+        return 0
+    return _add_labels(kb, args, language) if args.add else labels_todo(kb, args, language)
 
 
 # ---------- map ----------
@@ -3831,23 +4276,26 @@ MAP_SCHEMA = f"/* @kb-schema:{SCHEMA_VERSION} */"  # the template can draw a KB 
 # The template loads js-yaml from the file next to it, so it stays under the directory's size limit and still opens
 # KB files on its own. `map` puts the library inside each map, so a map is one file that works offline.
 JS_YAML_FILE = "js-yaml.js"
-JS_YAML_TAG = f'<script src="{JS_YAML_FILE}"></script>'
+# The English text of the map and the review sheet, shipped beside the template the same way. js-yaml comes first.
+MAP_ASSETS = (JS_YAML_FILE, LABELS_FILE)
 
 
-def inline_js_yaml(template: str, template_path: str) -> str:
-    """Replace the template's js-yaml tag with the library itself. A map made earlier already holds it."""
-    if JS_YAML_TAG not in template:
+def inline_asset(template: str, template_path: str, name: str) -> str:
+    """Replace the template's tag for a script shipped beside it with the script itself. A map made earlier already
+    holds it, so it has no tag."""
+    tag = f'<script src="{name}"></script>'
+    if tag not in template:
         return template
-    beside = os.path.join(os.path.dirname(os.path.abspath(template_path)), JS_YAML_FILE)
-    path = beside if os.path.isfile(beside) else skill_file("assets", JS_YAML_FILE)
+    beside = os.path.join(os.path.dirname(os.path.abspath(template_path)), name)
+    path = beside if os.path.isfile(beside) else skill_file("assets", name)
     if not path:
-        raise KbError(f"{JS_YAML_FILE} not found: keep it next to discovery-map-template.html, as the skill ships "
-                      "them", code="skill_file_missing")
+        raise KbError(f"{name} not found: keep it next to discovery-map-template.html, as the skill ships them",
+                      code="skill_file_missing")
     with open(path, encoding="utf-8") as handle:
         library = handle.read()
     if "</script" in library.lower():
         raise KbError(f"{path} must not contain a closing script tag", code="template_invalid")
-    return template.replace(JS_YAML_TAG, f"<script>\n{library}</script>", 1)
+    return template.replace(tag, f"<script>\n{library}</script>", 1)
 
 
 def embed_kb(template: str, payload: str) -> str:
@@ -3936,6 +4384,10 @@ def cmd_map(args: argparse.Namespace) -> int:
     if overviews_of(kb):  # the written findings of the Overview view; the map counts the rest itself
         data["overview"] = kb["overview"]
     data["generated"] = map_stamp()
+    own, missing = study_labels(kb, args.kb)
+    labels = {key: value for key, value in own.items() if key.startswith("map.")}
+    if labels:  # only a study in another language has any; the map shows English for the rest
+        data["labels"] = labels
     payload = json.dumps(data, default=str, ensure_ascii=False)
     payload = payload.replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
     template_path = skill_file("assets", "discovery-map-template.html", args.template)
@@ -3948,7 +4400,8 @@ def cmd_map(args: argparse.Namespace) -> int:
     if MAP_SCHEMA not in template:
         raise KbError(f"the map template {template_path} is older than KB schema {SCHEMA_VERSION} and cannot draw "
                       "several core jobs; use discovery-map-template.html from the skill", code="template_old")
-    template = inline_js_yaml(template, template_path)
+    for name in MAP_ASSETS:
+        template = inline_asset(template, template_path, name)
     out = args.out or os.path.join(os.path.dirname(os.path.abspath(args.kb)), "discovery-map.html")
     with open(out, "w", encoding="utf-8") as handle:
         handle.write(embed_kb(template, payload))
@@ -3960,6 +4413,7 @@ def cmd_map(args: argparse.Namespace) -> int:
     print(f"wrote {out} ({len(kb['interviews'])} interviews, {len(kb['desired_outcomes']['outcomes'])} outcomes)\n"
           f"link: {uri}\n{MAP_NEXT[browser]}\n"
           "It contains every name and quote in the KB, so treat it as personal data.")
+    labels_missing_note(args, kb, missing)
     return 0
 
 
@@ -4303,6 +4757,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp = command("init", cmd_init, "start an empty KB")
     sp.add_argument("--project", required=True)
     sp.add_argument("--interviewer")
+    sp.add_argument("--language", help="the study's language, a BCP 47 code such as it or pt-BR; default en")
+    sp = command("labels", cmd_labels, "set the study's language and write the map's and review sheet's text in it")
+    sp.add_argument("--language", help="set the study's language, a BCP 47 code; only before the first interview")
+    sp.add_argument("--add", help="a labels file written in the study's language, to check and keep")
+    sp.add_argument("--json", action="store_true", help="with --add, print the result as one JSON object")
     sp = command("context", cmd_context, "compact view of the KB")
     sp.add_argument("--json", action="store_true", help="print the same information as JSON")
     sp = command("merge", cmd_merge, "check a patch and fold it into the KB")

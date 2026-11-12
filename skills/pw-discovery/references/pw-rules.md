@@ -16,7 +16,7 @@ The people who check this KB are founders, product managers, domain experts and 
 | Proposal rationale | 30 | one sentence: what the evidence shows and how many interviews show it |
 | Solution group's `why` | 30 | one sentence: what the members share and what that tells the reader |
 | Value theme label | 6 | a verb first, then what the person wants to get right |
-| Value theme need | 25 | one sentence that starts with "Help me", aim for 8 to 14 words |
+| Value theme need | 25 | one sentence that starts with "Help me" (or the same request in the study's language), aim for 8 to 14 words |
 | Value theme `why` | 30 | one sentence: what binds the theme's outcomes |
 
 The merge enforces these limits and blocks the batch until every new statement fits. `themes` does the same for value themes.
@@ -105,6 +105,7 @@ Say how many interviews support each core job: in a `new_core_job` rationale and
 Form: **direction + metric + object of control + contextual clarifier.**
 
 - Direction is almost always "Minimize". Metrics are time, likelihood or number.
+- In a study in another language, write the same form in that language, with one fixed wording for each part. See "Writing in another language".
 - Good: "Minimize the likelihood of delivering into a destination with no outbound freight."
 - Good: "Minimize the time it takes to know your true cost per mile."
 - Bad: "Make it easier to find loads" has no metric. "Use a broker score" names a solution. "Minimize stress" is emotional, so it belongs in emotional jobs.
@@ -181,7 +182,7 @@ A value theme is a need in the customer's own voice that gathers the desired out
 
 **How to write one:**
 - `label`: starts with a verb, at most 6 words. It is what the team will say in a meeting: "Order the right amount".
-- `need`: one sentence of at most 25 words that starts with "Help me", in words the interviewees would use: "Help me order what the week will really need".
+- `need`: one sentence of at most 25 words that starts with "Help me" (in another language, the same request: "Aiutami a…"), in words the interviewees would use: "Help me order what the week will really need".
 - `why`: one sentence of at most 30 words on what binds the outcomes: "Each one decides how close the order comes to what gets sold."
 - `outcomes`: the outcome IDs, copied from `context`.
 - `highlights`: 3 to 6 quotes that make the need felt, each with a `kind`:
@@ -260,6 +261,17 @@ You write the sentences. The map counts everything else from the KB, so do not r
 | Why "Ordering friction drives waste: the stack is fragmented" | Jargon. "Each supplier wants the order in a different way, so owners order from memory" |
 | Label "F&B operator" | Nobody calls themselves that. "Small-restaurant owner" |
 | Text "Owners and their suppliers who manage inventory" | Two groups, and a vague verb. "An owner who runs one restaurant and places every order themselves" |
+
+## Writing in another language
+
+A study has one language, `meta.language`, which `context` prints. Write every statement in it: jobs, steps, outcomes, solution groups, rationales, value themes and the overview. Quotes stay in the words people used, in the language they spoke.
+
+- **The same rules, the same idea of short.** Everything in this file holds in every language. The tool allows about a fifth more words, because most languages need more words than English for the same idea. In Chinese, Japanese and Thai it counts letters instead.
+- **Keep the forms of the method.** An outcome is still direction, metric, object of control and context, in the language's natural order. In the first batch, pick one wording for each fixed part, such as "Ridurre al minimo il tempo per…" and "Ridurre al minimo la probabilità di…", and reuse it in every later outcome, so a reviewer reads the list as one family. Do the same for a theme's need ("Aiutami a…"), and for emotional ("sentirsi…", "evitare di sentirsi…") and social jobs ("essere visto come…").
+- **Use the customers' own words.** Write as the people you interviewed would say it, not as a translation of the English examples in this file. Product names stay as people say them.
+- **Plain words in every language.** The overview's rules hold everywhere: no words of the method, in English or translated ("lavoro principale", "risultato desiderato"), no percentages and no score words. The tool only knows the English words, so this check is yours.
+- **An interview in a third language.** Read it in its own language, write its statements in the study's language, and quote the person's original words.
+- **No abbreviations of the language's own** such as "ad es." or "z. B.": the tool only knows the English ones.
 
 ## Evidence
 

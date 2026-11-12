@@ -55,7 +55,7 @@
     },
     "new_outcomes": {
       "type": "array",
-      "description": "Outcomes no existing outcome covers. The statement must start with Minimize, Maximize, Increase or Reduce.",
+      "description": "Outcomes no existing outcome covers. In an English study the statement must start with Minimize, Maximize, Increase or Reduce.",
       "items": {
         "type": "object",
         "required": [
