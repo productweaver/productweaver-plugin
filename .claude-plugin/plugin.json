@@ -1,8 +1,8 @@
 {
   "name": "productweaver",
   "displayName": "Product Weaver",
-  "version": "0.9.0",
-  "description": "Product management skills for your AI assistant, from Product Weaver. The first skill, pw-discovery, turns customer interview transcripts into an Outcome-Driven Innovation knowledge base, with every quote checked against its transcript.",
+  "version": "0.10.0",
+  "description": "Product management skills for your AI assistant, from Product Weaver. pw-discovery turns customer interview transcripts into an Outcome-Driven Innovation knowledge base, with every quote checked against its transcript. pw-start gets you going: it plans your first interviews, or turns the ones you have into a discovery map, and says what to do next.",
   "author": { "name": "Product Weaver", "url": "https://www.productweaver.com" },
   "homepage": "https://www.productweaver.com/plugin",
   "documentationUrl": "https://www.productweaver.com/plugin",

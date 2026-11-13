@@ -4,6 +4,34 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.10.0 — 2026-11-13
+
+### What's new
+
+- **Get started.** A new skill, pw-start. Say "Help me get started with
+  Product Weaver" (in Claude Code, `/pw-start`), and it looks at your folder
+  and gets you to one useful result:
+  - **with interview transcripts:** your discovery map, built and opened;
+  - **with none yet:** three questions, then a guide for your first round of
+    interviews, `.pw-kb/interview-guide.md`. It says who to talk to, how to
+    ask for a talk, how to record it, what to ask and what to listen for;
+  - **with a study already:** ask "What should I do next?" and it names one
+    step, with the words to say.
+
+  In Codex it is the plugin's setup skill, with three starter prompts.
+
+### What's improved
+
+- **Every report ends with one next step**, a "Next:" line with the words to
+  say.
+- **Your first study builds on your plan.** When you planned your first
+  interviews with pw-start, the first batch reads that guide. Kinds of people
+  you planned but have not talked to yet show up as gaps.
+- **Chats that forget their files keep your study.** In a chat where you
+  attach the transcripts and the files are gone afterwards, such as ChatGPT,
+  the assistant hands back the whole study folder with the map. Upload it
+  with your next interviews and the study keeps growing.
+
 ## 0.9.0 — 2026-11-13
 
 ### What's new

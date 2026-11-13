@@ -26,6 +26,10 @@ team can sort ideas into a handful of needs. And it plans your next round of
 interviews: who to talk to and what to ask, to back up what still rests on
 too few people.
 
+The second skill, **pw-start**, gets you going: it plans your first
+interviews, or turns the ones you have into a discovery map, and says what to
+do next.
+
 Before version 0.5.0 this skill was called distill-kb.
 
 ## Install
@@ -82,7 +86,14 @@ copilot plugin install productweaver@productweaver-plugin
 
 ## Use it
 
-Ask your assistant in plain words, for example:
+New here? Say: **Help me get started with Product Weaver.** (In Claude Code
+you can also type `/pw-start`.) If you have interview transcripts, the
+assistant turns them into a discovery map. If you have none yet, it asks
+three questions and writes a guide for your first interviews: who to talk to
+and what to ask. When you come back to a study, ask "What should I do next?"
+and it names one next step.
+
+Once you know your way around, ask in plain words, for example:
 
 - "Process this week's discovery interviews in the Interviews folder."
 - "Start an ODI knowledge base for the Acme study from these transcripts."

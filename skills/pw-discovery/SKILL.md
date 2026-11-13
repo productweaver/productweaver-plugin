@@ -89,12 +89,15 @@ A study's language cannot change once it has interviews, because its statements 
 
 The KB is `.pw-kb/pw-kb.json`. Ask where the new transcripts are only if they cannot be found.
 
+**A study the user attached.** In a chat where files are attached, a zip or folder that holds `pw-kb.json` is the study you handed back last time. Open it before anything else, so new interviews join it instead of starting a new study. If `.pw-kb/` already exists, do not unpack: ask which study to keep. Otherwise unpack it so that `.pw-kb/pw-kb.json` exists afterwards (not `.pw-kb/.pw-kb/`).
+
 No KB yet:
 
 1. Read the first lines of each new transcript, to see which language the interviews are in.
-2. `kb_tool init .pw-kb/pw-kb.json --project "<name>"`. Add `--interviewer "<name>"` only when the user or the transcripts say who ran the interviews; never fill it in from anywhere else.
-3. Ask what the start needs to know, in one question call: the study's language, unless every transcript is in English (see "Study language"), and, when `init` printed a `git:` line, whether to share the study through git. `.pw-kb/` holds interviewees' names, their words and their transcripts, and the `git:` line means the workspace is a git repository. If the user does not want to share it, write `.pw-kb/.gitignore` containing the single line `*`. Do not ask either question again later.
-4. For a language other than English, run the `labels` steps in "Study language" before you extract.
+2. If `.pw-kb/interview-guide.md` is already there, the user planned these interviews with the `pw-start` skill before the study existed. Read it. The kinds of people under "Who to find" may become trait values in the first plan, including kinds nobody has been heard from yet. The first `review` replaces the file with a guide built from the study.
+3. `kb_tool init .pw-kb/pw-kb.json --project "<name>"`. Add `--interviewer "<name>"` only when the user or the transcripts say who ran the interviews; never fill it in from anywhere else.
+4. Ask what the start needs to know, in one question call: the study's language, unless every transcript is in English (see "Study language"), and, when `init` printed a `git:` line, whether to share the study through git. `.pw-kb/` holds interviewees' names, their words and their transcripts, and the `git:` line means the workspace is a git repository. If the user does not want to share it, write `.pw-kb/.gitignore` containing the single line `*`. Do not ask either question again later.
+5. For a language other than English, run the `labels` steps in "Study language" before you extract.
 
 When nobody can answer, as in a scripted run, pass `--language <code>` to `init` instead: it writes the labels file to fill in the same call. Do not touch git then.
 
@@ -194,7 +197,7 @@ A folder whose name starts with a dot is hidden in Finder and in most file dialo
 - After `map --open`, say what the tool said: the map is open in their browser, or it could not be opened here and what to do instead. Never say it is open when the tool did not.
 - After a rebuild without `--open`, say the map is updated and that an open tab must be reloaded.
 - Do not run a command of your own to open the map (`open`, `xdg-open`, `start`). It would cost the user one more permission question.
-- When the files are on a machine the user cannot reach, such as a remote sandbox, hand them the map the way your host shares files.
+- When the files are on a machine the user cannot reach, such as a sandbox that is gone after the chat (the transcripts were attached to it), hand back the map and the whole `.pw-kb/` folder the way your host shares files, as a zip when it needs one, and say: "Keep this folder. Next time, upload it with your new interviews." Do not say the map is open in their browser.
 
 **The map contains personal data.** It embeds every interviewee's name and every quote. Before suggesting that anyone share it, say so, and let the user decide who may see it. The same goes for the KB file and `review.md`.
 
@@ -221,6 +224,8 @@ The reader may be a founder or a domain expert, not an ODI specialist, so write 
 - the language the study is written in, in one line, and that it stays that way
 - the rest as counts, with the one or two findings that matter most: outcomes, current solutions and their groups, and what people stopped using
 - the next interviews, as above, and the pointer to `review.md` and the map, which `map --open` has just shown in their browser
+
+**End every report**, the first one too, with one line that starts "Next:" and names one step, the first that applies: confirm what the study is about (after a first batch), decide the changes waiting, run the next round (how many people, of which kind), or, once the study shows a clear pattern, group the needs into value themes. Give it as words the user can say: `Next: open the map's Overview, then say "approve P1" or what to change.`
 
 Skip tool jargon such as "patch", "object of control" or "verbatim check" unless the user uses it. Say "every quote matches the transcript word for word". Flag anything that should change how the user reads the KB, such as a new interview that contradicts the core job, or a segment that keeps growing without a home.
 
