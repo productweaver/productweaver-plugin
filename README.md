@@ -22,7 +22,9 @@ does which. It also collects what people use today to get each step done, and
 what they stopped using: their current solutions, grouped by the work they
 compete for. When you are ready for ideas, it groups the outcomes into a few
 value themes, such as "Help me order what the week will really need", so a
-team can sort ideas into a handful of needs.
+team can sort ideas into a handful of needs. And it plans your next round of
+interviews: who to talk to and what to ask, to back up what still rests on
+too few people.
 
 Before version 0.5.0 this skill was called distill-kb.
 
@@ -100,7 +102,8 @@ people used.
 
 ## What the plugin runs
 
-One local Python script, `kb_tool.py`, inside the skill. It reads the files
+One local Python script, `kb_tool.py`, inside the skill (its `migrate` command
+also loads `kb_migrate.py`, next to it). It reads the files
 you point it to and writes the files listed below. The plugin has no hooks, no
 MCP servers and no background processes.
 
@@ -118,6 +121,8 @@ workspace holds one study.
 - `transcripts/`, a copy of each transcript the knowledge base quotes. Your own
   files are never changed;
 - `review.md`, the review sheet;
+- `interview-guide.md`, the plan for your next interviews, ready to take into
+  the calls: who to find, what to ask and what to listen for;
 - `discovery-map.html`, the interactive map, which works offline. The first
   time it is made, it opens in your browser;
 - `labels.json`, only for a study in another language than English: the map's

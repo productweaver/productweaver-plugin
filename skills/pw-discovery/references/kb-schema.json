@@ -329,6 +329,11 @@
                 "type": "integer",
                 "minimum": 0
               },
+              "voices": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Computed. Distinct people quoted on the step or on any of its outcomes."
+              },
               "history": {
                 "$ref": "#/$defs/history"
               }
@@ -1493,6 +1498,132 @@
                     "type": "string"
                   },
                   "description": "Customers' own words to reuse, each part of a quote in the KB."
+                },
+                "traits": {
+                  "type": "array",
+                  "description": "The plan's 2 or 3 people traits. A value with no interviews is a kind of person not heard yet.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "name",
+                      "values"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^T[0-9]+$"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "values": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "label",
+                            "interviews"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "pattern": "^T[0-9]+\\.[0-9]+$"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "interviews": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/$defs/interview_id"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "rests_on": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Outcome IDs the main finding rests on."
+                },
+                "round": {
+                  "type": "array",
+                  "description": "Who to talk to next, in order, and what to ask them.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "gaps",
+                      "questions"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "new"
+                        ]
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "who": {
+                        "type": "string"
+                      },
+                      "traits": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "gaps": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "questions": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "ask",
+                            "listen",
+                            "gaps"
+                          ],
+                          "properties": {
+                            "ask": {
+                              "type": "string"
+                            },
+                            "listen": {
+                              "type": "string"
+                            },
+                            "gaps": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "at_write": {
+                  "type": "object",
+                  "description": "Computed. The round's targets and the people heard when this plan was written."
+                },
+                "previous": {
+                  "type": "object",
+                  "description": "Computed. at_write of the plan before the last batch, to say how that round went."
                 }
               }
             },

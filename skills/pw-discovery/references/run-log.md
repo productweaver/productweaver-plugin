@@ -105,6 +105,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `overview_count` | `ask`, `words` or the executor's `others` holds more items than allowed |
 | `overview_score` | A sentence holds a percentage or a score word, such as "opportunity score" |
 | `overview_method_word` | A sentence holds a word of the method that readers do not know, such as "core job" or "desired outcome" |
+| `overview_ref` | The plan in `next.learn` names an ID that is not a step, outcome or trait value of the core job, or a trait names someone whose main goal is another core job |
 
 ### Errors that refuse value themes
 
@@ -148,6 +149,10 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `labels_same` | `labels --add`: a label's text is the same as the English one |
 | `labels_plural_form` | `labels --add`: a plural label lacks a form the study's language uses |
 | `overview_jargon` | A sentence of the overview holds a vague word, such as "pain point" or "workflow"; keep it only when it is the customers' own word |
+| `plan_gap_closed` | A round entry of the plan aims at a gap that is no longer open |
+| `plan_main_uncovered` | The main finding rests on a thin gap that no round entry covers |
+| `plan_status` | `next.learn` says `enough` while thin steps or main-finding gaps remain |
+| `plan_leading` | In an English study, a plan question asks what people would do instead of what they did last time |
 
 ### Errors that stop a command
 

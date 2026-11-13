@@ -1,7 +1,63 @@
 # Changelog
 
 Changes to the productweaver plugin, newest first. Versions follow semantic
-versioning.
+versioning. Releases after 0.8.0 group their changes under What's new, What's
+improved and What's fixed.
+
+## 0.9.0 — 2026-11-13
+
+### What's new
+
+- **Next interviews.** The discovery map has a new view that plans your next
+  round of conversations. It shows:
+  - how sure you can be now, and how many more conversations reach the
+    next level;
+  - who to talk to next, as one card per kind of person, each with the
+    thin spots it backs up and the questions to ask;
+  - a grid of the kinds of people you have heard from, with the missing
+    ones marked;
+  - every gap that still rests on few voices, with the ones under the main
+    finding first.
+
+  Your assistant writes the plan with the overview; the map counts the gaps
+  itself. The view replaces the "Ask next" tab. Proposals and people linked
+  to no main goal move to the Progress tab, under "Waiting for the team".
+- **Interview guide.** `review` also writes `.pw-kb/interview-guide.md`: who
+  to find, what to ask and what to listen for, ready to take into the calls.
+  The map can copy it, or print the plan.
+- **How the last round went.** After a new batch, the plan says how many of
+  the last round's gaps it closed.
+
+### What's improved
+
+- **The Progress tab starts with how sure you can be.** A card at the top
+  shows the level, how many more conversations reach the next one, and a
+  button that opens the interview guide: the fewest conversations that would
+  make you surer, and what to ask. It is amber until the study shows a clear
+  pattern.
+- **review.md's "Next interviews"** replaces "Ask about these next": where
+  the study stands, the plan, and every thin spot by group. It is always
+  there, even when no step is thin.
+- **The chat report** gives the next interviews in a few lines: who to talk
+  to and the top questions.
+- **`context`** lists the open gaps of each main goal, ranked, with who backs
+  each one, how far the next level is, and each person's tags, so your
+  assistant plans the next round from them.
+- **A step's count of people** now includes those quoted on its measures of
+  success, as the map always counted. The review sheet and `context` show the
+  same number as the map.
+- **`kb_tool.py` has room to grow.** The code of `migrate` moved into
+  `scripts/kb_migrate.py`, which `kb_tool.py` loads only for that command.
+  `kb_tool` 0.12.0; the KB schema stays 3.
+
+### What's fixed
+
+- **The Progress chart no longer covers the text under it.** In the map's
+  Progress tab, the "Measures of success heard so far" chart drew over its
+  explanation on most screens.
+- **Map header lines up.** In the first line of the discovery map, "Product
+  Weaver" and "Customer discovery map" now sit on one baseline. The brand
+  name was about 3 pixels higher.
 
 ## 0.8.0 — 2026-11-12
 

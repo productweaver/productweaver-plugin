@@ -50,6 +50,7 @@ import datetime as dt
 import difflib
 import glob
 import hashlib
+import importlib.util
 import json
 import os
 import pathlib
@@ -70,13 +71,12 @@ try:
 except ImportError:  # pragma: no cover - depends on the machine
     _jsonschema = None
 
-__version__ = "0.11.0"
+__version__ = "0.12.0"
 SCHEMA_VERSION = 3
 
 BRAND = "Product Weaver"
 SITE = "https://www.productweaver.com/"
-# The review sheet's links carry fixed tags, so the site can count visits from it. They never hold anything from the
-# study. The map tags its own links the same way (pwUrl in the template).
+# Fixed tags on the review sheet's links, holding nothing from the study (the map's pwUrl does the same).
 REVIEW_LINK = (f"{SITE}?utm_source=productweaver-plugin&utm_medium=review-sheet&utm_campaign=pw-discovery"
                "&utm_content=review-footer")
 MADE_WITH = f"Made with {BRAND} · productweaver.com"
@@ -100,12 +100,11 @@ LOG_FOLDER, LOG_FILE = "logs", "kb_tool.jsonl"
 KB_FOLDER, KB_FILE, COPIES = ".pw-kb", "pw-kb.json", "transcripts"  # <workspace root>/.pw-kb/pw-kb.json
 OLD_KB_FILE, OLD_STUDY_LABELS = "pw-kb.yaml", "labels.yaml"  # what versions up to 0.10.0 wrote; migrate reads them
 KB_HOME = f"{KB_FOLDER}/{KB_FILE}"
-# The study's language. The map's and the review sheet's own text comes from LABELS_FILE (English, in the skill's
-# assets/), and for a study in another language from STUDY_LABELS (in .pw-kb/), which `labels` writes.
+# The study's own labels (written by `labels`) override LABELS_FILE's English.
 ENGLISH = "en"
 LABELS_FILE, STUDY_LABELS = "labels-en.js", "labels.json"
 OLD_TRANSCRIPTS = "Interviews"  # where earlier versions kept a study's transcripts: <study>/Interviews/
-MOVED_ON_MIGRATE = ("patches", "backups", LOG_FOLDER, "review.md", "discovery-map.html")
+MOVED_ON_MIGRATE = ("patches", "backups", LOG_FOLDER, "review.md", "interview-guide.md", "discovery-map.html")
 JOB_ID = re.compile(r"^[A-Z]{1,2}$")
 STEP_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+$")
 OUTCOME_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+\.[0-9]+$")
@@ -134,10 +133,15 @@ NEXT_TRACKS = {"learn": (("now", "enough"), ("why", "ask", "tip")),
                "prototype": (("ready", "early"), ("why", "test", "later")),
                "market": (("ready", "early"), ("who", "words", "unknown"))}
 NEXT_LISTS = {"ask": 2, "words": 3}  # fields that are lists, and how many items each may hold
+LEARN_PLAN = ("traits", "rests_on", "round")  # the plan for the next round; kb_tool adds at_write and previous
+TRAIT_COUNT, TRAIT_VALUES = (2, 3), (2, 5)
+TRAIT_ID, TRAIT_VALUE_ID = re.compile(r"^T[0-9]+$"), re.compile(r"^T[0-9]+\.[0-9]+$")
+RESTS_ON_MAX, ROUND_MAX, ROUND_COUNT, ROUND_ITEMS = 8, 5, (1, 3), 4
+LEADING = re.compile(r"\b(would you|do you also|wouldn't it|how much would|if there was)\b", re.I)
 SCORE_WORDS = re.compile(r"\d\s?[%％٪]|\bpercent\b|\b(opportunity|importance|satisfaction) (score|rating)s?\b",
                          re.IGNORECASE)
-# The overview is read by people new to the method. Words of the method are refused, vague business words get a
-# warning; each comes with the plain words to use. A space in a pattern also matches a hyphen.
+# Overview readers are new to the method: method words are refused, vague words warned, each with plain words to
+# use. A space in a pattern also matches a hyphen.
 METHOD_WORDS = (("core jobs?", "core job", "the goal, or what they try to get done"),
                 ("job executors?", "job executor", "the people, by their role"),
                 ("desired outcomes?", "desired outcome", "what they want to get better"),
@@ -184,9 +188,7 @@ Json = dict[str, Any]
 
 
 class KbError(Exception):
-    """A problem the user can fix. main() prints it as a message, never as a traceback.
-
-    `code` is a short stable name for the kind of problem; the run log counts runs by it."""
+    """A problem the user can fix, printed without a traceback. `code` names its kind for the run log."""
 
     def __init__(self, message: str, *, code: str) -> None:
         super().__init__(message)
@@ -195,10 +197,8 @@ class KbError(Exception):
 
 @dataclass
 class Report:
-    """Problems found while checking a patch or a KB. Errors block, warnings do not.
-
-    Each message carries a code, so the run log can count what goes wrong without storing the message,
-    which may hold a quote or a name. The codes are listed in references/run-log.md."""
+    """Problems found while checking. Errors block, warnings do not. Each has a code (references/run-log.md) so the
+    run log can count them without the message, which may hold a quote."""
 
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -264,11 +264,8 @@ def agent_name() -> str | None:
 
 
 class Run:
-    """One invocation of the tool, as logs/kb_tool.jsonl records it.
-
-    Commands add facts with note(); main() writes the line when the command ends, however it ends. The line
-    holds IDs, counts, codes, hashes and versions. It never holds a quote, a person's name, a transcript file
-    name or an absolute path, so the log can be shared for debugging without a data-protection question."""
+    """One invocation, as logs/kb_tool.jsonl records it: commands add facts with note(), main() writes the line.
+    It holds IDs, counts, codes, hashes and versions, never a quote, name, file name or absolute path."""
 
     def __init__(self, args: argparse.Namespace) -> None:
         self.id = uuid.uuid4().hex[:12]
@@ -406,8 +403,8 @@ def load_json(path: str) -> Any:
 
 
 def dump_json(value: Any, indent: str = "") -> str:
-    """JSON indented by two spaces, where an object that holds no list or object stays on one line, and so does a
-    short list of plain values: each evidence item, history entry and list of IDs reads as one line."""
+    """Two-space JSON where an object holding no list or object, and a short list of plain values, stay on one
+    line."""
     inner = list(value.values()) if isinstance(value, dict) else value if isinstance(value, list) else None
     line = json.dumps(value, ensure_ascii=False, allow_nan=False)
     if not inner or (not any(isinstance(item, (dict, list)) for item in inner)
@@ -446,11 +443,8 @@ def save_kb(kb: Json, path: str) -> None:
 
 
 def backup(kb_path: str, source: str | None = None) -> str:
-    """Copy the KB (or `source`, the file it is about to replace) into backups/ next to it, named after the KB
-    with the copied file's extension.
-    Names carry microseconds, so two writes never collide.
-
-    Only the newest KEEP_BACKUPS copies are kept."""
+    """Copy the KB (or `source`, the file about to be replaced) into backups/, named after the KB with microseconds
+    so writes never collide. Keeps the newest KEEP_BACKUPS."""
     folder = os.path.join(os.path.dirname(os.path.abspath(kb_path)), "backups")
     os.makedirs(folder, exist_ok=True)
     stem = os.path.splitext(os.path.basename(kb_path))[0]
@@ -470,8 +464,7 @@ def backup(kb_path: str, source: str | None = None) -> str:
 
 
 def skill_file(folder: str, name: str, given: str | None = None) -> str | None:
-    """Find a file that ships with the skill: a path given on the command line, a copy next to this script,
-    or the skill's own folder (scripts/../<folder>/<name>)."""
+    """A skill file: the path given, a copy beside this script, or scripts/../<folder>/<name>."""
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = ([given] if given else []) + [os.path.join(here, name), os.path.join(here, "..", folder, name)]
     for candidate in candidates:
@@ -481,10 +474,8 @@ def skill_file(folder: str, name: str, given: str | None = None) -> str | None:
 
 
 # ---------- language and labels ----------
-# A study is written in one language, chosen when it starts: meta.language, a BCP 47 code such as it, pt-BR or
-# zh-Hans. A KB without it is English. The statements are the assistant's; the map's and the review sheet's own text
-# comes from labels: English in the skill's LABELS_FILE, the study's own in .pw-kb/STUDY_LABELS. A label the study
-# lacks, or holds in a broken form, shows in English, so a translation can never break the map or the review sheet.
+# meta.language is a BCP 47 code; none means English. The map's and review sheet's own text comes from labels
+# (LABELS_FILE, then the study's STUDY_LABELS). A missing or broken label shows in English, so it never breaks them.
 LANGUAGE = re.compile(r"^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|\d{3}))?$")
 PLURAL_FORMS = ("zero", "one", "two", "few", "many", "other")
 PLACEHOLDER = re.compile(r"\{([a-z_]+)\}")
@@ -561,16 +552,15 @@ PLURAL_RULES: dict[str, Callable[[int], str]] = {
 
 
 def plural_category(language: str, n: int) -> str:
-    """The CLDR plural form of a whole number in a language: one, few, many and so on. Covers the common systems;
-    any other language counts one and other, and a form a label lacks falls back to other."""
+    """CLDR plural form of a whole number (one, few, many...) for common systems; others get one/other, and a form a
+    label lacks falls back to other."""
     base = "fr" if language in ("pt", "pt-BR") else base_language(language)  # Brazilian Portuguese counts 0 as one
     rule = PLURAL_RULES.get(base)
     return rule(abs(int(n))) if rule else ("one" if abs(int(n)) == 1 else "other")
 
 
 def needed_forms(language: str, english: Json) -> list[str]:
-    """The plural forms a language needs for a plural label: for every number from 0, or from 2 when the English
-    label has no `one` because the map never shows it with 1."""
+    """Plural forms a language needs for a label: for every number from 0, or from 2 when English has no `one`."""
     found = {plural_category(language, n) for n in range(0 if "one" in english else 2, 200)} | {"other"}
     return [form for form in PLURAL_FORMS if form in found]
 
@@ -585,8 +575,8 @@ def _problem(why: str, *, code: str) -> tuple[str, str]:
 
 
 def label_problem(value: Any, english: Any) -> tuple[str, str] | None:
-    """(code, why) when a study's text for a label cannot be used, else None. It must be text with the English
-    label's {name} places, no markup, and for a plural label one text per plural form, `other` among them."""
+    """(code, why) when a study label is unusable: it needs the English {name} places, no markup, and for a plural
+    label a text per plural form, `other` included. Else None."""
     def one(text: Any, wanted: set[str]) -> tuple[str, str] | None:
         if not isinstance(text, str):
             return _problem("is not text: put it in quotes", code="labels_empty")
@@ -641,8 +631,7 @@ def study_labels(kb: Json, kb_path: str) -> tuple[Json, int]:
 
 
 class Text:
-    """The words of the review sheet in the study's language: `text(key, name=value)`. English where the study has
-    no label, and the key itself if even English lacks it, so a test catches it."""
+    """Review-sheet words in the study's language: `text(key, name=value)`; English when missing, else the key."""
 
     def __init__(self, language: str = ENGLISH, own: Json | None = None) -> None:
         self.language = language
@@ -664,8 +653,8 @@ def study_text(kb: Json, kb_path: str) -> tuple[Text, int]:
 
 
 def count_words(text: str, language: str = ENGLISH) -> int:
-    """Words, the way the length limits count them. In a language written without spaces (Chinese, Japanese, Thai
-    and its neighbours) the letters count instead, a few to a word, plus any word in Latin letters."""
+    """Words as the length limits count them. Chinese, Japanese, Thai and neighbours count letters, a few to a word,
+    plus any Latin-letter word."""
     per_word = NO_SPACES.get(base_language(language))
     if not per_word:
         return len(text.split())
@@ -683,8 +672,8 @@ def at_home(kb_path: str) -> bool:
 
 
 def old_yaml(kb_path: str) -> str | None:
-    """.pw-kb/pw-kb.yaml, the KB of a study written in YAML by version 0.10.0 or earlier, when kb_path names it, or
-    names the pw-kb.json beside it that does not exist yet. None otherwise."""
+    """.pw-kb/pw-kb.yaml of a study from 0.10.0 or earlier, when kb_path names it or its missing pw-kb.json; else
+    None."""
     folder, name = os.path.split(kb_path)
     old = os.path.join(folder, OLD_KB_FILE)
     if os.path.basename(os.path.abspath(folder or ".")) != KB_FOLDER or not os.path.isfile(old):
@@ -740,10 +729,8 @@ _LINE_MARKERS = re.compile(r"^[ \t]*(?:>+[ \t]?|[-*+\u2022][ \t]+|#{1,6}[ \t]+)"
 
 
 def norm(text: str) -> str:
-    """Normalize text so a quote and its transcript compare the same way.
-
-    Curly quotes, dashes and ellipses become ASCII, invisible characters go, markdown markers go,
-    and runs of whitespace collapse to one space. Both sides of every comparison pass through here."""
+    """Normalize text for quote matching: ASCII quotes, dashes and ellipses, no invisible characters or markdown
+    markers, single spaces. Both sides of every comparison pass through here."""
     for old, new in _CHAR_MAP:
         text = text.replace(old, new)
     text = _LINE_MARKERS.sub("", text)
@@ -786,8 +773,8 @@ def _run_text(run: ElementTree.Element) -> str:
 
 
 def read_docx(path: str) -> str:
-    """The text of a .docx file, exactly as python-docx 1.2.0 gives it for its paragraphs, so a transcript keeps its
-    hash: the paragraphs right under the body (not tables), each the text of its runs and of its hyperlinks' runs."""
+    """A .docx's text exactly as python-docx 1.2.0 gives it, so hashes hold: body paragraphs (not tables), each the
+    text of its runs and hyperlinks' runs."""
     with zipfile.ZipFile(path) as archive:
         body = _docx_part(archive, _docx_main(archive)).find(f"{W_NS}body")
     if body is None:
@@ -860,12 +847,8 @@ def _transcript_files(root: str) -> list[str] | None:
 
 
 class Transcripts:
-    """Finds transcript files and reads each one the first time it is asked for.
-
-    The study's own copies (`own`, .pw-kb/transcripts/) come first: a name found there is always read from there.
-    Other names are looked up under the --transcripts roots. Files are keyed by base name, as interview records
-    store them. A name that exists in two of those roots is refused, because the tool could not tell which one
-    the evidence came from."""
+    """Finds transcripts by base name and reads each once. The study's copies (.pw-kb/transcripts/) win; other
+    names come from the --transcripts roots, and a name found in two roots is refused as ambiguous."""
 
     def __init__(self, roots: list[str], own: str | None = None) -> None:
         self.own: dict[str, str] = {}
@@ -921,8 +904,7 @@ def transcripts_for(roots: list[str], report: Report, own: str | None = None) ->
 
 # ---------- KB access ----------
 def _guess_version(kb: Json, newest: int = SCHEMA_VERSION) -> int:
-    """A KB written before schema_version existed: schema 1 if it still has the single market core job, else
-    `newest`, the last version its format had (2 for YAML)."""
+    """Schema of a KB from before schema_version: 1 with the single market core job, else `newest` (2 for YAML)."""
     steps = (kb.get("job_map") or {}).get("steps") or []
     old = "market_core_job" in kb or any(isinstance(s, dict) and "job" not in s for s in steps)
     return 1 if old else newest
@@ -962,6 +944,8 @@ def load_kb(path: str) -> Json:
     if version < SCHEMA_VERSION:
         raise KbError(f"{path} uses KB schema version {version}; run `kb_tool.py migrate {path}` first",
                       code="migrate_needed")
+    with contextlib.suppress(KeyError, TypeError, ValueError):  # a broken KB is for validate to report
+        _recount_voices(kb)  # a KB written before steps had voices
     return kb
 
 
@@ -1095,6 +1079,16 @@ def _recount_steps(kb: Json, names: dict[str, str]) -> None:
     kb["job_map"]["steps"][:] = stamped
 
 
+def _recount_voices(kb: Json) -> None:
+    """A step's voices: the people quoted on it or on any of its live outcomes. The thin rule counts these."""
+    people: dict[str, set[str]] = {}
+    for outcome in kb["desired_outcomes"]["outcomes"]:
+        if not outcome.get("merged_into"):
+            people.setdefault(str(outcome["step"]), set()).update(outcome.get("interviews", []))
+    for step in kb["job_map"]["steps"]:
+        step["voices"] = len(people.get(step_key(step), set()) | set(step.get("interviews", [])))
+
+
 def _recount_jobs(kb: Json) -> None:
     quoted: dict[str, set[str]] = {}
     for step in kb["job_map"]["steps"]:
@@ -1121,6 +1115,7 @@ def recount(kb: Json) -> None:
         ids = sorted({str(item.get("interview")) for item in outcome.get("evidence", [])})
         outcome["interviews"], outcome["interview_count"] = ids, len(ids)
         outcome["quote_count"] = len(outcome.get("evidence", []))
+    _recount_voices(kb)
     _recount_jobs(kb)
     _recount_solutions(kb, names)
     _recount_themes(kb, names)
@@ -1142,7 +1137,117 @@ def mark_stale(kb: Json, reason: str) -> None:
 
 
 def thin_steps(kb: Json) -> list[Json]:
-    return [step for step in kb["job_map"]["steps"] if step.get("coverage", 0) < THIN_STEP]
+    return [step for step in kb["job_map"]["steps"] if step.get("voices", 0) < THIN_STEP]
+
+
+# ---------- next interviews ----------
+# The gaps a study still has, ranked: the map's Next interviews view computes the same list (nxGaps in the template).
+OPEN_GAP_ORDER = ("step", "need", "who")
+NEXT_LEVEL = (3, 8)  # conversations for "Early signs" and for "A clear pattern", as the map's overSure() counts them
+
+
+def _natural(ref: str) -> list[Any]:
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", ref)]
+
+
+def learn_of(kb: Json, job: str) -> Json:
+    """The core job's overview `next.learn`: the plan for the next round, or {} when there is none."""
+    entry = next(iter(overviews_of(kb, job)), {})
+    learn = entry.get("next", {}).get("learn") if isinstance(entry.get("next"), dict) else None
+    return learn if isinstance(learn, dict) else {}
+
+
+def live_outcome(kb: Json, ref: str) -> str:
+    """Follow merged_into, so a plan written before a merge still points at the outcome that holds the evidence."""
+    by_id = {str(o["id"]): o for o in kb["desired_outcomes"]["outcomes"]}
+    seen: set[str] = set()
+    while ref in by_id and by_id[ref].get("merged_into") and ref not in seen:
+        seen.add(ref)
+        ref = str(by_id[ref]["merged_into"])
+    return ref
+
+
+def open_gaps(kb: Json, job: str, learn: Json | None = None) -> list[Json]:
+    """Thin steps, needs heard once (or from fewer than 3 under the main finding), unheard kinds; main first."""
+    learn = learn_of(kb, job) if learn is None else learn
+    live = {str(o["id"]): o for o in kb["desired_outcomes"]["outcomes"]
+            if not o.get("merged_into") and job_of(str(o["step"])) == job}
+    main = {ref for ref in (live_outcome(kb, str(r)) for r in learn.get("rests_on") or []) if ref in live}
+    main_steps = {str(live[ref]["step"]) for ref in main}
+    gaps = []
+    for step in kb["job_map"]["steps"]:
+        key = step_key(step)
+        if step.get("job") == job and step.get("voices", 0) < THIN_STEP:
+            people = set(step.get("interviews", [])).union(*[o.get("interviews", []) for o in live.values()
+                                                             if str(o["step"]) == key])
+            gaps.append({"ref": key, "kind": "step", "main": key in main_steps, "people": sorted(people),
+                         "text": step["statement"]})
+    for ref, outcome in live.items():
+        if outcome.get("interview_count", 0) <= 1 or (ref in main and outcome.get("interview_count", 0) < THIN_STEP):
+            gaps.append({"ref": ref, "kind": "need", "main": ref in main, "people": outcome.get("interviews", []),
+                         "text": outcome["statement"]})
+    for trait in learn.get("traits") or []:
+        for value in trait.get("values") or [] if isinstance(trait, dict) else []:
+            if isinstance(value, dict) and not value.get("interviews"):
+                gaps.append({"ref": str(value.get("id")), "kind": "who", "main": False, "people": [],
+                             "text": f"{trait.get('name', '')}: {value.get('label', '')}"})
+    return sorted(gaps, key=lambda g: (not g["main"], OPEN_GAP_ORDER.index(g["kind"]), len(g["people"]),
+                                       _natural(g["ref"])))
+
+
+def round_snapshot(kb: Json, learn: Json) -> Json:
+    """What a plan aimed at, and who had been heard."""
+    values = {v["id"]: v["label"] for t in learn.get("traits") or [] for v in t["values"]}
+    refs = list(dict.fromkeys(ref for entry in learn.get("round") or [] for ref in entry["gaps"]))
+    return {"written": today(), "interviews": sorted(str(r["id"]) for r in kb["interviews"]),
+            "targets": [{"ref": ref, "label": values.get(ref, "")} for ref in refs]}
+
+
+def last_round(kb: Json, job: str) -> Json | None:
+    """How many of the last round's targets closed; a renamed kind of person is not counted."""
+    learn = learn_of(kb, job)
+    if not isinstance(learn.get("previous"), dict):
+        return None
+    labels = {v.get("id"): v.get("label") for t in learn.get("traits") or [] for v in t.get("values") or []}
+    known = {step_key(s) for s in kb["job_map"]["steps"] if s.get("job") == job} | {
+        str(o["id"]) for o in kb["desired_outcomes"]["outcomes"] if job_of(str(o["step"])) == job}
+    targets = [ref for t in learn["previous"].get("targets") or []  # a moved outcome's old ID is gone, not closed
+               for ref in [str(t.get("ref")) if t.get("label") else live_outcome(kb, str(t.get("ref")))]
+               if (labels.get(ref) == t["label"] if t.get("label") else ref in known)]
+    still = [ref for ref in targets if ref in {g["ref"] for g in open_gaps(kb, job)}]
+    return {"closed": len(targets) - len(still), "targeted": len(targets), "open": still}
+
+
+def job_people(kb: Json, job: str) -> list[str]:
+    """A core job's people as the map counts them: main, related, and anyone quoted on its parts."""
+    job_entry = jobs_by_id(kb).get(job, {})
+    people = set(job_entry.get("interviews", [])) | set(job_entry.get("related_interviews", []))
+    for step in kb["job_map"]["steps"]:
+        if step.get("job") == job:
+            people.update(step.get("interviews", []))
+    for outcome in kb["desired_outcomes"]["outcomes"]:
+        if not outcome.get("merged_into") and job_of(str(outcome["step"])) == job:
+            people.update(outcome.get("interviews", []))
+    for solution in solutions_of(kb):
+        for use in solution.get("uses") or []:
+            if job_of(str(use.get("step", ""))) == job:
+                people.update(str(e.get("interview")) for e in use.get("evidence") or [])
+    return sorted(people)
+
+
+def sure_level(kb: Json, job: str) -> Json:
+    """The map's "How sure is this?" level (overSure) and the conversations to the next one."""
+    many = len(kb["core_jobs"]) > 1
+    scope = [r for r in kb["interviews"] if not many or str(r["id"]) in set(job_people(kb, job))]
+    order = sorted(scope, key=lambda r: (str(r.get("date") or ""), _natural(str(r["id"]))))
+    last, early = {str(r["id"]) for r in order[-2:]}, {str(r["id"]) for r in order[:-2]}
+    fresh = sum(1 for o in kb["desired_outcomes"]["outcomes"]
+                if not o.get("merged_into") and job_of(str(o["step"])) == job
+                and set(o.get("interviews", [])) & last and not set(o.get("interviews", [])) & early)
+    n = len(order)
+    level = 1 if n < NEXT_LEVEL[0] else 3 if n >= NEXT_LEVEL[1] and fresh <= 2 else 2
+    to_next = NEXT_LEVEL[0] - n if level == 1 else max(NEXT_LEVEL[1] - n, 0) if level == 2 else 0
+    return {"level": level, "conversations": n, "fresh": fresh, "to_next": to_next}
 
 
 def stale_layers(kb: Json) -> list[str]:
@@ -1150,9 +1255,8 @@ def stale_layers(kb: Json) -> list[str]:
 
 
 # ---------- current solutions ----------
-# What people use today to get a step done. The section is optional and created by the first merge that adds a
-# solution, so a KB without solutions stays exactly as it was. Readers are lenient about its shape, because
-# recount runs before the structure check reports what is wrong.
+# Optional; made by the first merge that adds a solution. Readers are lenient about its shape, because recount runs
+# before the structure check.
 def solutions_of(kb: Json) -> list[Json]:
     section = kb.get("current_solutions")
     items = section.get("solutions") if isinstance(section, dict) else None
@@ -1284,9 +1388,7 @@ def _rename_use_refs(kb: Json, renamed: dict[str, str]) -> None:
 
 
 # ---------- value themes ----------
-# A value theme is a need in the customer's words that gathers the outcomes serving one judgment, across job steps.
-# `themes` writes the layer, one core job at a time. A theme with no ID was written by hand before that command
-# existed: it is kept as it is, never counted and never checked, until `themes` replaces it.
+# Written by `themes`, per core job. A theme with no ID predates that command: kept as is, never counted or checked.
 def themes_of(kb: Json, job: str | None = None) -> list[Json]:
     layer = kb.get("value_themes")
     items = layer.get("themes") if isinstance(layer, dict) else None
@@ -1393,10 +1495,8 @@ def _quote_hint(value: Any, expected: list[str]) -> str:
 
 
 def schema_errors(data: Any, schema: Json, root: str = "kb") -> list[str]:
-    """Check data against a JSON Schema and return readable problems, at most MAX_PROBLEMS.
-
-    Uses the jsonschema package when it is installed. Otherwise a built-in checker covers the keywords our
-    schemas use and refuses any other keyword, so a new keyword can never pass unchecked."""
+    """Readable JSON Schema problems, at most MAX_PROBLEMS: jsonschema when installed, else a built-in checker that
+    refuses any keyword it does not know."""
     plain = copy.deepcopy(data)
     if _jsonschema is not None:
         return _library_schema_errors(plain, schema, root)
@@ -1588,13 +1688,13 @@ class Style:
     limits: dict[str, int] = field(default_factory=lambda: {
         "executor": 16, "job": 10, "step": 10, "outcome": 16, "feeling": 12, "rationale": 30,
         "solution": 6, "group": 6, "theme": 6, "need": 25,
-        "headline": 20, "finding": 50, "action": 20, "role": 4, "who": 25})
+        "headline": 20, "finding": 50, "action": 20, "role": 4, "who": 25,
+        "plan_who": 15, "question": 25, "listen": 15})
     banned: list[str] = field(default_factory=lambda: list(BANNED_NAMES))
     idioms: list[str] = field(default_factory=lambda: ["bread and butter", "in and out"])
     acronyms: list[str] = field(default_factory=lambda: ["OTR", "US", "UK", "EU"])
     language: str = ENGLISH
-    # The fixed openings of an outcome and of a theme's need. An English study has them; a study in another language
-    # has none to check unless meta.style sets its own (directions: [...], need_start: ...).
+    # Fixed openings of outcomes and needs: English has them; other languages only if meta.style sets them.
     directions: list[str] = field(default_factory=lambda: list(DIRECTIONS))
     need_start: str = NEED_START
 
@@ -1660,9 +1760,8 @@ Lookup = Callable[[str], "tuple[str | None, str | None]"]
 
 
 class QuoteChecker:
-    """Checks that every evidence quote appears word for word in its interview's transcript.
-
-    `lookup(reference)` returns (normalized transcript text, None) or (None, why it is missing)."""
+    """Checks each quote appears word for word in its transcript. `lookup(reference)` returns (normalized text,
+    None) or (None, why missing)."""
 
     def __init__(self, lookup: Lookup) -> None:
         self.lookup = lookup
@@ -1728,8 +1827,8 @@ class _PatchReader:
 
 
 def coerce_patch(patch: Any, width: int, report: Report) -> Json:
-    """Read the patch the way the writer meant it: a bare interview number becomes a zero-padded ID, with a warning.
-    Outcome IDs are never coerced, because 2.10 written as a number is 2.1."""
+    """A bare interview number becomes a zero-padded ID, with a warning. Outcome IDs never: 2.10 as a number is
+    2.1."""
     if patch is None:
         raise KbError("the patch file is empty", code="patch_empty")
     if not isinstance(patch, dict):
@@ -1770,9 +1869,8 @@ def upgrade_bootstrap(patch: Json, report: Report) -> None:
 
 
 class JobRefs:
-    """Turns step and outcome IDs without a job letter ("6", "6.3") into full IDs ("A.6", "A.6.3").
-
-    That is safe only when the KB has exactly one core job. With several, a bare ID is refused."""
+    """Turns bare step and outcome IDs ("6", "6.3") into full ones ("A.6", "A.6.3"); done only with exactly one core
+    job."""
 
     def __init__(self, kb: Json, patch: Json, report: Report) -> None:
         boot = patch.get("bootstrap") or {}
@@ -1985,10 +2083,8 @@ def groups_wanted(patch: Json) -> set[str]:
 
 
 def resolve_solution_groups(kb: Json, patch: Json, wanted: set[str], report: Report) -> None:
-    """Drop new groups the KB already holds, so a batch can be re-run, and new groups whose only solutions came from
-    skipped interviews. A new group that nothing in the patch puts a solution into is refused.
-
-    `wanted` is groups_wanted() read before evidence from skipped interviews was dropped."""
+    """Drop new groups the KB already holds (so a batch can re-run) or whose solutions all came from skipped
+    interviews. A new group no solution goes into is refused. `wanted`: groups_wanted() before that drop."""
     groups = groups_of(kb)
     used = groups_wanted(patch)
     kept = []
@@ -2008,10 +2104,8 @@ def resolve_solution_groups(kb: Json, patch: Json, wanted: set[str], report: Rep
 
 
 def resolve_provenance(patch: Json, plan: MergePlan, report: Report) -> Json | None:
-    """The patch's provenance block, with transcript references turned into KB interview IDs.
-
-    A reference that is neither a KB ID nor a key in this patch is dropped with a warning: it is usually a file
-    name, and file names carry the interviewee's name. One that names a skipped interview is dropped quietly."""
+    """The provenance block with transcript references turned into interview IDs. An unknown reference is dropped
+    with a warning (usually a file name, which carries a name); one naming a skipped interview, quietly."""
     given = patch.get("provenance")
     if not isinstance(given, dict):
         return None
@@ -2587,9 +2681,8 @@ def _bootstrap_into(kb: Json, bootstrap: Json) -> str:
 
 
 def apply_patch(kb: Json, patch: Json, plan: MergePlan, stamp: Json) -> Json | None:
-    """Fold a checked patch into the KB in place. Returns the changelog entry, or None when nothing is new.
-
-    `stamp` is what the changelog entry records about the run itself: patch name, ts, run_id and provenance."""
+    """Fold a checked patch into the KB. Returns the changelog entry, or None when nothing is new. `stamp`: patch
+    name, ts, run_id and provenance."""
     fresh = has_new_evidence(kb, patch, plan)
     anything = (plan.new_interviews or plan.bootstrap or fresh or patch.get("new_outcomes")
                 or patch.get("new_solutions") or patch.get("proposed_changes"))
@@ -2848,8 +2941,8 @@ def _apply_new_segment(kb: Json, proposal: Json) -> str:
 
 
 def _link(own: Json, job: str | None, reason: str = "") -> None:
-    """Point an interview's own job statement at a core job, keeping the old link and the old reason for having
-    none in its history. Removing the main link records why, so the KB never says a linked person has no job."""
+    """Link an interview's own job to a core job, keeping the old link and reason in its history. Unlinking records
+    why, so a linked person never shows as having no job."""
     if own.get("job") == job:
         return
     entry: Json = {"was_job": own.get("job")}
@@ -3246,8 +3339,7 @@ def build_themes(kb: Json, job: str, items: list[Any], before: list[Json], repor
 
 
 def store_themes(kb: Json, job: str, themes: list[Json]) -> int:
-    """Replace the core job's themes, keep those of other core jobs and clear the layer's stale flag. Returns how
-    many themes written by hand, with no ID, were dropped."""
+    """Replace the core job's themes and clear the stale flag. Returns how many hand-written themes were dropped."""
     layer = kb.get("value_themes") if isinstance(kb.get("value_themes"), dict) else {}
     old = layer.get("themes") if isinstance(layer.get("themes"), list) else []
     kept = [t for t in themes_of(kb) if str(t.get("job")) != job]
@@ -3353,10 +3445,8 @@ def cmd_themes(args: argparse.Namespace) -> int:
 
 
 # ---------- overview ----------
-# The overview tells one core job's study as a short story for someone new to the method: a bottom line, the
-# people, how they work today, where that falls short, and what to do next. `overview` writes it, one core job at a
-# time. The map counts the unmet needs and ranks the themes itself; this layer holds only the sentences the
-# assistant writes, and every quote in it is one the KB already holds.
+# One core job's study as a short story, written by `overview`. The layer holds only the assistant's sentences; the
+# map counts the rest, and every quote must already be in the KB.
 @dataclass
 class OverviewChecks:
     """What the checks of one core job's overview need at hand."""
@@ -3383,8 +3473,7 @@ def _own_statements(record: Json) -> list[Json]:
 
 
 def _overview_pool(kb: Json, job: str) -> dict[tuple[str, str], Json]:
-    """The quotes an overview may show: those on the core job's steps, outcomes and solution uses, and what the
-    people linked to it said about themselves."""
+    """Quotes an overview may show: on the job's steps, outcomes and solution uses, and linked people's own words."""
     steps = [s for s in kb["job_map"]["steps"] if str(s["job"]) == job]
     keys = {step_key(s) for s in steps}
     items = [e for s in steps for e in s.get("evidence", [])]
@@ -3493,8 +3582,7 @@ def _ov_section(ctx: OverviewChecks, data: Json, key: str, quote: bool = False) 
 
 
 def _ov_executor(ctx: OverviewChecks, data: Json) -> Json:
-    """Who the study is about: a short label, one sentence, an icon the map can draw, and the other people who
-    appear in the story but are not its focus."""
+    """Who the study is about: label, sentence, a drawable icon, and others in the story."""
     section = _ov_mapping(ctx, data, "executor", EXECUTOR_KEYS, "overview")
     out: Json = {"label": _ov_text(ctx, section, "label", "role", "executor"),
                  "text": _ov_text(ctx, section, "text", "who", "executor")}
@@ -3603,7 +3691,8 @@ def _ov_words(ctx: OverviewChecks, words: list[str], label: str) -> None:
 def _ov_track(ctx: OverviewChecks, data: Json, name: str) -> Json:
     statuses, fields = NEXT_TRACKS[name]
     label = f"next.{name}"
-    track = _ov_mapping(ctx, data, name, ("status", "action", *fields), "next")
+    extra = LEARN_PLAN if name == "learn" else ()
+    track = _ov_mapping(ctx, data, name, ("status", "action", *fields, *extra), "next")
     out: Json = {"status": str(track.get("status") or ""), "action": _ov_text(ctx, track, "action", "action", label)}
     if out["status"] not in statuses:
         ctx.report.error(f"{label}: status must be one of {', '.join(statuses)}", code="overview_shape")
@@ -3612,7 +3701,124 @@ def _ov_track(ctx: OverviewChecks, data: Json, name: str) -> Json:
             _ov_text(ctx, track, key, "rationale", label)
     if out.get("words"):
         _ov_words(ctx, out["words"], label)
+    if any(key in track for key in extra):
+        _ov_plan(ctx, track, out)
     return out
+
+
+def _ov_refs(ctx: OverviewChecks, given: Any, allowed: set[str], most: int, label: str, *,
+             least: int = 1) -> list[str]:
+    if not isinstance(given, list) or not all(isinstance(x, str) for x in given):
+        ctx.report.error(f"{label} must be a list of IDs", code="overview_shape")
+        return []
+    if not least <= len(given) <= most:
+        ctx.report.error(f"{label} holds {len(given)} IDs; give {least} to {most}", code="overview_count")
+    unknown = [ref for ref in given if ref not in allowed]
+    if unknown:
+        ctx.report.error(f"{label}: {', '.join(unknown)} is not a step, outcome or trait value of core job {ctx.job} "
+                         "it may name", code="overview_ref")
+    return list(given)
+
+
+def _ov_traits(ctx: OverviewChecks, given: Any) -> list[Json]:
+    """2 or 3 traits, each value with its people (none: not heard yet)."""
+    if not isinstance(given, list) or not TRAIT_COUNT[0] <= len(given) <= TRAIT_COUNT[1]:
+        ctx.report.error("next.learn: traits must be a list of 2 or 3 traits", code="overview_count")
+    main = {str(r["id"]) for r in ctx.kb["interviews"] if main_job(r) == ctx.job}
+    traits = []
+    for trait in given if isinstance(given, list) else []:
+        tid = str(trait.get("id") or "") if isinstance(trait, dict) else ""
+        values = trait.get("values") if isinstance(trait, dict) else None
+        if not TRAIT_ID.match(tid):
+            ctx.report.error(f"next.learn: a trait needs an id like T1, not '{tid}'", code="overview_shape")
+        if not isinstance(values, list) or not TRAIT_VALUES[0] <= len(values) <= TRAIT_VALUES[1]:
+            ctx.report.error(f"next.learn {tid}: a trait has 2 to 5 values", code="overview_count")
+        kept, seen = [], set()
+        for value in values if isinstance(values, list) else []:
+            vid = str(value.get("id") or "") if isinstance(value, dict) else ""
+            if not (TRAIT_VALUE_ID.match(vid) and vid.startswith(f"{tid}.")):
+                ctx.report.error(f"next.learn {tid}: value '{vid}' needs an id like {tid}.1", code="overview_shape")
+            people = [str(i) for i in (value.get("interviews") or [] if isinstance(value, dict) else [])]
+            if set(people) - main:
+                ctx.report.error(f"next.learn {vid}: {', '.join(sorted(set(people) - main))} is no one whose main goal "
+                                 f"is core job {ctx.job}", code="overview_ref")
+            if seen & set(people):
+                ctx.report.error(f"next.learn: {', '.join(sorted(seen & set(people)))} is in two values of {tid}",
+                                 code="overview_shape")
+            seen |= set(people)
+            kept.append({"id": vid, "label": _ov_text(ctx, value, "label", "role", f"next.learn {vid}"),
+                         "interviews": people})
+        traits.append({"id": tid, "name": _ov_text(ctx, trait, "name", "role", f"next.learn {tid}"), "values": kept})
+    for twice in _duplicates([t["id"] for t in traits] + [v["id"] for t in traits for v in t["values"]]):
+        ctx.report.error(f"next.learn: {twice} is used twice", code="overview_shape")
+    return traits
+
+
+def _ov_question(ctx: OverviewChecks, item: Any, gaps: list[str], label: str) -> Json:
+    item = _ov_mapping(ctx, {"question": item}, "question", ("ask", "listen", "gaps"), label)
+    ask = _ov_text(ctx, item, "ask", "question", label)
+    refs = _ov_refs(ctx, item.get("gaps"), set(gaps), ROUND_ITEMS, f"{label} gaps")
+    stray = [ref for ref in refs if ref not in gaps]
+    if stray:
+        ctx.report.error(f"{label}: {', '.join(stray)} is not one of this entry's gaps", code="overview_shape")
+    if ctx.style.english and LEADING.search(ask):
+        ctx.report.warn(f"{label}: '{ask}' asks what they would do; ask about the last time they did it",
+                        code="plan_leading")
+    return {"ask": ask, "listen": _ov_text(ctx, item, "listen", "listen", label), "gaps": refs}
+
+
+def _ov_round(ctx: OverviewChecks, given: Any, refs: set[str], values: set[str]) -> list[Json]:
+    """Who to talk to next, in order, with the gaps each fills and the questions."""
+    if not isinstance(given, list) or not given or len(given) > ROUND_MAX:
+        count = len(given) if isinstance(given, list) else 0
+        ctx.report.error(f"next.learn: round holds {count} entries; keep at most {ROUND_MAX}, at least 1",
+                         code="overview_count")
+    entries = []
+    for n, raw in enumerate(given if isinstance(given, list) else [], 1):
+        where = f"next.learn round {n}"
+        entry = _ov_mapping(ctx, {"entry": raw}, "entry", ("kind", "count", "who", "traits", "gaps", "questions"),
+                             where)
+        count = entry.get("count")
+        if entry.get("kind") != "new":
+            ctx.report.error(f"{where}: kind must be new", code="overview_shape")
+        if not (isinstance(count, int) and not isinstance(count, bool) and ROUND_COUNT[0] <= count <= ROUND_COUNT[1]):
+            ctx.report.error(f"{where}: count must be 1 to 3 people", code="overview_shape")
+        gaps = _ov_refs(ctx, entry.get("gaps"), refs, ROUND_ITEMS, f"{where} gaps")
+        asks = entry.get("questions")
+        if not isinstance(asks, list) or not 1 <= len(asks) <= ROUND_ITEMS:
+            ctx.report.error(f"{where}: questions must be a list of 1 to {ROUND_ITEMS}", code="overview_count")
+        out: Json = {"kind": "new", "count": count, "who": _ov_text(ctx, entry, "who", "plan_who", where)}
+        if entry.get("traits"):
+            out["traits"] = _ov_refs(ctx, entry["traits"], values, ROUND_ITEMS, f"{where} traits")
+        out["gaps"] = gaps
+        out["questions"] = [_ov_question(ctx, q, gaps, f"{where} question {i}")
+                            for i, q in enumerate(asks if isinstance(asks, list) else [], 1)]
+        entries.append(out)
+    return entries
+
+
+def _ov_plan(ctx: OverviewChecks, track: Json, out: Json) -> None:
+    """The plan for the next round; every ref belongs to this core job."""
+    traits = _ov_traits(ctx, track.get("traits"))
+    values = {v["id"] for t in traits for v in t["values"]}
+    steps = {step_key(s) for s in ctx.kb["job_map"]["steps"] if s.get("job") == ctx.job}
+    outs = {str(o["id"]) for o in ctx.kb["desired_outcomes"]["outcomes"]
+            if not o.get("merged_into") and job_of(str(o["step"])) == ctx.job}
+    out["traits"] = traits
+    out["rests_on"] = _ov_refs(ctx, track.get("rests_on"), outs, RESTS_ON_MAX, "next.learn rests_on")
+    out["round"] = _ov_round(ctx, track.get("round"), steps | outs | values, values)
+    gaps = open_gaps(ctx.kb, ctx.job, out)
+    covered = {ref for entry in out["round"] for ref in entry["gaps"]}
+    closed = sorted(covered - {g["ref"] for g in gaps})
+    if closed:
+        ctx.report.warn(f"next.learn round: {', '.join(closed)} is not an open gap any more; aim at what is thin",
+                        code="plan_gap_closed")
+    bare = [g["ref"] for g in gaps if g["main"] and g["ref"] not in covered]
+    if bare:
+        ctx.report.warn(f"next.learn round: the main finding rests on {', '.join(bare)}, which no entry covers",
+                        code="plan_main_uncovered")
+    if out["status"] == "enough" and any(g["main"] or g["kind"] == "step" for g in gaps):
+        ctx.report.warn("next.learn: status is enough while thin steps or main-finding gaps remain", code="plan_status")
 
 
 def build_overview(kb: Json, job: str, data: Json, report: Report) -> Json:
@@ -3680,6 +3886,8 @@ def _overview_text(kb: Json, entry: Json, result: Json) -> list[str]:
     lines += [f"{key}: {entry[key]['answer']}" for key in ("people", "today", "gaps", "needs", "focus")]
     lines += [f"   gap ({g['kind']}): {g['label']}" for g in entry["gaps"]["items"]]
     lines += [f"next, {name} ({track['status']}): {track['action']}" for name, track in entry["next"].items()]
+    lines += [f"next, learn round: {e['count']} × {e['who']} (gaps {', '.join(e['gaps'])})"
+              for e in entry["next"]["learn"].get("round", [])]
     if result["other_jobs"]:
         lines.append(f"the overview of core job {', '.join(result['other_jobs'])} was not touched; update it too if "
                      "it is out of date")
@@ -3699,6 +3907,13 @@ def cmd_overview(args: argparse.Namespace) -> int:
     result: Json = {"ok": False, "dry_run": bool(args.dry_run), "job": job, "written": False, "run_id": args.run.id}
     if report.errors:
         return _themes_finish(args, report, result, [])
+    learn, old = entry["next"]["learn"], learn_of(kb, job)
+    if learn.get("round"):
+        learn["at_write"] = round_snapshot(kb, learn)
+        was = old.get("at_write") if isinstance(old.get("at_write"), dict) else {}
+        moved = bool(was) and was.get("interviews") != learn["at_write"]["interviews"]  # a batch came in since
+        if moved or isinstance(old.get("previous"), dict):
+            learn["previous"] = was if moved else old["previous"]
     store_overview(candidate, entry)
     recount(candidate)
     summary = f"overview of core job {job}"
@@ -3758,7 +3973,7 @@ def _job_steps(kb: Json, job: str) -> list[Json]:
             by_step.setdefault(str(outcome["step"]), []).append(outcome)
     steps = sorted((s for s in kb["job_map"]["steps"] if s.get("job") == job), key=lambda s: int(s["n"]))
     return [{"id": step_key(step), "stage": step.get("stage", ""), "statement": step["statement"],
-             "coverage": step.get("coverage", 0),
+             "coverage": step.get("coverage", 0), "voices": step.get("voices", 0),
              "outcomes": [{"id": o["id"], "statement": o["statement"], "interview_count": o.get("interview_count", 0)}
                           for o in by_step.get(step_key(step), [])]}
             for step in steps]
@@ -3771,7 +3986,7 @@ def people_data(kb: Json) -> list[Json]:
              "unlinked_reason": unlinked_reason(r),
              "related": [{"statement": j.get("statement", ""), "job": j.get("job")}
                          for j in r.get("related_jobs") or [] if isinstance(j, dict)],
-             "analyst_note": r.get("analyst_note", "")}
+             "analyst_note": r.get("analyst_note", ""), "tags": r.get("tags") or []}
             for r in kb["interviews"]]
 
 
@@ -3783,7 +3998,8 @@ def context_data(kb: Json) -> Json:
     people = people_data(kb)
     return {"project": kb["meta"].get("project", ""), "language": study_language(kb),
             "interview_count": len(kb["interviews"]),
-            "core_jobs": jobs, "people": people, "unlinked": [p["id"] for p in people if not p["job"]],
+            "core_jobs": jobs, "people": people, "open_gaps": {j["id"]: open_gaps(kb, j["id"]) for j in jobs},
+            "unlinked": [p["id"] for p in people if not p["job"]],
             "segments": {k: v.get("name", "") for k, v in (kb.get("clusters") or {}).items()},
             "processed_files": sorted(interviews_by_file(kb)),
             "pending_proposals": [{"id": p["id"], "type": p["type"], "target": p.get("target") or p.get("job") or "",
@@ -3839,7 +4055,7 @@ def _person_line(person: Json) -> str:
     links = person["job"] or "no core job" + (f" ({person['unlinked_reason']})" if person["unlinked_reason"] else "")
     also = sorted({r["job"] for r in person["related"] if r["job"] and r["job"] != person["job"]})
     return f"  {person['id']} {person['name']}: {person['core_functional_job']} -> {links}" + \
-        (f"; also {', '.join(also)}" if also else "")
+        (f"; also {', '.join(also)}" if also else "") + (f" [{', '.join(person['tags'])}]" * bool(person["tags"]))
 
 
 def _print_jobs(data: Json) -> None:
@@ -3857,7 +4073,7 @@ def _print_jobs(data: Json) -> None:
         main, also = ", ".join(job["interviews"]) or "none", ", ".join(job["related_interviews"]) or "none"
         print(f"  PEOPLE: main {main}; also {also}")
         for step in job["steps"]:
-            print(f"STEP {step['id']} [{step['stage']}] {step['statement']}  (interviews {step['coverage']})")
+            print(f"STEP {step['id']} [{step['stage']}] {step['statement']}  (people {step['voices']})")
             for outcome in step["outcomes"]:
                 print(f"   {outcome['id']:>7}  {outcome['statement']}  (iv {outcome['interview_count']})")
 
@@ -3883,6 +4099,16 @@ def cmd_context(args: argparse.Namespace) -> int:
         print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
         return 0
     _print_jobs(data)
+    for job, gaps in data["open_gaps"].items():
+        if gaps:
+            sure = sure_level(kb, job)
+            after = f"{sure['to_next']} more reach the next" if sure["to_next"] else "next: new ones stop adding needs"
+            print(f"\nOPEN GAPS for core job {job} (main finding first; next.learn's round should cover the top ones)"
+                  f"\n  level {sure['level']} of 3 after {sure['conversations']} conversations"
+                  + f"; {after}" * (sure["level"] < 3))
+        for g in gaps:
+            who = f"people {len(g['people'])}: {', '.join(g['people'])}" if g["people"] else "nobody yet"
+            print(f"  {g['ref']} [{g['kind']}{', main' * g['main']}] {g['text']}  ({who})")
     _print_solutions(data["current_solutions"])
     _print_themes(data["value_themes"], "value_themes" in data["stale"])
     if data["overview"]:
@@ -3908,8 +4134,7 @@ def cmd_context(args: argparse.Namespace) -> int:
 
 
 # ---------- review ----------
-# The review sheet's words come from labels, so it reads in the study's language. Each table names its labels in
-# full, so a test can check that every label the code uses exists.
+# Words come from labels; each table writes its keys in full so a test can check they exist.
 PROPOSAL_LABELS = {"new_step": "review.proposal.new_step", "reword_step": "review.proposal.reword_step",
                    "reword_outcome": "review.proposal.reword_outcome",
                    "reword_core_job": "review.proposal.reword_core_job",
@@ -4024,7 +4249,7 @@ def _review_map(kb: Json, live_outcomes: list[Json], new_outcomes: set[str], tex
                 continue
             lines.append("### " + text(STAGE_LABELS[stage]))
             for step in steps:
-                lines.append(f"**{step_key(step)} {step['statement']}** [{step.get('coverage', 0)}]")
+                lines.append(f"**{step_key(step)} {step['statement']}** [{step.get('voices', 0)}]")
                 for outcome in by_step.get(step_key(step), []):
                     mark = "● " if outcome["id"] in new_outcomes else ""
                     count = outcome.get("interview_count", 0)
@@ -4117,30 +4342,90 @@ def _review_people(kb: Json, text: Text) -> list[str]:
     return lines
 
 
-ASK_NEXT = 5  # steps per core job that "ask about these next" names
+NX_GROUP_MAX = 5
+NX_GROUPS = (("main", "review.nx.g.main"), ("step", "review.nx.g.step"), ("need", "review.nx.g.need"),
+             ("who", "review.nx.g.who"))
+NX_LEVELS = ("review.nx.level.1", "review.nx.level.2", "review.nx.level.3")
+PLAIN = ((r"Minimize the time (it takes )?to ", "Less time to "), (r"Minimize the likelihood that ", "Less risk that "),
+         (r"Minimize the likelihood of ", "Less risk of "), (r"Minimize the number of ", "Fewer "),
+         (r"Minimize (the amount of |the )?", "Less "), (r"(Maximize|Increase) (the )?", "More "),
+         (r"Reduce (the )?", "Less "))
 
 
-def ask_next(kb: Json, job: str) -> tuple[list[Json], int]:
-    """The core job's thin steps that fewest people support, at most ASK_NEXT of them, and how many thin ones are left
-    out. After a small first batch every step is thin, so the list has to choose."""
-    thin = sorted((s for s in thin_steps(kb) if s.get("job") == job),
-                  key=lambda s: (s.get("coverage", 0), step_sort_key(step_key(s))))
-    return thin[:ASK_NEXT], max(len(thin) - ASK_NEXT, 0)
+def plain_outcome(statement: str) -> str:
+    """An English outcome as the map words it: "Less risk of", not "Minimize"."""
+    for pattern, new in PLAIN:
+        if re.match(pattern, statement, re.I):
+            return re.sub(pattern, new, statement, count=1, flags=re.I)
+    return statement
+
+
+def _nx_where(kb: Json, job: str, text: Text) -> list[str]:
+    sure, last = sure_level(kb, job), last_round(kb, job)
+    after = text("review.nx.to_next", n=sure["to_next"], level=text(NX_LEVELS[sure["level"]])) if sure["to_next"] \
+        else text("review.nx.keep_going") * (sure["level"] == 2)
+    lines = [text("review.nx.where", level=text(NX_LEVELS[sure["level"] - 1]), next=after).strip()]
+    if last:
+        lines.append(" ".join([text("review.nx.last", closed=last["closed"], targeted=last["targeted"])]
+                              + [text("review.nx.still_open", list=", ".join(last["open"]))] * bool(last["open"])))
+    return [*lines, ""]
+
+
+def _nx_round(kb: Json, learn: Json, text: Text, guide: bool) -> list[str]:
+    names = {step_key(s): s["statement"] for s in kb["job_map"]["steps"]}
+    names.update({str(o["id"]): plain_outcome(o["statement"]) if guide and text.language == ENGLISH else o["statement"]
+                  for o in kb["desired_outcomes"]["outcomes"]})
+    names.update({v["id"]: f"{t['name']}: {v['label']}" for t in learn["traits"] for v in t["values"]})
+    lines = []
+    for n, entry in enumerate(learn["round"], 1):
+        talk = text("review.nx.talk", n=entry["count"], who=entry["who"])
+        asks = [f"{i}. {q['ask']}  \n   *{text('review.nx.listen')}:* {q['listen']}"
+                for i, q in enumerate(entry["questions"], 1)]
+        if not guide:
+            lines += [f"{n}. **{talk}** ({', '.join(entry['gaps'])})",
+                      *("   " + a.replace("\n", "\n   ") for a in asks)]
+            continue
+        hints = [names[ref] for ref in entry.get("traits", [])]
+        lines += [f"### {n}. {talk}", ""] + [f"**{text('review.guide.recruit')}:** "
+                                             + text("review.list_sep").join(hints), ""] * bool(hints)
+        checks = text("review.list_sep").join(f"{names.get(ref, '')} ({ref})" for ref in entry["gaps"])
+        lines += [f"**{text('review.guide.ask')}**", "", *asks, "", f"**{text('review.guide.checks')}:** {checks}", ""]
+    return lines
+
+
+def next_lines(kb: Json, text: Text) -> list[str]:
+    """review.md's Next interviews: where the study stands, the plan's round, and every open gap by group."""
+    lines = ["## " + text("review.h.next"), ""]
+    for job in kb["core_jobs"]:
+        jid, learn = str(job["id"]), learn_of(kb, str(job["id"]))
+        gaps = open_gaps(kb, jid)
+        lines += [f"**{job['statement']} ({jid})**", ""] * (len(kb["core_jobs"]) > 1) + _nx_where(kb, jid, text)
+        if learn and "overview" in stale_layers(kb):
+            lines += [f"*{text('review.nx.stale')}*", ""]
+        lines += [text("review.nx.enough")] if not gaps else _nx_round(kb, learn, text, False) if learn.get("round") \
+            else [text("review.nx.no_plan")]
+        for kind, key in NX_GROUPS:
+            group = [g for g in gaps if (g["main"] if kind == "main" else not g["main"] and g["kind"] == kind)]
+            lines += ["", f"**{text(key, thin=THIN_STEP)}**", ""] * bool(group)
+            lines += [f"- {g['ref']} {g['text']} [{len(g['people'])}]" for g in group[:NX_GROUP_MAX]]
+            lines += [f"- *{text('review.nx.more', n=len(group) - NX_GROUP_MAX)}*"] * (len(group) > NX_GROUP_MAX)
+        lines.append("")
+    return lines
+
+
+def guide_lines(kb: Json, text: Text, job: str | None = None) -> list[str]:
+    """interview-guide.md, or one core job's part of it (the map copies that): who to find and what to ask."""
+    lines = ["# " + text("review.guide.title", project=kb["meta"].get("project", "")), "",
+             text("review.guide.made", date=today(), n=len(kb["interviews"])), "", text("review.guide.how"), ""]
+    for entry in [j for j in kb["core_jobs"] if job in (None, str(j["id"]))]:
+        learn = learn_of(kb, str(entry["id"]))
+        lines += [f"## {entry['statement']}", ""]
+        lines += _nx_round(kb, learn, text, True) if learn.get("round") else [text("review.nx.no_plan"), ""]
+    return lines
 
 
 def _review_tail(kb: Json, text: Text) -> list[str]:
     lines = []
-    picks = [(job, *ask_next(kb, str(job["id"]))) for job in kb["core_jobs"]]
-    if any(steps for _, steps, _ in picks):
-        lines += ["## " + text("review.h.ask"), "", text("review.ask_intro", thin=THIN_STEP, max=ASK_NEXT), ""]
-    for job, steps, rest in picks:
-        if steps and len(kb["core_jobs"]) > 1:
-            lines.append(f"**{job['statement']} ({job['id']})**")
-        lines += [f"- {step_key(s)} {s['statement']} [{s.get('coverage', 0)}]" for s in steps]
-        if rest:
-            lines.append(f"- *{text('review.count.more_steps', n=rest, thin=THIN_STEP)}*")
-        if steps:
-            lines.append("")
     stale = [text(LAYER_LABELS[k]) if k in LAYER_LABELS else k.replace("_", " ") for k in stale_layers(kb)]
     if stale:
         lines += [f"*{text('review.out_of_date', layers=text('review.list_sep').join(stale))}*", ""]
@@ -4157,7 +4442,7 @@ def review_lines(kb: Json, since: str, text: Text | None = None) -> list[str]:
     return (_review_head(kb, live_outcomes, text) + _review_decisions(kb, text)
             + _review_new(kb, since, new_outcomes, text) + _review_map(kb, live_outcomes, new_outcomes, text)
             + _review_solutions(kb, text) + _review_themes(kb, text) + _review_people(kb, text)
-            + _review_tail(kb, text))
+            + next_lines(kb, text) + _review_tail(kb, text))
 
 
 def labels_missing_note(args: argparse.Namespace, kb: Json, missing: int) -> None:
@@ -4179,18 +4464,19 @@ def cmd_review(args: argparse.Namespace) -> int:
     last = next((c for c in reversed(kb["changelog"]) if c.get("action") in ("merge", "init")), {})
     since = args.since or str(last.get("date", ""))
     out = args.out or os.path.join(os.path.dirname(os.path.abspath(args.kb)), "review.md")
-    with open(out, "w", encoding="utf-8") as handle:
-        handle.write("\n".join(review_lines(kb, since, text)))
+    guide = os.path.join(os.path.dirname(os.path.abspath(out)), "interview-guide.md")
+    for path, lines in ((out, review_lines(kb, since, text)), (guide, guide_lines(kb, text))):
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(lines))
+        print(f"wrote {path}")
     args.run.note(out=args.run.relative(out), since=since)
-    print(f"wrote {out}")
     labels_missing_note(args, kb, missing)
     return 0
 
 
 # ---------- labels ----------
-# A study in another language than English needs the map's and the review sheet's own text in that language. The
-# assistant writes it once: `labels` hands it a file with every label still in English, the assistant writes the
-# same file back in the study's language, and `labels --add` checks it and keeps it in .pw-kb/labels.json.
+# `labels` hands the assistant a to-do file of every label still in English; `labels --add` checks the translation
+# and keeps it in .pw-kb/labels.json.
 NOTE_MARK = "#note"  # "<key>#note", just above a label in the to-do file, says what the label's {name}s hold
 LABELS_HEADER = """The text of the discovery map and the review sheet, to write in the study's language: {language}.
 - Replace each English text with the same text in that language, in plain everyday words, as a person who does \
@@ -4357,14 +4643,12 @@ MAP_KEYS = ["meta", "core_jobs", "job_map", "desired_outcomes", "current_solutio
             "proposed_changes", "changelog"]
 MAP_START, MAP_END = "/* @kb-data:start */", "/* @kb-data:end */"
 MAP_SCHEMA = f"/* @kb-schema:{SCHEMA_VERSION} */"  # the template can draw a KB of this schema version
-# The English text of the map and the review sheet ships beside the template, so the template stays under the
-# directory's size limit. `map` puts it inside each map, so a map is one file that works offline.
+# English labels ship beside the template (size limit); `map` inlines them so each map works offline.
 MAP_ASSETS = (LABELS_FILE,)
 
 
 def inline_asset(template: str, template_path: str, name: str) -> str:
-    """Replace the template's tag for a script shipped beside it with the script itself. A map made earlier already
-    holds it, so it has no tag."""
+    """Inline a script shipped beside the template; a map made earlier already holds it."""
     tag = f'<script src="{name}"></script>'
     if tag not in template:
         return template
@@ -4396,8 +4680,7 @@ def embed_kb(template: str, payload: str) -> str:
 
 
 def plugin_version() -> str | None:
-    """The version of the plugin this script ships in, read from the plugin's manifest so it is never set twice.
-    None when the skill runs on its own, outside the plugin folder."""
+    """The plugin's version from its manifest, or None outside the plugin folder."""
     here = pathlib.Path(os.path.abspath(__file__)).parents
     if len(here) < 4:
         return None
@@ -4467,6 +4750,8 @@ def cmd_map(args: argparse.Namespace) -> int:
         data["overview"] = kb["overview"]
     data["generated"] = map_stamp()
     own, missing = study_labels(kb, args.kb)
+    data["generated"]["guides"] = {str(j["id"]): "\n".join(guide_lines(kb, Text(study_language(kb), own), str(j["id"])))
+                                   for j in kb["core_jobs"]}
     labels = {key: value for key, value in own.items() if key.startswith("map.")}
     if labels:  # only a study in another language has any; the map shows English for the rest
         data["labels"] = labels
@@ -4634,291 +4919,25 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0
 
 
-def _prefixed(value: Any, job: str) -> Any:
-    """A schema 1 step number or outcome ID with the job letter in front: 6 -> "A.6", "6.3" -> "A.6.3"."""
-    if _is_int(value) or (isinstance(value, str) and (value.isdigit() or BARE_OUTCOME_ID.match(value))):
-        return f"{job}.{value}"
-    return value
-
-
-def _migrate_proposal_1(proposal: Json) -> None:
-    kind = proposal.get("type")
-    renamed = ("reword_step", "reword_outcome", "merge_outcomes", "move_outcome")
-    if kind in renamed and proposal.get("target") not in (None, ""):
-        proposal["target"] = _prefixed(proposal["target"], "A")
-    for key in ("merge", "to_step"):
-        if key in proposal:
-            proposal[key] = _prefixed(proposal[key], "A")
-    if kind == "new_step":
-        proposal["job"] = "A"
-    if kind == "reword_core_job":
-        proposal["target"] = "A"
-
-
-def _migrate_1(kb: Json) -> str:
-    """Schema 1 -> 2. The one market core job becomes core job A, and every step and outcome ID gets its letter."""
-    old = kb.pop("market_core_job", None) or {}
-    job_map = kb["job_map"]
-    statement, status = old.get("statement") or job_map.get("core_job"), old.get("status") or job_map.get("status")
-    job_map.pop("core_job", None)
-    job_map.pop("status", None)
-    if not (statement or job_map["steps"]):
-        return "no core job yet, so nothing to rename"
-    job = {"id": "A", "statement": statement or "Core job not named yet", "status": status or "proposed"}
-    job.update({k: old[k] for k in ("job_executor", "history") if k in old})
-    kb["core_jobs"] = [job]
-    for step in job_map["steps"]:
-        step["job"] = "A"
-    for outcome in kb["desired_outcomes"]["outcomes"]:
-        outcome["id"], outcome["step"] = _prefixed(str(outcome["id"]), "A"), f"A.{int(outcome['step'])}"
-        if outcome.get("merged_into"):
-            outcome["merged_into"] = _prefixed(str(outcome["merged_into"]), "A")
-        for entry in outcome.get("history", []):
-            if "was_id" in entry:
-                entry["was_id"] = _prefixed(str(entry["was_id"]), "A")
-    for proposal in kb["proposed_changes"]:
-        _migrate_proposal_1(proposal)
-    for record in kb["interviews"]:
-        record["core_functional_job"]["job"] = "A"
-    mark_stale(kb, "step and outcome IDs gained the job letter A, so text that cites old IDs is out of date")
-    recount(kb)
-    if job["status"] == "proposed":
-        file_proposal(kb, confirmation(kb, "A", "Set up before a core job could be confirmed."))
-    return "the core job is now core job A; step and outcome IDs gained the prefix A. (6.3 is now A.6.3)"
-
-
-def _migrate_2(kb: Json) -> str:
-    """Schema 2 -> 3: the same data, now kept in a JSON file."""
-    return f"the KB is now a JSON file, {KB_FILE}"
-
-
-MIGRATIONS: dict[int, Callable[[Json], str]] = {1: _migrate_1, 2: _migrate_2}  # from version -> to version + 1
-
-
-def _upgrade(kb: Json, version: int) -> list[str]:
-    """Run the schema migrations from `version` up to the current one. Returns one note per step."""
-    notes = []
-    while version < SCHEMA_VERSION:
-        notes.append(MIGRATIONS[version](kb))
-        version += 1
-        kb["meta"]["schema_version"] = version
-    return notes
-
-
-def _old_transcripts(kb: Json, kb_path: str, roots: list[str], report: Report) -> list[str]:
-    """Find the transcript of every interview of a study made by an earlier version, and point its record at
-    the copy the move will make. Returns the paths to copy. Without roots, looks in <study>/Interviews/."""
-    study = os.path.dirname(os.path.dirname(os.path.abspath(kb_path)))
-    transcripts = transcripts_for(roots or [os.path.join(study, OLD_TRANSCRIPTS)], report)
-    found = []
-    for record in kb["interviews"]:
-        transcript = transcripts.get(str(record.get("file", "")))
-        if transcript is None:
-            report.error(f"interview {record.get('id')}: transcript {record.get('file')} not found; pass the folder "
-                         "that holds it with --transcripts", code="transcript_missing")
-            continue
-        if record.get("sha256") and transcript.sha256 != record["sha256"]:
-            report.warn(f"transcript for interview {record.get('id')} changed since it was added; run validate "
-                        "after the move to re-check its quotes", code="transcript_changed")
-        record.setdefault("sha256", transcript.sha256)
-        record["file"] = f"{COPIES}/{os.path.basename(transcript.path)}"
-        found.append(transcript.path)
-    return found
-
-
-def _clashes(old_folder: str, new_folder: str, sources: list[str]) -> list[str]:
-    """What the move would overwrite in .pw-kb/: a file or folder of the same name, or a different transcript."""
-    found = [name for name in MOVED_ON_MIGRATE
-             if os.path.exists(os.path.join(old_folder, name)) and os.path.exists(os.path.join(new_folder, name))]
-    for source in sources:
-        target = os.path.join(new_folder, COPIES, os.path.basename(source))
-        if os.path.exists(target) and file_sha256(target) != file_sha256(source):
-            found.append(f"{COPIES}/{os.path.basename(source)}")
-    return found
-
-
-def _move_study(old: str, new: str, kb: Json, sources: list[str]) -> str:
-    """Copy the transcripts into .pw-kb/, move the study's files there, write the KB and remove the old one.
-
-    Backups keep their time stamps and take the new KB's name. Returns the backup of the old KB file."""
-    old_folder, new_folder = os.path.dirname(os.path.abspath(old)), os.path.dirname(os.path.abspath(new))
-    os.makedirs(new_folder, exist_ok=True)
-    copy_transcripts(new, sources)
-    for name in MOVED_ON_MIGRATE:
-        if os.path.exists(os.path.join(old_folder, name)):
-            shutil.move(os.path.join(old_folder, name), os.path.join(new_folder, name))
-    old_stem, new_stem = (os.path.splitext(os.path.basename(p))[0] for p in (old, new))
-    backups = os.path.join(new_folder, "backups")
-    for name in sorted(os.listdir(backups)) if os.path.isdir(backups) and old_stem != new_stem else []:
-        if name.startswith(f"{old_stem}."):
-            os.replace(os.path.join(backups, name), os.path.join(backups, new_stem + name[len(old_stem):]))
-    made = backup(new, source=old)
-    save_kb(kb, new)
-    os.remove(old)
-    with contextlib.suppress(OSError):
-        os.rmdir(old_folder)  # only when nothing else is left in it
-    return made
-
-
-def _plain(node: Any) -> Any:
-    """What PyYAML read, as JSON holds it: dates become text, and every key a string."""
-    if isinstance(node, dict):
-        return {str(key): _plain(value) for key, value in node.items()}
-    if isinstance(node, list):
-        return [_plain(value) for value in node]
-    return node.isoformat() if isinstance(node, (dt.date, dt.datetime)) else node
-
-
-def read_old_yaml(path: str) -> Any:
-    """A file written in YAML by version 0.10.0 or earlier. Only migrate reads one, with PyYAML when it is there."""
+def _sibling(name: str) -> Any:
+    """A module shipped beside this script, loaded without writing a bytecode cache into the plugin folder."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{name}.py")
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise KbError(f"{path} is missing; reinstall the plugin", code="file_missing")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    before, sys.dont_write_bytecode = sys.dont_write_bytecode, True
     try:
-        import yaml  # noqa: PLC0415  (PyYAML, optional: only to migrate a study written in YAML)
-    except ImportError:
-        raise KbError(f"{path} was written in YAML by an earlier version, and reading it this once needs PyYAML, "
-                      "which is not installed here. Nothing changed. Install it (python3 -m pip install "
-                      "pyyaml==6.0.3; if pip refuses, in a virtual environment) and run migrate again, or migrate "
-                      "the study on a computer that has it", code="reader_missing") from None
-    try:
-        with open(path, encoding="utf-8") as handle:
-            return _plain(yaml.safe_load(handle))
-    except FileNotFoundError:
-        raise KbError(f"file not found: {path}", code="file_missing") from None
-    except yaml.YAMLError as exc:
-        raise KbError(f"{path} is not valid YAML: {exc}", code="yaml_invalid") from None
-
-
-def read_kb_any(path: str) -> Json:
-    """A KB to migrate: JSON, or YAML from version 0.10.0 or earlier (whose last schema was 2)."""
-    if os.path.splitext(path)[1].lower() in (".yaml", ".yml"):
-        return ensure(read_old_yaml(path), path, newest=2)
-    return ensure(load_json(path), path)
-
-
-def _migrate_labels(kb_path: str, report: Report) -> str | None:
-    """Turn the study's labels.yaml into labels.json, as it is. Returns the backup of the YAML file, or None."""
-    old = os.path.join(os.path.dirname(kb_path), OLD_STUDY_LABELS)
-    if not os.path.isfile(old):
-        return None
-    try:
-        data = read_old_yaml(old)
-    except KbError as exc:
-        report.warn(f"{old} could not be read and is left as it is: {exc}", code="labels_file")
-        return None
-    if not isinstance(data, dict) or not isinstance(data.get("labels"), dict):
-        report.warn(f"{old} holds no labels and is left as it is", code="labels_file")
-        return None
-    save_json({"about": STUDY_LABELS_HEADER, "language": data.get("language"), "labels": data["labels"]},
-              labels_path(kb_path))
-    made = backup(labels_path(kb_path), source=old)
-    os.remove(old)
-    return made
-
-
-def _migrate_format(args: argparse.Namespace, old: str) -> int:
-    """Turn a study written in YAML by version 0.10.0 or earlier into JSON, where it is: pw-kb.yaml becomes
-    pw-kb.json and labels.yaml becomes labels.json. The YAML files go to backups/."""
-    new = os.path.join(os.path.dirname(old), KB_FILE)
-    if os.path.exists(new):
-        raise KbError(f"{os.path.dirname(old) or '.'}/ holds both {OLD_KB_FILE} and {KB_FILE}. Nothing changed. Keep "
-                      f"the study you work on and move the other file out of {KB_FOLDER}/", code="kb_exists")
-    kb = read_kb_any(old)
-    version = check_version(kb, old)
-    args.run.note(schema_from=version)
-    notes = _upgrade(kb, version)
-    summary = f"migrated from schema version {version} to {SCHEMA_VERSION}: " + "; ".join(notes)
-    kb["changelog"].append(changelog_entry(args.run, "migrate", summary=summary))
-    problems = structure_problems(kb)
-    if problems:
-        raise KbError("the migrated KB would break the KB structure; nothing written. Fix these first:\n  - "
-                      + "\n  - ".join(problems), code="structure")
-    made = backup(new, source=old)
-    save_kb(kb, new)
-    os.remove(old)
-    args.run.moved(new)
-    report = Report()
-    labels = _migrate_labels(new, report)
-    args.run.add_report(report)
-    args.run.note(written=True, backup=args.run.relative(made), labels={"migrated": int(bool(labels))})
-    lines = [f"WARN {warning}" for warning in report.warnings]
-    lines.append(f"{summary}. The KB is now {new}" + (f" and the labels {labels_path(new)}" if labels else "")
-                 + f"; the YAML files are in {KB_FOLDER}/backups/")
-    print("\n".join(lines))
-    return 0
-
-
-def _migrate_move(args: argparse.Namespace) -> int:
-    """Move a study made by an earlier version (the KB in <study>/KB/, transcripts in <study>/Interviews/) into
-    .pw-kb/pw-kb.json."""
-    new = args.to or KB_HOME
-    if not at_home(new):
-        raise KbError(f"--to must be {KB_HOME} at the root of the workspace, not {new}", code="kb_location")
-    if os.path.exists(new) or old_yaml(new):
-        raise KbError(f"{os.path.dirname(new)}/ already holds a study, and a workspace holds one study. Nothing moved. "
-                      "Open the old study in a workspace of its own, or move the other one out first", code="kb_exists")
-    kb = read_kb_any(args.kb)
-    version = check_version(kb, args.kb)
-    args.run.note(schema_from=version, moved=True)
-    report = Report()
-    sources = _old_transcripts(kb, args.kb, args.transcripts or [], report)
-    for clash in _clashes(os.path.dirname(os.path.abspath(args.kb)), os.path.dirname(os.path.abspath(new)), sources):
-        report.error(f"{KB_FOLDER}/{clash} exists already and would be overwritten; move it out of the way first",
-                     code="move_conflict")
-    args.run.add_report(report)
-    lines = [f"WARN {warning}" for warning in report.warnings]
-    if report.errors:
-        print("\n".join(lines + [f"{len(report.errors)} problem(s); nothing moved:"]
-                        + [f"  - {e}" for e in report.errors]))
-        return 1
-    notes = _upgrade(kb, version)
-    summary = f"moved the study into {KB_FOLDER}/ and copied its {len(sources)} transcript(s) there"
-    if notes:
-        summary += f"; migrated from schema version {version} to {SCHEMA_VERSION}: " + "; ".join(notes)
-    kb["changelog"].append(changelog_entry(args.run, "migrate", summary=summary))
-    problems = structure_problems(kb)
-    if problems:
-        raise KbError("the migrated KB would break the KB structure; nothing moved. Fix these first:\n  - "
-                      + "\n  - ".join(problems), code="structure")
-    old_folder = os.path.dirname(os.path.abspath(args.kb))
-    made = _move_study(args.kb, new, kb, sources)
-    args.run.moved(new)
-    args.run.note(written=True, backup=args.run.relative(made), transcripts_copied=len(sources))
-    left = sorted(n for n in os.listdir(old_folder) if not n.startswith(".")) if os.path.isdir(old_folder) else []
-    lines.append(f"{summary}. The KB is now {new}; the old file is in {KB_FOLDER}/backups/")
-    if left:
-        lines.append(f"left in {old_folder}: {', '.join(left)}")
-    note = git_note(new)
-    args.run.note(git=bool(note))
-    print("\n".join(lines + ([note] if note else [])))
-    return 0
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = before
+    return module
 
 
 def cmd_migrate(args: argparse.Namespace) -> int:
-    old = old_yaml(args.kb)
-    if old:
-        return _migrate_format(args, old)
-    done = os.path.join(os.path.dirname(args.kb), KB_FILE)  # a second run, after the YAML became JSON
-    if os.path.basename(args.kb) == OLD_KB_FILE and at_home(done) and os.path.isfile(done):
-        args.kb = done
-    if not at_home(args.kb):
-        return _migrate_move(args)
-    kb = ensure(load_json(args.kb), args.kb)
-    version = check_version(kb, args.kb)
-    args.run.note(schema_from=version)
-    if version == SCHEMA_VERSION:
-        print(f"nothing to do: {args.kb} already uses schema version {SCHEMA_VERSION}")
-        return 0
-    start, notes = version, _upgrade(kb, version)
-    summary = f"migrated from schema version {start} to {SCHEMA_VERSION}: " + "; ".join(notes)
-    kb["changelog"].append(changelog_entry(args.run, "migrate", summary=summary))
-    problems = structure_problems(kb)
-    if problems:
-        raise KbError("the migrated KB would break the KB structure; nothing written. Fix these first:\n  - "
-                      + "\n  - ".join(problems), code="structure")
-    made = backup(args.kb)
-    save_kb(kb, args.kb)
-    args.run.note(written=True, backup=args.run.relative(made))
-    print(f"migrated {args.kb} {summary[len('migrated '):]}")
-    return 0
+    """Bring an older study up to date. The code is in kb_migrate.py, loaded only for this command."""
+    return _sibling("kb_migrate").cmd_migrate(args, sys.modules[__name__])
 
 
 # ---------- cli ----------

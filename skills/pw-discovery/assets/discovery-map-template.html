@@ -489,9 +489,9 @@ button.tag:hover{border-color:var(--accent);color:var(--accent)}
 .gloss dt{font-weight:700}
 .gloss dd{margin:0;color:var(--muted)}
 .drop{position:fixed;inset:0;background:rgba(47,91,211,.15);border:3px dashed var(--accent);z-index:50;display:grid;place-items:center;font-size:1.3rem;font-weight:700;color:var(--accent);pointer-events:none}
-.brand{display:inline-flex;align-items:center;gap:5px;color:var(--accent);text-decoration:none;font-weight:800;letter-spacing:.06em}
+.brand{display:inline-flex;align-items:baseline;gap:5px;color:var(--accent);text-decoration:none;font-weight:800;letter-spacing:.06em}
 .brand:hover{text-decoration:underline}
-.pwmark{width:16px;height:16px;flex:none}
+.pwmark{width:16px;height:16px;flex:none;align-self:center}
 .pwmark path{fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
 .madewith{position:absolute;right:12px;bottom:12px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:.76rem;color:var(--muted);text-decoration:none;box-shadow:var(--shadow)}
 .madewith b{color:var(--accent)}
@@ -499,6 +499,70 @@ button.tag:hover{border-color:var(--accent);color:var(--accent)}
 .cta{background:var(--accent-soft);border-radius:10px;padding:12px 14px;font-size:.9rem}
 .cta a{color:var(--accent);font-weight:700}
 .err{background:var(--amber-soft);border-left:4px solid var(--amber);padding:10px 12px;border-radius:0 8px 8px 0;font-size:.88rem}
+/* Next interviews: the plan for the next round. It reuses the Overview's page, rail, sheet and steps. */
+.nx-actions{display:flex;gap:10px;flex-wrap:wrap}
+.nx-btn{border:1px solid var(--accent);background:var(--accent);color:var(--surface);font-weight:700;font-size:.9rem;border-radius:10px;padding:8px 14px;cursor:pointer}
+.nx-btn.nx-ghost{background:var(--surface);color:var(--accent)}
+.nx-last{border-left:4px solid var(--ev3);background:var(--bg);border-radius:8px;padding:10px 14px;font-size:.92rem;max-width:66ch}
+.nx-card{border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:grid;gap:12px;background:var(--surface)}
+.nx-card + .nx-card{margin-top:14px}
+.nx-head{display:flex;gap:12px;align-items:flex-start}
+.nx-head > div{flex:1;min-width:0;display:grid;gap:2px}
+.nx-head h3{font-size:1.05rem;line-height:1.3;margin:0}
+.nx-num{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--surface);display:grid;place-items:center;font-size:.8rem;flex:none}
+.nx-fills{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.nx-chip{border:1px solid var(--line);display:inline-flex;gap:6px;align-items:center;background:var(--surface);color:var(--ink);border-radius:999px;padding:3px 10px;font-size:.8rem;text-align:left}
+.nx-chip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--amber);flex:none}
+.nx-chip.nx-done::before{background:var(--ev3)}
+button.nx-chip{cursor:pointer} button.nx-chip:hover{border-color:var(--amber)}
+.nx-main{font-style:normal;font-size:.7rem;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.03em}
+.nx-qs{margin:0;padding-left:20px;display:grid;gap:10px}
+.nx-qs q{font-family:var(--font-read);font-size:1rem;line-height:1.45;quotes:var(--pw-quotes,"“" "”")}
+.nx-qs p{margin:2px 0 0;font-size:.84rem;color:var(--muted)}
+.nx-qs p span{font-weight:700;color:var(--ink)}
+.nx-tip{font-size:.9rem;color:var(--muted);max-width:66ch;margin-top:14px}
+.nx-gridwrap{overflow-x:auto}
+.nx-grid{border-collapse:separate;border-spacing:6px;font-size:.88rem;margin-left:-6px}
+.nx-grid th{font-weight:600;color:var(--muted);text-align:left;font-size:.8rem;padding:0 6px}
+.nx-grid th.nx-miss{color:var(--amber)}
+.nx-grid td{border:1px solid var(--line);border-radius:10px;padding:10px;min-width:96px;vertical-align:middle;background:var(--bg)}
+.nx-grid td.nx-miss{background:var(--amber-soft);border-color:var(--amber);color:var(--ink)}
+.nx-grid td.nx-dot{color:var(--muted);text-align:center}
+.nx-grid td .ov-note{white-space:nowrap}
+.nx-ini{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--ev1);font-weight:700;font-size:.75rem;margin:2px}
+.nx-group{display:grid;gap:8px}
+.nx-group + .nx-group{margin-top:14px}
+.nx-group h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0}
+.nx-group ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.nx-gap{width:100%;text-align:left;border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:8px;padding:8px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;font-size:.9rem;background:var(--surface);color:var(--ink)}
+button.nx-gap{cursor:pointer} button.nx-gap:hover{border-color:var(--amber)}
+.nx-gap small{color:var(--muted);grid-column:1}
+.nx-gap em{grid-column:2;grid-row:1 / span 2;align-self:center;font-style:normal;font-size:.8rem;color:var(--accent);font-weight:700;white-space:nowrap}
+.nx-gap em.nx-out{color:var(--muted);font-weight:400}
+.nx-ok{font-size:.88rem;color:var(--ev4);margin:0}
+.nx-more{justify-self:start;border:0;background:none;color:var(--accent);font-weight:700;font-size:.86rem;cursor:pointer;padding:0}
+.nx-wait{font-size:.95rem;margin:0 0 4px}
+/* Progress: how sure the study is, in amber until it shows a clear pattern, and the way to get surer */
+.pg-sure{border:1px solid var(--line);border-left:5px solid var(--amber);border-radius:10px;padding:12px;background:var(--amber-soft);display:grid;gap:6px}
+.pg-sure.pg-ok{border-left-color:var(--ev3);background:var(--surface)}
+.pg-sure .sect{margin:0}
+.pg-sure p{margin:0;font-size:.86rem}
+.pg-level{font-size:1.25rem;font-weight:800;line-height:1.2;color:var(--amber)}
+.pg-ok .pg-level{color:var(--ev4)}
+.pg-meter{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.pg-meter i{height:6px;border-radius:3px;background:var(--line)}
+.pg-meter i.on{background:var(--amber)} .pg-ok .pg-meter i.on{background:var(--ev3)}
+.pg-sure p.pg-plan{font-weight:700;border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+.pg-sure .nx-btn{justify-self:start}
+/* an svg hides its overflow, so in the pane's fixed-height grid its row could shrink to almost nothing and the
+   chart drew over the text below; visible overflow keeps the row as tall as the chart */
+.pg-chart{overflow:visible}
+@media (max-width:860px){ .nx-gap{grid-template-columns:1fr} .nx-gap em{grid-column:1;grid-row:auto} .nx-grid td{min-width:0} }
+@media print{ body.nx-print > :not(main), body.nx-print main > :not(.stage), body.nx-print .stage > :not(#nextview),
+  body.nx-print .ov-rail, body.nx-print .nx-btn, body.nx-print .nx-more{display:none!important}
+  body.nx-print, body.nx-print main, body.nx-print .stage, body.nx-print #nextview{display:block!important;position:static!important;
+    height:auto!important;max-height:none!important;overflow:visible!important;padding:0!important}
+  body.nx-print .nx-fold{display:grid!important} body.nx-print .ov-page{display:block} body.nx-print .nx-card{break-inside:avoid} }
 </style>
 </head>
 <body>
@@ -557,11 +621,9 @@ button.tag:hover{border-color:var(--accent);color:var(--accent)}
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-tab="people" type="button" data-t="map.tab.people"></button>
       <button class="tab" role="tab" aria-selected="false" data-tab="progress" type="button" data-t="map.tab.progress"></button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="next" type="button" data-t="map.tab.next"></button>
     </div>
     <div class="pane" id="pane-people" role="tabpanel"></div>
     <div class="pane" id="pane-progress" role="tabpanel" hidden></div>
-    <div class="pane" id="pane-next" role="tabpanel" hidden></div>
   </aside>
 
   <section class="stage" id="stage" data-t-aria="map.aria.stage">
@@ -569,12 +631,14 @@ button.tag:hover{border-color:var(--accent);color:var(--accent)}
     <div class="solview" id="overview" role="tabpanel" aria-labelledby="vOver" hidden></div>
     <div class="solview" id="solview" role="tabpanel" aria-labelledby="vSol" hidden></div>
     <div class="solview" id="themeview" role="tabpanel" aria-labelledby="vThemes" hidden></div>
+    <div class="solview" id="nextview" role="tabpanel" aria-labelledby="vNext" hidden></div>
     <div class="toolbar" id="toolbar">
       <div class="viewsw" id="viewsw" role="tablist" data-t-aria="map.aria.views" hidden>
         <button type="button" role="tab" id="vOver" aria-selected="false" aria-controls="overview" tabindex="-1" hidden data-t="map.view.over"></button>
         <button type="button" role="tab" id="vMap" aria-selected="true" tabindex="0" data-t="map.view.map"></button>
         <button type="button" role="tab" id="vSol" aria-selected="false" aria-controls="solview" tabindex="-1" data-t="map.view.sol"></button>
         <button type="button" role="tab" id="vThemes" aria-selected="false" aria-controls="themeview" tabindex="-1" hidden data-t="map.view.themes"></button>
+        <button type="button" role="tab" id="vNext" aria-selected="false" aria-controls="nextview" tabindex="-1" hidden data-t="map.view.next"></button>
       </div>
       <label class="search"><span aria-hidden="true">⌕</span><input id="q" type="search" data-t-ph="map.search.placeholder" data-t-aria="map.search.aria"></label>
       <div class="tgroup" role="group" data-t-aria="map.aria.controls">
@@ -862,7 +926,7 @@ function build(raw){
     ivs, ivById, allSteps:steps, allOuts:outs, steps, outs, quotes,
     solList:sols, solById:Object.fromEntries(sols.map(s=>[s.id,s])), groups, groupById:Object.fromEntries(groups.map(g=>[g.id,g])),
     hasSols:sols.length>0, solAll:solScope(sols, groups, null), sols:null,
-    hasOver:jobs.length>0 && ivs.length>0, overStale:!!ovr.stale, over:null,
+    hasOver:jobs.length>0 && ivs.length>0, overStale:!!ovr.stale, over:null, hasNext:steps.length>0,
     made:raw.generated && typeof raw.generated==="object" && raw.generated.at ? raw.generated : null,
     hasThemes:themes.length>0, themesStale:!!vt.stale, themeAll:themes, themes:themes, loose:[],
     proposals:(raw.proposed_changes||[]).filter(p=>p.status==="pending"),
@@ -884,10 +948,11 @@ function setJob(id, keep){
   if(id===M.job) return;
   chooseJob(id); expanded=new Set(); selected=null;
   if(!keep){ personHL=null; solHL=null; closeDrawer(); }
-  renderHeader(); renderJobs(); renderPeople(); renderNext(); updatePill(); render(); fit(true);
+  renderHeader(); renderJobs(); renderPeople(); renderProgress(); updatePill(); render(); fit(true);
   if(solMode) renderSolView();
   if(themeMode) renderThemeView();
   if(overMode) renderOverView();
+  if(nextMode) renderNxView();
 }
 
 /* ---------- header, strip, sidebar ---------- */
@@ -911,13 +976,14 @@ function renderHeader(){
   const solChip = M.hasSols ? `<span class="flow" aria-hidden="true"></span><button class="chip" type="button" id="solChip" data-tip="${esc(solTip)}"><b>${sc.inUse}</b><span>${chipWords("map.chip.sols", sc.inUse)}</span></button>` : "";
   document.getElementById("strip").innerHTML = chips.map((c,i)=>`<div class="chip" tabindex="0" data-tip="${esc(c[2])}"><b>${c[0]}</b><span>${chipWords(c[1], c[0])}</span></div>${i<chips.length-1?'<span class="flow" aria-hidden="true">→</span>':""}`).join("")
     + solChip + `<span class="flow" aria-hidden="true"></span><div class="chip check" tabindex="0" data-tip="${esc(t("map.chip.traced_tip"))}"><b>✓</b><span>${th("map.chip.traced")}</span></div>`
-    + (thin?`<div class="chip" tabindex="0" data-tip="${esc(t("map.chip.thin_tip"))}" style="border-color:var(--amber)"><b style="color:var(--amber)">${thin}</b><span>${chipWords("map.chip.thin", thin)}</span></div>`:"");
+    + (thin?`<button class="chip" type="button" id="thinChip" data-tip="${esc(t("map.chip.thin_tip"))}" style="border-color:var(--amber)"><b style="color:var(--amber)">${thin}</b><span>${chipWords("map.chip.thin", thin)}</span></button>`:"");
   document.getElementById("strip").querySelectorAll("[data-tip]").forEach(el=>{
     el.addEventListener("mouseenter",e=>showTip(e,`<div>${esc(el.dataset.tip)}</div>`));
     el.addEventListener("mousemove",moveTip); el.addEventListener("mouseleave",hideTip);
     el.addEventListener("focus",e=>showTip(e,`<div>${esc(el.dataset.tip)}</div>`)); el.addEventListener("blur",hideTip);
   });
   const sb=document.getElementById("solChip"); if(sb) sb.addEventListener("click",()=>{ hideTip(); setView(true); });
+  const tb=document.getElementById("thinChip"); if(tb) tb.addEventListener("click",()=>{ hideTip(); setView("next"); });
 }
 function renderJobs(){
   const box = document.getElementById("jobs");
@@ -961,10 +1027,14 @@ function renderProgress(){
   const path = series.map((s,i)=>`${i?"L":"M"}${x(s.k).toFixed(1)},${y(s.n).toFixed(1)}`).join(" ");
   const area = series.length?`${path} L${x(series[series.length-1].k)},${y(0)} L${x(1)},${y(0)} Z`:"";
   const yt=[0,Math.round(Y/2),Y];
-  p.innerHTML = `
+  const unlinked = M.ivs.filter(i=>!i.main);
+  const wait = (unlinked.length&&M.jobs.length?`<div class="sect">${th("map.next.unlinked_title")}</div><p class="hint">${th("map.next.unlinked")}</p>`+unlinked.map(i=>`<button class="gap" type="button" data-person="${esc(i.id)}">${esc(i.name)}<small>${esc(i.whyNone||i.note||i.goal)}</small></button>`).join(""):"")
+    + (M.proposals.length?`<div class="sect">${th("map.next.proposals_title")}</div>`+M.proposals.map(x=>`<div class="gap"><b>${x.type==="confirm_core_job"?th("map.next.confirm_job",{proposal:esc(x.proposal)}):esc(x.proposal)}</b><small>${esc(x.rationale||"")}</small></div>`).join(""):"")
+    + (M.caveat?`<div class="sect">${th("map.next.caveat")}</div><div class="gap">${esc(M.caveat)}</div>`:"");
+  p.innerHTML = pgSure() + (wait?`<h3 class="nx-wait">${th("map.progress.wait")}</h3>${wait}`:"") + `
     <div class="callout"><b>${th("map.progress.lead")}</b> ${th("map.progress.callout",{n:Math.min(5,order.length), added:th("map.count.new_outcomes",{n:fresh}), firmed})}</div>
     <div class="sect">${th("map.progress.chart_title")}</div>
-    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(t("map.progress.chart_aria"))}">
+    <svg class="pg-chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(t("map.progress.chart_aria"))}">
       ${yt.map(v=>`<line x1="${ml}" x2="${W-mr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${ml-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`).join("")}
       <path d="${area}" fill="var(--ev1)"/>
       <path d="${path}" fill="none" stroke="var(--ev4)" stroke-width="2"/>
@@ -975,11 +1045,26 @@ function renderProgress(){
     <p class="hint">${th("map.progress.flat_hint")}</p>
     <div class="sect">${th("map.progress.growth")}</div>
     ${M.changelog.length?M.changelog.slice(-6).reverse().map(c=>`<div class="hint"><b>${esc(String(c.date||""))}</b> · ${esc(humanLog(c))}</div>`).join(""):`<p class="hint">${th("map.progress.no_history")}</p>`}`;
+  p.querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>{ setPerson(b.dataset.person); openPerson(b.dataset.person); fitHits(); }));
+  p.querySelectorAll("[data-pg-next]").forEach(b=>b.addEventListener("click",()=>setView("next")));
   p.querySelectorAll(".pt").forEach(c=>{
     const s=series[+c.dataset.k-1];
     const h=e=>showTip(e,`<div class="tt">${th("map.progress.point_title",{n:s.k})}</div><div>${th("map.progress.point_text",{n:s.n, name:esc(s.name)})}</div>`);
     c.addEventListener("mouseenter",h); c.addEventListener("mousemove",moveTip); c.addEventListener("mouseleave",hideTip);
   });
+}
+/* Progress opens on how sure the study is for the core job on screen, with the way to get surer: the interview guide,
+   which is the Next interviews view. */
+function pgSure(){
+  const scope=overScope(), sure=overSure(scope), name=t(OV_SURE[sure.level-1]), learn=nxLearn();
+  const round=Array.isArray(learn.round)?learn.round:[], gaps=M.hasNext?nxGaps():[], next=nxToNext(sure, scope.length);
+  const go=gaps.length ? (round.length?`<p class="hint">${th("map.progress.sure.why")}</p>`:"")
+    + `<button type="button" class="nx-btn" data-pg-next>${th(round.length?"map.progress.sure.open":"map.progress.sure.thin")}</button>` : "";
+  return `<section class="pg-sure${sure.level>2?" pg-ok":""}"><div class="sect">${th("map.ov.sure.title")}</div>
+    <div class="pg-level">${esc(name)}</div>
+    <div class="pg-meter" role="img" aria-label="${esc(t("map.ov.sure.aria",{name, level:sure.level}))}">${OV_SURE.map((_,i)=>`<i${i<sure.level?' class="on"':""}></i>`).join("")}</div>
+    ${next?`<p>${esc(next)}</p>`:""}${many()?`<div class="hint">${esc(t("map.next.shown_for",{job:jobName(M.job)}))}</div>`:""}
+    ${M.hasNext?`<p class="pg-plan">${esc(nxTitle(round, gaps))}</p>`:""}${go}</section>`;
 }
 /* One line per change of the KB. The summaries come from kb_tool, in English: the older ones are read for their numbers. */
 function humanLog(c){
@@ -1009,32 +1094,13 @@ function humanLog(c){
   const q=(s.match(/(\d+) outcome quotes/)||[])[1];
   return sentences(iv, q?t("map.log.new_quotes", {n:+q}):"")||s;
 }
-function renderNext(){
-  const p = document.getElementById("pane-next");
-  const allThin = M.steps.filter(s=>s.allPeople.length<3).sort((a,b)=>a.allPeople.length-b.allPeople.length);
-  const thinSteps = allThin.slice(0,5), moreThin = allThin.length-thinSteps.length; // after a first batch every step is thin: name the 5 with fewest voices
-  const lone = M.outs.filter(o=>o.people.length===1);
-  const unlinked = M.ivs.filter(i=>!i.main);
-  p.innerHTML = `<p class="hint">${esc(sentences(t("map.next.hint"), many() ? t("map.next.shown_for", {job:jobName(M.job)}) : ""))}</p>
-    <div class="sect">${th("map.next.thin_title")}</div>
-    ${thinSteps.length?thinSteps.map(s=>`<button class="gap" type="button" data-go="${s.id}">${esc(s.text)}<small>${th("map.next.so_far",{n:s.allPeople.length})}</small></button>`).join(""):`<p class="hint">${th("map.next.thin_none")}</p>`}
-    ${moreThin?`<p class="hint">${th("map.next.thin_more",{n:moreThin, shown:thinSteps.length})}</p>`:""}
-    <div class="sect">${th("map.next.lone_title")}</div>
-    ${lone.length?`<p class="hint">${th("map.next.lone",{n:lone.length})}</p>`+lone.slice(0,8).map(o=>`<button class="gap" type="button" data-go="${o.id}">${esc(o.plain)}<small>${esc(M.ivById[o.people[0]]?.name||"")}</small></button>`).join(""):`<p class="hint">${th("map.next.none")}</p>`}
-    ${unlinked.length&&M.jobs.length?`<div class="sect">${th("map.next.unlinked_title")}</div><p class="hint">${th("map.next.unlinked")}</p>`+unlinked.map(i=>`<button class="gap" type="button" data-person="${esc(i.id)}">${esc(i.name)}<small>${esc(i.whyNone||i.note||i.goal)}</small></button>`).join(""):""}
-    ${M.proposals.length?`<div class="sect">${th("map.next.proposals_title")}</div>`+M.proposals.map(x=>`<div class="gap"><b>${x.type==="confirm_core_job"?th("map.next.confirm_job",{proposal:esc(x.proposal)}):esc(x.proposal)}</b><small>${esc(x.rationale||"")}</small></div>`).join(""):""}
-    ${M.caveat?`<div class="sect">${th("map.next.caveat")}</div><div class="gap">${esc(M.caveat)}</div>`:""}`;
-  p.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>focusNode(b.dataset.go)));
-  p.querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>{ setPerson(b.dataset.person); openPerson(b.dataset.person); fitHits(); }));
-}
-
 /* ---------- map ---------- */
 const COL = {root:0, stage:310, step:520, out:900};
 const WID = {root:260, stage:150, step:320, out:320, sol:250, cap:320};
 // where the title starts: after a step's number, a measure's target, a solution's icon
 const TX = {step:64, out:38, sol:44};
 let expanded = new Set(), selected=null, personHL=null, searchHL=null;
-let showSols = false, solHL = null, solMode = false, themeMode = false, overMode = false; // solHL: {kind:"sol"|"group", id}
+let showSols = false, solHL = null, solMode = false, themeMode = false, overMode = false, nextMode = false; // solHL: {kind:"sol"|"group", id}
 const solOn = sol => !!solHL && (solHL.kind==="group" ? sol.group===solHL.id : sol.id===solHL.id);
 let view = {x:40,y:40,k:1};
 /* Lines of a box's text, about `chars` wide. A wide character (Chinese, Japanese, Korean, full-width forms) takes the
@@ -1339,38 +1405,40 @@ function pickSol(id){
   const s=M.solById[id]; if(!s) return;
   if(many() && !s.jobs.includes(M.job) && s.jobs.length) setJob(s.jobs[0], true);
   solHL={kind:"sol", id}; updatePill(); openSolution(id);
-  if(solMode) renderSolView(); else { render(); if(!themeMode && !overMode) fitHits(); }
+  if(solMode) renderSolView(); else { render(); if(!themeMode && !overMode && !nextMode) fitHits(); }
 }
 function pickGroup(id){
   const g=M.groupById[id]; if(!g) return;
   solHL={kind:"group", id}; updatePill(); openGroup(id);
-  if(solMode) renderSolView(); else { render(); if(!themeMode && !overMode) fitHits(); }
+  if(solMode) renderSolView(); else { render(); if(!themeMode && !overMode && !nextMode) fitHits(); }
 }
 function syncSolControls(){
   const b=document.getElementById("bSols"); b.hidden=!M.hasSols; b.setAttribute("aria-pressed", String(showSols && M.hasSols));
-  document.getElementById("viewsw").hidden=!M.hasSols && !M.hasThemes && !M.hasOver;
+  document.getElementById("viewsw").hidden=!M.hasSols && !M.hasThemes && !M.hasOver && !M.hasNext;
+  document.getElementById("vNext").hidden=!M.hasNext;
   document.getElementById("vOver").hidden=!M.hasOver;
   document.getElementById("vSol").hidden=!M.hasSols; document.getElementById("vThemes").hidden=!M.hasThemes;
 }
 const stageEl=document.getElementById("stage"), solview=document.getElementById("solview"), themeview=document.getElementById("themeview"), toolbar=document.getElementById("toolbar");
-function padSolView(){ if(solMode || themeMode || overMode) [solview,themeview,overview].forEach(el=>el.style.setProperty("--soltop", (toolbar.offsetTop+toolbar.offsetHeight+14)+"px")); }
-const VIEWS = [["over","vOver"],["map","vMap"],["sol","vSol"],["themes","vThemes"]];
-const viewNow = () => overMode ? "over" : solMode ? "sol" : themeMode ? "themes" : "map";
+function padSolView(){ if(solMode || themeMode || overMode || nextMode) [solview,themeview,overview,nextview].forEach(el=>el.style.setProperty("--soltop", (toolbar.offsetTop+toolbar.offsetHeight+14)+"px")); }
+const VIEWS = [["over","vOver"],["map","vMap"],["sol","vSol"],["themes","vThemes"],["next","vNext"]];
+const viewNow = () => overMode ? "over" : nextMode ? "next" : solMode ? "sol" : themeMode ? "themes" : "map";
 /* The Solutions view is an overlay inside the stage, so the drawer still opens beside it and the map keeps its size underneath. */
 function setView(want, keepMap){
   // "over", "map", "sol" or "themes"; true and false are the older calls for the Solutions view and the map
   let v = want===true ? "sol" : (want || "map");
-  if((v==="sol" && !(M && M.hasSols)) || (v==="themes" && !(M && M.hasThemes)) || (v==="over" && !(M && M.hasOver))) v = "map";
-  const panel = v==="sol" ? solview : v==="themes" ? themeview : v==="over" ? overview : null;
+  if((v==="sol" && !(M && M.hasSols)) || (v==="themes" && !(M && M.hasThemes)) || (v==="over" && !(M && M.hasOver)) || (v==="next" && !(M && M.hasNext))) v = "map";
+  const panel = v==="sol" ? solview : v==="themes" ? themeview : v==="over" ? overview : v==="next" ? nextview : null;
   if(v===viewNow() && (!panel || !panel.hidden)) return;
-  solMode = v==="sol"; themeMode = v==="themes"; overMode = v==="over"; hideTip();
+  solMode = v==="sol"; themeMode = v==="themes"; overMode = v==="over"; nextMode = v==="next"; hideTip();
   const over = !!panel;
   stageEl.classList.toggle("solmode", over); document.querySelector("main").classList.toggle("wide", over);
-  solview.hidden = !solMode; themeview.hidden = !themeMode; overview.hidden = !overMode; svg.toggleAttribute("inert", over);
+  solview.hidden = !solMode; themeview.hidden = !themeMode; overview.hidden = !overMode; nextview.hidden = !nextMode; svg.toggleAttribute("inert", over);
   VIEWS.forEach(([name,id])=>{ const b=document.getElementById(id); b.setAttribute("aria-selected", String(name===v)); b.tabIndex = name===v?0:-1; });
   if(solMode) renderSolView();
   if(themeMode) renderThemeView();
   if(overMode) renderOverView();
+  if(nextMode) renderNxView();
   if(panel){ padSolView(); panel.scrollTop=0; }
   else if(!keepMap) requestAnimationFrame(()=>fit(true));
 }
@@ -1557,7 +1625,7 @@ function ovNext(ov){
     return {k, name:th(name), t:tr, fields, pill:lbl?`<b class="ov-pill ${cls}">${th(lbl)}</b>`:""}; }) : [];
   if(!tracks.length) return `<section class="ov-blk ov-next" id="ov-next"><div class="ov-nexttog"><span class="ov-ntitle"><b>${th("map.ov.next.title")}</b></span></div><div class="ov-todo"><b>${th("map.ov.next.none")}</b> ${ovAsk()}</div></section>`;
   const val = (f,v) => Array.isArray(v) ? v.map(x=>f==="ask"||f==="words"?`<q>${esc(x)}</q>`:esc(x)).join(" ") : esc(v);
-  const link = {learn:`<button type="button" class="ov-lk" data-ov-view="next">${th("map.ov.next.see_ask")}</button>`,
+  const link = {learn:`<button type="button" class="ov-lk" data-ov-view="next">${th("map.ov.next.see_plan")}</button>`,
     prototype:M.hasThemes?`<button type="button" class="ov-lk" data-ov-view="themes">${th("map.ov.next.see_themes")}</button>`:""};
   const card = x => `<div class="ov-track"><p class="ov-tname">${x.name} ${x.pill}</p><h3>${esc(fullStop(x.t.action))}</h3>
     <dl>${x.fields.filter(([f])=>x.t[f] && x.t[f].length).map(([f,l])=>`<div><dt>${th(l)}</dt><dd>${val(f,x.t[f])}</dd></div>`).join("")}</dl>${link[x.k]||""}</div>`;
@@ -1670,7 +1738,7 @@ overview.addEventListener("click",e=>{
   if((b=at("[data-group]"))){ setView("sol"); pickGroup(b.dataset.group); return; }
   if((b=at("[data-theme]"))){ setView("themes"); const c=document.getElementById("th-"+b.dataset.theme); if(c) c.scrollIntoView({block:"start"}); return; }
   if((b=at("[data-ov-view]"))){ const v=b.dataset.ovView;
-    if(v==="people" || v==="next"){ setView("map"); showTab(v); } else setView(v); }
+    if(v==="people"){ setView("map"); showTab(v); } else setView(v); }
 });
 
 /* ---------- details drawer ---------- */
@@ -1794,7 +1862,7 @@ function hideTip(){ tip.hidden=true; }
 /* ---------- tabs, modals, loading ---------- */
 document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected",String(x===tab)));
-  ["people","progress","next"].forEach(k=>document.getElementById("pane-"+k).hidden=(k!==tab.dataset.tab));
+  ["people","progress"].forEach(k=>document.getElementById("pane-"+k).hidden=(k!==tab.dataset.tab));
 }));
 const modal=document.getElementById("modal");
 function openModal(html){ document.getElementById("mBody").innerHTML=html; modal.hidden=false; document.getElementById("mClose").focus(); }
@@ -1807,6 +1875,7 @@ document.getElementById("btnRead").onclick=()=>openModal(`
   <p>${th("map.help.intro")}</p>
   <dl class="gloss">
     ${M.hasOver?gloss("map.help.over.term",th("map.help.over.text")):""}
+    ${M.hasNext?gloss("map.help.next.term",th("map.help.next.text")):""}
     ${gloss("map.help.goal.term",th("map.help.goal.text"))}
     ${many()?gloss("map.help.jobs.term",th("map.help.jobs.text",{n:M.jobs.length})):""}
     ${gloss("map.help.stages.term",th("map.help.stages.text",{stages:esc(joinList(STAGES.map(st=>t(st[1]))))}))}
@@ -1844,6 +1913,112 @@ addEventListener("dragleave",()=>{ dragDepth=Math.max(0,dragDepth-1); if(!dragDe
 addEventListener("dragover",e=>e.preventDefault());
 addEventListener("drop",e=>{ e.preventDefault(); dragDepth=0; dropEl.hidden=true; const f=e.dataTransfer.files[0]; if(f) readFile(f); });
 
+/* ---------- Next interviews: the plan for the next round ---------- */
+/* The open gaps of the core job on screen, ranked as kb_tool's open_gaps ranks them (main-finding gaps first, then
+   thin steps, needs heard from one person and kinds of people nobody has yet; fewest people first). The plan comes
+   from the overview's next.learn, which the assistant writes and kb_tool checks. */
+const nextview=document.getElementById("nextview"), NX_KINDS=["step","need","who"];
+function nxLearn(){ const n=M.over && M.over.next; return n && n.learn && typeof n.learn==="object" ? n.learn : {}; }
+function nxLive(ref){
+  const all=(M.raw.desired_outcomes||{}).outcomes||[], seen=new Set(); let r=String(ref);
+  for(;;){ const o=all.find(x=>String(x.id)===r); if(!o || !o.merged_into || seen.has(r)) return r; seen.add(r); r=String(o.merged_into); }
+}
+const nxValues = learn => (learn.traits||[]).flatMap(tr=>(tr.values||[]).map(v=>({...v, id:String(v.id), name:tr.name||""})));
+function nxGaps(){
+  const learn=nxLearn(), live=new Set(M.outs.map(o=>o.oid));
+  const main=new Set((learn.rests_on||[]).map(nxLive).filter(r=>live.has(r)));
+  const mainSteps=new Set(M.outs.filter(o=>main.has(o.oid)).map(o=>o.step));
+  return [...M.steps.filter(s=>s.allPeople.length<3).map(s=>({ref:s.key, node:s.id, kind:"step", main:mainSteps.has(s.key), people:s.allPeople, text:s.text})),
+    ...M.outs.filter(o=>o.people.length<=1 || (main.has(o.oid) && o.people.length<3)).map(o=>({ref:o.oid, node:o.id, kind:"need", main:main.has(o.oid), people:o.people, text:o.plain})),
+    ...nxValues(learn).filter(v=>!(v.interviews||[]).length).map(v=>({ref:v.id, node:"", kind:"who", main:false, people:[], text:`${v.name}: ${v.label||""}`}))]
+    .sort((a,b)=>(a.main?0:1)-(b.main?0:1) || NX_KINDS.indexOf(a.kind)-NX_KINDS.indexOf(b.kind) || a.people.length-b.people.length || a.ref.localeCompare(b.ref,undefined,{numeric:true}));
+}
+/* How the last round went: its targets that are no longer open. A kind of person whose label changed is not counted. */
+function nxLast(learn, gaps){
+  const prev=learn.previous; if(!prev || typeof prev!=="object") return null;
+  const labels=Object.fromEntries(nxValues(learn).map(v=>[v.id, v.label])), open=new Set(gaps.map(g=>g.ref));
+  const known=new Set([...M.steps.map(s=>s.key), ...M.outs.map(o=>o.oid)]); // a moved outcome's old ID is gone, not closed
+  const targets=(prev.targets||[]).filter(x=>x.label ? labels[String(x.ref)]===x.label : known.has(nxLive(x.ref)))
+    .map(x=>x.label ? String(x.ref) : nxLive(x.ref)), still=targets.filter(r=>open.has(r));
+  return {closed:targets.length-still.length, targeted:targets.length, open:still};
+}
+/* The way to the next level of "How sure is this?": a count of conversations, or keep going. */
+function nxToNext(sure, n){
+  const more=sure.level===1 ? 3-n : sure.level===2 ? Math.max(8-n,0) : 0;
+  return more ? t("map.nx.to_next",{n:more, level:t(OV_SURE[sure.level])}) : sure.level===2 ? t("map.nx.keep_going") : "";
+}
+function nxTitle(round, gaps){
+  return !gaps.length ? t("map.nx.enough") : !round.length ? t("map.nx.title_none",{n:gaps.length})
+    : t("map.nx.title",{people:t("map.nx.people",{n:round.reduce((a,e)=>a+(+e.count||1),0)}), gaps:t("map.nx.gaps",{n:gaps.length})});
+}
+const nxStep = (n,ask,answer,body) => `<section class="ov-blk ov-step" id="nx-s${n}"><p class="ov-ask"><b>${n}</b>${ask}</p><h2 class="ov-ans">${esc(fullStop(answer))}</h2>${body}</section>`;
+function renderNxView(){
+  const learn=nxLearn(), gaps=nxGaps(), round=Array.isArray(learn.round)?learn.round:[], values=nxValues(learn);
+  const traits=(learn.traits||[]).filter(tr=>Array.isArray(tr.values)), scope=overScope(), sure=overSure(scope), n=scope.length;
+  const byRef=Object.fromEntries([...M.steps.map(s=>[s.key,s.text]), ...M.outs.map(o=>[o.oid,o.plain]), ...values.map(v=>[v.id,v.label||""])]);
+  const cards=ref=>round.map((e,i)=>(e.gaps||[]).includes(ref)?i+1:0).filter(Boolean);
+  const toCard=ref=>{ const c=cards(ref); return c.length ? th("map.nx.to_card",{list:esc(joinList(c.map(String)))}) : ""; };
+  const guide=M.made && M.made.guides && M.made.guides[M.job], last=nxLast(learn,gaps);
+  const lead=`<section class="ov-blk ov-lead" id="nx-s0"><p class="ov-note">${esc(sentences(t("map.nx.kicker"), many()?t("map.next.shown_for",{job:jobName(M.job)}):""))}</p>
+    <h2 class="ov-bl">${esc(nxTitle(round, gaps))}</h2>
+    ${!gaps.length?`<button type="button" class="ov-lk" data-nx-view="over">${th("map.nx.see_next")}</button>`:!round.length?`<div class="ov-todo">${th("map.nx.ask_assistant")}</div>`:M.overStale?`<div class="flag">${th("map.ov.lead.stale")}</div>`:""}
+    <div class="nx-actions">${guide&&round.length?`<button type="button" class="nx-btn" data-nx-copy>${th("map.nx.copy")}</button>`:""}<button type="button" class="nx-btn nx-ghost" data-nx-print>${th("map.nx.print")}</button></div></section>`;
+  const s1=nxStep(1, th("map.nx.q.sure"), sentences(fullStop(t(OV_SURE[sure.level-1])), nxToNext(sure, n)),
+    `<div class="ov-sure"><ol class="ov-gauge" aria-label="${esc(t("map.ov.sure.aria",{name:t(OV_SURE[sure.level-1]), level:sure.level}))}">${OV_SURE.map((l,i)=>`<li class="${i+1<sure.level?"done":i+1===sure.level?"now":""}">${th(l)}</li>`).join("")}</ol><p class="ov-note">${esc(sure.text)}</p></div>
+    ${last?`<div class="nx-last"><b>${th("map.nx.last",{closed:last.closed, targeted:last.targeted})}</b> ${last.open.length?th("map.nx.still_open",{list:esc(joinList(last.open.map(r=>byRef[r]||r)))}):""}</div>`:""}`);
+  const chip=ref=>{ const g=gaps.find(x=>x.ref===ref), text=esc(g?g.text:byRef[ref]||ref), main=g&&g.main?`<i class="nx-main">${th("map.nx.main")}</i>`:"";
+    return g&&g.node ? `<button type="button" class="nx-chip" data-nx-go="${esc(g.node)}">${text}${main}</button>` : `<span class="nx-chip${g?"":" nx-done"}">${text}${main}</span>`; };
+  const card=(e,i)=>`<article class="nx-card" id="nx-c${i+1}"><div class="nx-head"><b class="nx-num">${i+1}</b><div><h3>${esc(e.who||"")}</h3><p class="ov-note">${esc([t("map.nx.count",{n:+e.count||1}), ...(e.traits||[]).map(id=>values.find(v=>v.id===String(id))).filter(Boolean).map(v=>`${v.name}: ${v.label}`)].join(" · "))}</p></div><button type="button" class="nx-btn nx-ghost" data-nx-copy="${i}">${th("map.nx.copy_one")}</button></div>
+    <div class="nx-fills"><span class="ov-note">${th("map.nx.backs_up")}</span>${(e.gaps||[]).map(chip).join("")}</div>
+    <ol class="nx-qs">${(e.questions||[]).map(q=>`<li><q>${esc(q.ask||"")}</q><p><span>${th("map.nx.listen")}</span> ${esc(q.listen||"")}</p></li>`).join("")}</ol></article>`;
+  const s2=round.length?nxStep(2, th("map.nx.q.who"), t("map.nx.a.who",{n:round.length}), round.map(card).join("")+(learn.tip?`<p class="nx-tip"><b>${th("map.nx.tip")}</b> ${esc(learn.tip)}</p>`:"")):"";
+  const missing=values.filter(v=>!(v.interviews||[]).length), ini=id=>{ const i=M.ivById[id], name=i?i.name:id; return `<span class="nx-ini" title="${esc(name)}">${esc([...name][0]||"")}</span>`; };
+  let grid="";
+  if(traits.length>=2){
+    const [rows, cols, third]=traits.slice(0,3).sort((a,b)=>b.values.length-a.values.length); // the two biggest make the grid
+    const gone=v=>!(v.interviews||[]).length;
+    const cell=(r,c)=>{ const ids=(r.interviews||[]).filter(x=>(c.interviews||[]).includes(x)), miss=[r,c].find(gone);
+      return ids.length ? `<td>${ids.map(ini).join(" ")}</td>` : miss ? `<td class="nx-miss"><b>${th("map.nx.nobody")}</b> <span class="ov-note">${toCard(String(miss.id))}</span></td>` : `<td class="nx-dot">·</td>`; };
+    grid=`<div class="nx-gridwrap"><table class="nx-grid"><thead><tr><th></th>${cols.values.map(c=>`<th scope="col"${gone(c)?' class="nx-miss"':""}>${esc(c.label)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.values.map(r=>`<tr><th scope="row"${gone(r)?' class="nx-miss"':""}>${esc(r.label)}</th>${cols.values.map(c=>cell(r,c)).join("")}</tr>`).join("")}</tbody></table></div>
+      ${third?`<div class="nx-fills"><span class="ov-note">${esc(third.name)}</span>${third.values.map(v=>`<span class="nx-chip${gone(v)?"":" nx-done"}">${esc(v.label)} ${(v.interviews||[]).map(ini).join(" ")||th("map.nx.nobody")}</span>`).join("")}</div>`:""}
+      <p class="ov-note">${th("map.nx.grid_note",{rows:esc(rows.name), cols:esc(cols.name)})}</p>`;
+  }
+  const s3=traits.length?nxStep(3, th("map.nx.q.heard"), missing.length?t("map.nx.a.missing",{list:joinList(missing.map(v=>v.label))}):t("map.nx.a.covered"), grid):"";
+  const kindOf=id=>joinList(values.filter(v=>(v.interviews||[]).includes(id)).map(v=>v.label));
+  const said=g=>g.kind==="who" ? t("map.nx.nobody") : joinList(g.people.map(id=>{ const i=M.ivById[id], k=kindOf(id); return (i?i.name:id)+(k?` (${k})`:""); }));
+  const item=g=>{ const to=toCard(g.ref), inner=`<span>${esc(g.text)}</span><small>${esc(said(g))}</small><em class="${to?"":"nx-out"}">${to||th("map.nx.not_in_round")}</em>`;
+    return `<li>${g.node?`<button type="button" class="nx-gap" data-nx-go="${esc(g.node)}">${inner}</button>`:`<div class="nx-gap">${inner}</div>`}</li>`; };
+  const restsOk=[...new Set((learn.rests_on||[]).map(nxLive))].filter(r=>M.outs.some(o=>o.oid===r) && !gaps.some(g=>g.ref===r)).length;
+  const groups=[["main","map.nx.g.main"],["step","map.nx.g.step"],["need","map.nx.g.need"],["who","map.nx.g.who"]].map(([kind,key])=>{
+    const list=gaps.filter(g=>kind==="main"?g.main:!g.main&&g.kind===kind);
+    const body=list.length?`<ul>${list.slice(0,5).map(item).join("")}</ul>${list.length>5?`<ul class="nx-fold" hidden>${list.slice(5).map(item).join("")}</ul><button type="button" class="nx-more" data-nx-more>${th("map.nx.more",{n:list.length-5})}</button>`:""}`:"";
+    const extra=kind==="main"&&restsOk?`<p class="nx-ok">${th("map.nx.main_ok",{n:restsOk, thin:3})}</p>`:kind==="step"&&!list.length?`<p class="ov-note">${th("map.next.thin_none")}</p>`:"";
+    return body||extra?`<div class="nx-group" data-kind="${kind}"><h3>${th(key,{thin:3})}</h3>${body}${extra}</div>`:""; }).join("");
+  const s4=nxStep(4, th("map.nx.q.thin"), gaps.length?t("map.nx.a.thin",{n:gaps.length}):t("map.nx.a.none"), groups);
+  const rail=[[1,"map.nx.rail.sure"],[2,"map.nx.rail.who"],[3,"map.nx.rail.heard"],[4,"map.nx.rail.thin"]].filter(([k])=>(k!==2||round.length)&&(k!==3||traits.length));
+  nextview.innerHTML=`<div class="ov-page"><nav class="ov-rail" aria-label="${esc(t("map.nx.rail.aria"))}"><ol>${rail.map(([k,l])=>`<li><button type="button" data-nx-to="nx-s${k}"><b>${k}</b><span>${th(l)}</span></button></li>`).join("")}</ol></nav>
+    <article class="ov-sheet">${lead}${s1}${s2}${s3}${s4}</article></div>`;
+}
+function nxQuestions(i){
+  const e=nxLearn().round[i]; return [e.who, ...(e.questions||[]).map((q,k)=>`${k+1}. ${q.ask}\n   ${t("map.nx.listen")}: ${q.listen}`)].join("\n");
+}
+function nxCopy(text, btn){
+  const done=()=>{ const was=btn.innerHTML; btn.innerHTML=th("map.nx.copied"); setTimeout(()=>{ btn.innerHTML=was; },1500); };
+  const fallback=()=>{ const a=document.createElement("textarea"); a.value=text; document.body.appendChild(a); a.select(); try{ document.execCommand("copy"); done(); }catch(_){ /* nothing to copy with */ } a.remove(); };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+}
+nextview.addEventListener("click",e=>{
+  const at=sel=>e.target.closest(sel); let b;
+  if((b=at("[data-nx-go]"))){ setView("map"); focusNode(b.dataset.nxGo); drawer.scrollIntoView({block:"nearest"}); }
+  else if((b=at("[data-nx-to]"))){ const el=document.getElementById(b.dataset.nxTo); if(el) el.scrollIntoView({block:"start"}); }
+  else if((b=at("[data-nx-more]"))){ b.previousElementSibling.hidden=false; b.remove(); }
+  else if((b=at("[data-nx-view]"))) setView(b.dataset.nxView);
+  else if((b=at("[data-nx-print]"))){ document.body.classList.add("nx-print"); window.print(); }
+  else if((b=at("[data-nx-copy]"))) nxCopy(b.dataset.nxCopy==="" ? M.made.guides[M.job] : nxQuestions(+b.dataset.nxCopy), b);
+});
+addEventListener("afterprint",()=>document.body.classList.remove("nx-print"));
+
 /* A KB dropped onto the map brings its own language; a file that does not load leaves the map as it was. */
 function load(raw){
   if(!raw || typeof raw!=="object") throw new Error(t("map.file.not_kb"));
@@ -1852,7 +2027,7 @@ function load(raw){
   try{ M=build(raw); }catch(err){ Object.assign(UI, was); labelCache=wasCache; applyLabels(); throw err; }
   chooseJob(null); expanded=new Set(); selected=null; personHL=null; searchHL=null; solHL=null; showSols=false; closeDrawer();
   nextOpen=false; syncSolControls(); setView(M.hasOver?"over":"map", true); if(overMode) renderOverView();
-  renderHeader(); renderJobs(); renderPeople(); renderProgress(); renderNext(); updatePill();
+  renderHeader(); renderJobs(); renderPeople(); renderProgress(); updatePill();
   render(); requestAnimationFrame(()=>fit(true));
 }
 addEventListener("resize",()=>{ clearTimeout(window._rt); window._rt=setTimeout(()=>{ fit(true); padSolView(); },150); });

@@ -174,18 +174,20 @@ A real merge first copies the new transcripts into `.pw-kb/transcripts/` and the
 ### 6. Refresh the review sheet and the map
 
 ```
+kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<YYYY-MM-DD>-overview-<job>.json
 kb_tool review .pw-kb/pw-kb.json
 kb_tool map .pw-kb/pw-kb.json
 ```
 
-Run both after every merge or approved proposal, so reviewers never open a stale picture.
+Run `review` and `map` after every merge or approved proposal, so reviewers never open a stale picture.
 
-After a merge that added interviews, write the overview between the two commands, as "Write the overview" describes. The map opens on it, and a merge marks the old one out of date.
+After a merge that added interviews, write the overview first, as "Write the overview" describes. The map opens on it, `review.md` and `interview-guide.md` show its plan for the next interviews, and a merge marks the old one out of date.
 
 Add `--open` to `map` when it writes the study's first map, and whenever the user asks to see the map: the tool then shows it in the user's default browser. Do not ask first. Leave `--open` out on later rebuilds, so the user does not get a new tab after every merge.
 
-- `.pw-kb/review.md` is a plain sheet listing decisions waiting, what is new since the last merge, the job map by stage with interview counts and the steps to ask about next.
-- `.pw-kb/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It opens on an Overview view, the study as a short story with what to do next; see "Write the overview". When the study has value themes, it has a Value themes view: one card per theme with its outcomes, what people use today and the quotes. It is one file with the KB inside: it opens in any browser and works offline. The end of its Overview says which plugin version made it, and when.
+- `.pw-kb/review.md` is a plain sheet listing decisions waiting, what is new since the last merge, the job map by stage with how many people back each step, and the next interviews: where the study stands, the plan and every thin spot.
+- `.pw-kb/interview-guide.md` is that plan as a guide to take into the calls: who to find, what to ask, what to listen for. `review` rewrites it.
+- `.pw-kb/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It opens on an Overview view, the study as a short story with what to do next; see "Write the overview". Its Next interviews view shows the plan for the next round: who to talk to, what to ask, who has not been heard from yet, and what is still thin. When the study has value themes, it has a Value themes view: one card per theme with its outcomes, what people use today and the quotes. It is one file with the KB inside: it opens in any browser and works offline. The end of its Overview says which plugin version made it, and when.
 
 A folder whose name starts with a dot is hidden in Finder and in most file dialogs, so the user cannot easily find the map by hand. `map` prints a `link:` line with a `file://` address. Give the user that address, exactly as printed, every time you point to the map, and give the full path of `review.md`.
 
@@ -208,7 +210,7 @@ The reader may be a founder or a domain expert, not an ODI specialist, so write 
 - new outcomes, each as its full statement
 - decisions waiting: what and why in one line each, and how to answer ("approve P1")
 - current solutions, briefly: each new group in one line with its why and its most used solutions, then what people stopped using and why. Point to the Solutions view in the map for the full list
-- what to ask about next: per core job, the steps that fewest people support, at most 5, as `review.md` lists them under "Ask about these next"; and which derived layers are now out of date
+- the next interviews, in 3 to 5 lines (1 or 2 per core job when there are several): who to talk to, the top questions, and where the full plan is, the map's Next interviews view and `.pw-kb/interview-guide.md`; and which derived layers are now out of date
 - who the overview says the study is about, its bottom line and its three next steps, one line each, the steps marked as advice
 - a pointer to `review.md` and the map's `file://` link, with the note that the map holds the interviewees' names and quotes
 
@@ -218,7 +220,7 @@ The reader may be a founder or a domain expert, not an ODI specialist, so write 
 - each person in one line: who they are and the core job they are linked to, or why none
 - the language the study is written in, in one line, and that it stays that way
 - the rest as counts, with the one or two findings that matter most: outcomes, current solutions and their groups, and what people stopped using
-- what to ask about next, as above, and the pointer to `review.md` and the map, which `map --open` has just shown in their browser
+- the next interviews, as above, and the pointer to `review.md` and the map, which `map --open` has just shown in their browser
 
 Skip tool jargon such as "patch", "object of control" or "verbatim check" unless the user uses it. Say "every quote matches the transcript word for word". Flag anything that should change how the user reads the KB, such as a new interview that contradicts the core job, or a segment that keeps growing without a home.
 
@@ -246,9 +248,9 @@ Run `context` and read the CURRENT SOLUTIONS block, or point the user to the Sol
 
 The discovery map opens on its Overview view: who the study is about, then the study as a short story in six steps, with a "What to do next" block on top. It is made for a person who does not know the method, often a founder starting discovery. The map counts what it can from the KB. The sentences are yours, and without them the view says "No written findings yet".
 
-Write the overview for each core job that got new evidence, at the end of every run that merged interviews, after `review` and before `map`. Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules. Write it in the study's language.
+Write the overview for each core job that got new evidence, at the end of every run that merged interviews, right after the merge (and `themes`, when you rebuild them) and before `review` and `map`. Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules. Write it in the study's language.
 
-1. Run `kb_tool context .pw-kb/pw-kb.json` for the outcomes, the solutions and who stopped using them, and the value themes. `context` prints no quotes and does not say who said what. For those, read `.pw-kb/pw-kb.json` itself: the `evidence` lists of the steps, the outcomes, the solution uses and each person's own statements.
+1. Run `kb_tool context .pw-kb/pw-kb.json` for the outcomes, the solutions and who stopped using them, and the value themes. `context` prints no quotes and does not say who said what. For those, read `.pw-kb/pw-kb.json` itself: the `evidence` lists of the steps, the outcomes, the solution uses and each person's own statements. `context` also prints OPEN GAPS per core job, ranked, with who backs each one, and each person's tags: plan the next round from them.
 2. Write `.pw-kb/patches/<YYYY-MM-DD>-overview-<job>.json`:
 
 ```json
@@ -292,7 +294,26 @@ Write the overview for each core job that got new evidence, at the end of every 
       "action": "Talk to four more owners, two of them with more than one site.",
       "why": "Every owner so far runs one site, and the last two still named new needs.",
       "ask": ["Tell me about the last time you ran out of something. What did you do?"],
-      "tip": "Ask what they did last time, not what they would like."
+      "tip": "Ask what they did last time, not what they would like.",
+      "traits": [
+        {"id": "T1", "name": "Sites", "values": [
+          {"id": "T1.1", "label": "One site", "interviews": ["01", "02", "03", "04", "05"]},
+          {"id": "T1.2", "label": "Two or more sites", "interviews": []}]},
+        {"id": "T2", "name": "Who counts stock", "values": [
+          {"id": "T2.1", "label": "The owner", "interviews": ["01", "02", "04"]},
+          {"id": "T2.2", "label": "A chef or manager", "interviews": ["03", "05"]}]}
+      ],
+      "rests_on": ["A.3.1", "A.3.2"],
+      "round": [
+        {"kind": "new", "count": 2, "who": "Owners who order for two or more sites",
+         "traits": ["T1.2"], "gaps": ["T1.2", "A.3.2"],
+         "questions": [{"ask": "Walk me through last Sunday's order, from the first item to sending it.",
+                        "listen": "how they guessed the amounts, and who checked them", "gaps": ["A.3.2"]}]},
+        {"kind": "new", "count": 1, "who": "An owner whose chef counts the stock",
+         "traits": ["T2.2"], "gaps": ["A.4"],
+         "questions": [{"ask": "Tell me about the last time the count and the shelf did not match.",
+                        "listen": "what was thrown away, and when they noticed", "gaps": ["A.4"]}]}
+      ]
     },
     "prototype": {
       "status": "ready",
@@ -319,6 +340,7 @@ Notes on the example:
 - A gap's `kind` is `pain` (it hurts today) or `struggle` (a fix they tried did not work). Its `solutions` is optional: the solutions it concerns.
 - `status` is `now` or `enough` for `learn`, and `ready` or `early` for `prototype` and `market`.
 - `words` are the customers' own words, each part of a quote in the KB.
+- `traits`, `rests_on` and `round` are the plan for the next round, and come together. Read "Plan the next round" in `references/pw-rules.md` first. Every ID is a step, an outcome or a trait value of this core job.
 
 3. Check it, then write it:
 
@@ -327,9 +349,9 @@ kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<file>.json --dry-run
 kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<file>.json
 ```
 
-A clean dry run ends with "dry run OK". The tool refuses a quote or a solution the KB does not hold, a sentence over its word limit, a percentage or a score word, a word of the method ("core job", "desired outcome"), an unknown icon and a missing part. It warns on vague words such as "pain point" or "workflow": rewrite them in plain words unless they are the customers' own. It replaces that core job's overview and leaves other core jobs alone. Then run `kb_tool map .pw-kb/pw-kb.json`.
+A clean dry run ends with "dry run OK". The tool refuses a quote or a solution the KB does not hold, a sentence over its word limit, a percentage or a score word, a word of the method ("core job", "desired outcome"), an unknown icon, a missing part, and a plan ID that is not a step, outcome or trait value of the core job. It warns on vague words such as "pain point" or "workflow": rewrite them in plain words unless they are the customers' own. It also warns when the round misses a thin spot the main finding rests on, or asks what people would do: fix those. It replaces that core job's overview and leaves other core jobs alone. Then run `review` and `map`.
 
-4. In your report, say who the study is about, give the bottom line and the three next steps in one line each, and point to the Overview view. The next steps are advice: say so. Never call a count a score.
+4. In your report, say who the study is about, give the bottom line and the three next steps in one line each, and point to the Overview view and the Next interviews view. The next steps are advice: say so. Never call a count a score.
 
 The user changes the overview by telling you ("the bottom line is too strong", "we are ready to prototype"). Edit the file and run `overview` again; there is no proposal step.
 

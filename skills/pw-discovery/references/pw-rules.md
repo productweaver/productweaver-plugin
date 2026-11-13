@@ -250,12 +250,20 @@ You write the sentences. The map counts everything else from the KB, so do not r
 - `prototype`: `ready` only when most people raised the same need and at least one tried to solve it. Name one thing to sketch, how to test it with people from the study, and what to leave for later. When it is `early`, `action` says what must be true first ("Wait until three owners describe the same problem"), `test` says how you would try it once that is true, and `later` still names what to leave out.
 - `market`: `early` until someone has agreed to try or pay. Its evidence goes in `who` and `unknown`. `words` are phrases to reuse in messages, copied from the customers' quotes. `unknown` says what the interviews do not tell, such as price.
 
+**Plan the next round** (`traits`, `rests_on` and `round` in `learn`). The goal is the fewest conversations that make the findings safer. Start from `context`'s OPEN GAPS: every gap a round names must be one of them.
+- `traits`: 2 or 3 things that change how people do the job, such as team size, how inputs arrive or the tools they use, never age or city unless it changes the work. Only people whose main goal is this core job go in a value: put each in the value that fits, or in none when you do not know. Add a value nobody has only when the interviews name such people ("the owner next door runs three sites"), and say so in `why`. In later rounds keep each trait's and value's ID and label, add new values with the next free number, and move people as you learn more: the next plan compares kinds of people by ID and label.
+- `rests_on`: the outcomes the bottom line and the focus stand on. OPEN GAPS marks their thin spots `main`, and lists them first.
+- `round`: at most 5 entries, in the order to do them. Start with the people who can back up the `main` gaps; when there are none, start with the entry that fills the most gaps. One entry is one kind of person; `count` says how many to find. Keep the total close to what OPEN GAPS says the next level needs, and go above it only when the gaps need different kinds of people.
+- Questions: about the last time they did that step, never about the need itself. To check "less risk of filing a receipt twice", ask how last month's receipts reached them, then listen. When someone else does the step (the client prints the album), ask about the last time they dealt with it. A gap of the kind "nobody yet" needs no question: talking to such a person closes it. `listen` says what would confirm the gap; add what would show it is not real when it fits in 15 words.
+- `action`, `why` and `ask` sum up the round for the Overview: `ask` holds its first 1 or 2 questions. Do not write how the last round went: kb_tool keeps each round's targets, and the map and `review.md` count what closed.
+
 | Before | After |
 |---|---|
 | Bottom line "There is a significant opportunity in inventory management" | It says nothing a person can picture. "Owners throw away food every week because they order by gut feeling" |
 | Opening "Build an app that predicts orders" | It names a feature. "Tell the owner what the week will need before the order goes out" |
 | Gap "Poor tooling" | "The stock sheet is wrong by Wednesday" |
 | Ask "Would you pay for a tool that plans your orders?" | It asks for an opinion. "Tell me about the last time you ran out of something. What did you do?" |
+| Ask "Do you also throw away fish?" | It names the need, so people agree to be polite. "Walk me through last week's fish order. What happened to what was left?" |
 | Today "80% use spreadsheets" | The map shows the counts. "Mostly by hand, with a paper stock sheet" |
 | Bottom line "The hard part is the supply side, not the kitchen" | Who? What part? "Owners lose an hour a day chasing suppliers for deliveries" |
 | Why "Ordering friction drives waste: the stack is fragmented" | Jargon. "Each supplier wants the order in a different way, so owners order from memory" |

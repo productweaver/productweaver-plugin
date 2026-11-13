@@ -167,7 +167,8 @@ An empty list is a finding: the interview gave no evidence for that kind of job.
 | `covers` | string | no | One line on what the step includes |
 | `evidence` | list of evidence items | no | Quotes of people doing this step |
 | `interviews` | list of IDs | no | *Computed.* Who is quoted |
-| `coverage` | integer | no | *Computed.* How many interviews are quoted |
+| `coverage` | integer | no | *Computed.* How many interviews are quoted on the step itself |
+| `voices` | integer | no | *Computed.* How many distinct people are quoted on the step or on any of its outcomes. A step with fewer than 3 is thin |
 | `history` | history | no | Earlier wordings |
 
 ## `desired_outcomes.outcomes[]`
@@ -351,9 +352,19 @@ The layer holds only the sentences the assistant writes. The map counts the rest
 
 | Track | `status` | Other fields |
 |---|---|---|
-| `learn` | `now` or `enough` | `why`, `ask` (1 or 2 questions for the next conversations), `tip` |
+| `learn` | `now` or `enough` | `why`, `ask` (1 or 2 questions for the next conversations), `tip`, and the plan for the next round below |
 | `prototype` | `ready` or `early` | `why`, `test` (how to try it with real people), `later` (what to leave out for now) |
 | `market` | `ready` or `early` | `who` (whom to approach first), `words` (1 to 3 phrases in the customers' own words, each part of a quote in the KB), `unknown` (what is not known yet) |
+
+**The plan for the next round** sits in `learn`. Its three fields come together or not at all, and every ID in them must be a step, an outcome or a trait value of the core job. The map's Next interviews view, `review.md` and `interview-guide.md` show it.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `traits` | list | 2 or 3 people traits that change how the job gets done: `{id: "T1", name, values}`, each value `{id: "T1.1", label, interviews}`. Names and labels are at most 4 words. A person sits in at most one value of a trait. A value with no interviews is a kind of person not heard from yet |
+| `rests_on` | list of outcome IDs | 1 to 8 outcomes the main finding rests on. Their gaps rank first |
+| `round` | list | 1 to 5 entries, in the order to do them: `kind` (`new`), `count` (1 to 3 people), `who` (at most 15 words), optional `traits` (value IDs), `gaps` (1 to 4 IDs it fills) and `questions` (1 to 4 `{ask, listen, gaps}`: a question of at most 25 words, what to listen for in at most 15, and which of the entry's gaps it checks) |
+| `at_write` | object | *Computed.* When the plan was written: the round's targets and the people heard so far |
+| `previous` | object | *Computed.* The `at_write` of the plan before the last batch, so the next plan can say how that round went |
 
 ## Other derived layers
 
