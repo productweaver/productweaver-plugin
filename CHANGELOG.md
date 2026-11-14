@@ -4,6 +4,17 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.11.1 — 2026-11-13
+
+### What's fixed
+
+- **No more crash where an old jsonschema is installed.** Where Python had
+  the jsonschema package older than 4.0 (one Claude Desktop sandbox had
+  3.2), merging interviews, checking the study and other commands stopped
+  with an `AttributeError`. The tool now uses its own built-in check there,
+  as it already did where jsonschema is missing. `kb_tool` 0.12.1; the KB
+  schema stays 3.
+
 ## 0.11.0 — 2026-11-13
 
 ### What's new

@@ -66,12 +66,12 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 from xml.etree import ElementTree
 
-try:
-    import jsonschema as _jsonschema  # optional: richer schema messages when it is installed
+try:  # optional: richer schema messages. jsonschema before 4.0 (3.2 on Ubuntu 22.04) lacks it: built-in runs
+    from jsonschema import Draft202012Validator as _LibraryValidator
 except ImportError:  # pragma: no cover - depends on the machine
-    _jsonschema = None
+    _LibraryValidator = None
 
-__version__ = "0.12.0"
+__version__ = "0.12.1"
 SCHEMA_VERSION = 3
 
 BRAND = "Product Weaver"
@@ -1495,10 +1495,10 @@ def _quote_hint(value: Any, expected: list[str]) -> str:
 
 
 def schema_errors(data: Any, schema: Json, root: str = "kb") -> list[str]:
-    """Readable JSON Schema problems, at most MAX_PROBLEMS: jsonschema when installed, else a built-in checker that
-    refuses any keyword it does not know."""
+    """Readable JSON Schema problems, at most MAX_PROBLEMS: jsonschema 4.0+ when installed, else a built-in checker
+    that refuses any keyword it does not know."""
     plain = copy.deepcopy(data)
-    if _jsonschema is not None:
+    if _LibraryValidator is not None:
         return _library_schema_errors(plain, schema, root)
     return _builtin_schema_errors(plain, schema, root)
 
@@ -1534,7 +1534,7 @@ def _library_message(err: Any) -> str:
 
 
 def _library_schema_errors(data: Any, schema: Json, root: str) -> list[str]:
-    validator = _jsonschema.Draft202012Validator(schema)
+    validator = _LibraryValidator(schema)
     found = sorted(validator.iter_errors(data), key=lambda err: [str(p) for p in err.absolute_path])
     return [f"{_path_text(root, err.absolute_path)}: {_library_message(err)}" for err in found[:MAX_PROBLEMS]]
 
