@@ -47,6 +47,13 @@ with the files on your computer. You can add it on the web with the same steps
 at [claude.ai/customize/plugins](https://claude.ai/customize/plugins); Claude
 saves it to your account, so it is ready in Cowork.
 
+**If Claude says it can't reach your files.** A Cowork task runs in the cloud
+and reaches your folder through the desktop app. That link sometimes drops for
+a few seconds, and the plugin tells Claude to wait and try again by itself. If
+the link stays down, check that the Claude app is open and your computer is
+awake, then say "Try again". Nothing is lost: Claude goes on from where it
+stopped.
+
 **Claude Code** (version 2.1.292 or later), in a terminal:
 
 ```sh

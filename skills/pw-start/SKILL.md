@@ -25,6 +25,10 @@ Ask nothing yet. Look at the workspace and at any files the user attached. The w
 4. **Recordings.** Audio and video files (`.mp3`, `.m4a`, `.wav`, `.mp4`, `.mov`) are recordings, not transcripts.
 5. **Attachments.** Files the user attached in this chat count too, wherever your host puts them. An attached zip or folder that holds `pw-kb.json` is a study they kept from an earlier chat. If `.pw-kb/` already exists, do not unpack: ask which study to keep. Otherwise unpack it so that `.pw-kb/pw-kb.json` exists afterwards (not `.pw-kb/.pw-kb/`), then take path C.
 
+## When the link to the user's computer drops
+
+In Cowork, a task that runs in the cloud reaches the user's folder through the Claude desktop app, over a link that often drops for a few seconds and comes back by itself. Fetch the files you look at in one request, when your tool takes several, and keep those copies for `pw-discovery`: do not fetch them again. When any call that lists, fetches or saves files on the user's computer, or runs a command there, fails because the computer, the device or the app cannot be reached, is not connected or timed out, do not stop and do not tell the user yet. Wait about 15 seconds (`sleep 15` in your own shell) and make the same call again; if it fails again, wait 30 seconds, then 60. Only when all three retries fail, tell the user in one or two lines that the link to their computer dropped, that nothing is lost, to check that the Claude app is open and the computer awake, and to say "Try again". When they do, go on from the call that failed, without starting over or asking again. A missing file, or a folder you are not allowed to open, is not a dropped link: do not retry those. `pw-discovery`'s "When the link to the user's computer drops" says the same for the rest of the run.
+
 ## Pick one path
 
 | What you found | Path | The first result |
@@ -71,6 +75,8 @@ Then:
 - Then follow the `pw-discovery` skill from its step 1. The questions in its step 4 are the only ones the user gets.
 
 **Upload hosts.** A Cowork task with a connected folder is not an upload host: the study goes into that folder. When the files were attached to the chat and the workspace is a sandbox that is gone after the chat (ChatGPT, claude.ai), say so in your first lines. Do not promise that the map opens in their browser. At the end, `pw-discovery` hands back the map and the whole `.pw-kb/` folder, as a zip when your host needs one. Say: "Keep this folder. Next time, upload it with your new interviews."
+
+**Cowork.** Add one short line: keep the Claude app open and the computer awake until the map is in their folder, because the task reaches their files only through the app.
 
 ## Path B: no transcripts yet
 

@@ -4,6 +4,22 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.11.4 — 2026-11-14
+
+### What's fixed
+
+- **In Cowork, a short drop of the link to your computer no longer stops
+  the study.** A Cowork task runs in the cloud and reaches your folder
+  through the Claude desktop app, over a link that sometimes drops for a
+  few seconds. The assistant used to stop at the first failed call and say
+  it could not read your interviews, until you asked it to retry. Now it
+  waits and tries again by itself, up to three times. If the link stays
+  down, it says so in one or two lines, asks you to check that the app is
+  open and the computer awake, and goes on from where it stopped when you
+  say "Try again". It also fetches your files once and saves them back
+  once, so the run depends less on the link, and it never says the study
+  is saved when saving failed.
+
 ## 0.11.3 — 2026-11-14
 
 ### What's fixed
