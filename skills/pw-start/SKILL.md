@@ -34,6 +34,14 @@ Ask nothing yet. Look at the workspace (the folder the session started in) and a
 | A study | C | the one next step, with the words to say |
 | No folder and nothing attached | D | how to give you the files, then path B |
 
+Then run, from the root of the workspace, the command below, with `--path transcripts` (A), `--path no_transcripts` (B or D) or `--path existing_study` (C):
+
+```
+python3 <plugin folder>/skills/pw-discovery/scripts/pw_usage.py start .pw-kb --skill pw-start --path <path> --assistant <name> --model <id>
+```
+
+`<name>` and `<id>` are as in `pw-discovery`'s "Usage statistics", which also says what its output line means and how to ask the question. When no `.pw-kb/` folder is made (path D, or a sandbox that keeps nothing), skip it and everything below that mentions `pw_usage.py`. Every run that ran `start` runs `end` once, when its work is done, with the same options: path B adds `--guide-written`, path C runs it right before you give the next step, and path A hands over to `pw-discovery`, which skips `start` and runs `end` itself.
+
 A first-round guide with no study: tell the user where it is (the full path). If transcripts are there now, take path A and do not ask the planning questions again. If not, ask how the interviews are going and say what to do when they have them: "When you have 3 or more, put the transcripts in one folder here and say: Add my interviews to the study." Never rewrite the guide unless they ask.
 
 ## How to answer
@@ -60,13 +68,13 @@ Then:
 - If you are not sure the files are interviews, ask one yes-or-no question that names what you found ("I found 6 Word files in Calls/. Are these your interview transcripts?").
 - **Fewer than 3 transcripts:** go ahead. Say the result is a first guess, and that it will say who to talk to next.
 - **Only recordings:** say the plugin reads text. Most call tools (Zoom, Google Meet, Teams) save a transcript; ask them to export it into this folder. Offer path B for their next calls.
-- Then follow the `pw-discovery` skill from its step 1. Its question about the study's language and git is the only question the user gets.
+- Then follow the `pw-discovery` skill from its step 1. The questions in its step 4 are the only ones the user gets.
 
 **Upload hosts.** When the files were attached to the chat and the workspace is a sandbox that is gone after the chat (ChatGPT, claude.ai), say so in your first lines. Do not promise that the map opens in their browser. At the end, `pw-discovery` hands back the map and the whole `.pw-kb/` folder, as a zip when your host needs one. Say: "Keep this folder. Next time, upload it with your new interviews."
 
 ## Path B: no transcripts yet
 
-Plan their first round of interviews. Read `references/first-interviews.md` and follow it: ask up to 3 questions about who they want to learn from, then write `.pw-kb/interview-guide.md`, a guide they take into their first 5 to 8 conversations. In the chat, show who to find, the first 3 questions and the guide's full path, then the words to say when the calls are done.
+Plan their first round of interviews. Read `references/first-interviews.md` and follow it: ask up to 3 questions about who they want to learn from, then write `.pw-kb/interview-guide.md`, a guide they take into their first 5 to 8 conversations. In the chat, show who to find, the first 3 questions and the guide's full path, then the words to say when the calls are done. When `start` printed `usage: no-study`, ask the usage question in the same plain-text message as your questions about who to learn from, and never suggest an answer, not even in an example reply. Run `set` with the answer (`set .pw-kb yes` or `set .pw-kb no`) only after the guide is written: before `.pw-kb/` exists, `set` saves nothing. No answer to the usage question means `set .pw-kb no`. `set` and `end` take the same options as `start` (`--skill pw-start --path no_transcripts`). Then run `end --guide-written` (the command above with `end`, `--path no_transcripts` and `--guide-written`). With any other line, ask nothing, and run `end` without `--guide-written` if you wrote no new guide.
 
 A sandbox that is gone after the chat counts as no folder: give the whole guide in the chat, or as a file to download, and ask the user to attach it next time with their transcripts.
 

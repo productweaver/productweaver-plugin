@@ -76,7 +76,7 @@ copilot plugin install productweaver@productweaver-plugin
 
 ### Requirements
 
-- Python 3.9 or newer. Nothing else to install: the skill's script uses only
+- Python 3.9 or newer. Nothing else to install: the skill's scripts use only
   Python's standard library, so it also runs where packages cannot be
   downloaded.
 - Transcripts as `.md`, `.txt`, `.docx` or `.pdf` files. To read a `.pdf`
@@ -113,15 +113,56 @@ people used.
 
 ## What the plugin runs
 
-One local Python script, `kb_tool.py`, inside the skill (its `migrate` command
-also loads `kb_migrate.py`, next to it). It reads the files
-you point it to and writes the files listed below. The plugin has no hooks, no
-MCP servers and no background processes.
+Two local Python scripts inside the skill. `kb_tool.py` (its `migrate` command
+also loads `kb_migrate.py`, next to it) reads the files you point it to and
+writes the files listed below; it makes no network calls. `pw_usage.py` keeps
+your answer about usage statistics and, only after a yes, sends the events. The
+plugin has no hooks, no MCP servers and no background processes.
 
 ## What it sends and where
 
-Nothing. The plugin makes no network calls and downloads nothing. Your
-assistant itself works as it always does with the files it reads.
+The plugin sends nothing unless you turn on usage statistics for a study, and
+even then never your interviews, names, quotes, prompts or file names. It
+downloads nothing. Your assistant itself works as it always does with the files
+it reads.
+
+**Usage statistics are opt-in.** The first time you work on a study, the
+assistant asks once whether to share them. Each person who gets the study
+through git answers for themselves. The choice stays with the folder: it
+travels with a study you zip or sync, so delete `.pw-kb/usage/` before you hand
+a study over (note the study number first). Without your yes, nothing is
+recorded or sent.
+
+- **What is sent:** small events that show which parts of the plugin work and
+  which do not: which steps ran and when, how long they took, whether they
+  worked, and how many tries a batch took; yes-or-no facts about a run, such as
+  whether it was only a trial; whether you approved or rejected a suggested
+  change, and its kind; how you started (with interviews, without them, or
+  with a study you had), whether you were asked at a new or an existing study,
+  whether an interview guide was written, and whether the map opened in your
+  browser; counts (such as how many interviews a study holds), error and
+  warning codes, the class name of a crash, the study's language, the format
+  version a study was upgraded from, whether the study folder is in git, the
+  assistant and model, the plugin, script and Python versions, the operating
+  system family (macOS, Windows, Linux or other), and a random ID for each
+  event. Never interviews, transcripts, names, quotes, prompts, notes or file
+  names. [`references/usage.md`](skills/pw-discovery/references/usage.md)
+  lists every field and the values it may hold.
+- **Where it goes:** to www.productweaver.com, which passes the events on to
+  PostHog in the US. We keep them for 2 years. Each event carries a random
+  study number, made when you say yes.
+- **See what was sent:** open `.pw-kb/usage/sent.jsonl`. It holds every event
+  exactly as it left.
+- **Stop:** tell your assistant to stop sharing. Without the assistant, change
+  `"share": true` to `"share": false` in `.pw-kb/usage/settings.json`. Or set
+  `KB_TOOL_USAGE=0` or `DO_NOT_TRACK=1` in your environment: with either,
+  nothing is recorded or sent, for every study on your machine.
+- **Have your events deleted:** write to privacy@productweaver.com with the
+  study number from `.pw-kb/usage/settings.json`. We then stop accepting events
+  for that study at once and ask PostHog to delete the ones it holds. Anything
+  that remains is deleted after 2 years.
+
+More on https://www.productweaver.com/privacy.
 
 ## Files it writes
 
@@ -141,7 +182,12 @@ workspace holds one study.
 - `patches/`, one file per batch, the audit trail of what each batch added;
 - `backups/`, copies of the knowledge base before each merge (the newest 20);
 - `logs/kb_tool.jsonl`, one line per run, for debugging. It holds no quotes,
-  names or file names.
+  names or file names;
+- `usage/`, your answer about usage statistics, ignored by git: `.gitignore`,
+  `README.md`, `settings.json` (your answer and the study number),
+  `waiting.jsonl` (events not sent yet), `sent.jsonl` (every event exactly as
+  it left) and `.lock`. It travels with the folder, so delete it before you
+  hand a study over (note the study number first).
 
 The knowledge base, transcripts, review sheet, map and patches contain
 interviewees' names and words. They stay on your machine unless you share

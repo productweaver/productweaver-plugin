@@ -4,6 +4,28 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.11.0 — 2026-11-13
+
+### What's new
+
+- **Usage statistics, only if you say yes.** The first time you work on a
+  study, the assistant asks once whether to share usage statistics with
+  Product Weaver. Each person who gets the study through git answers for
+  themselves; the choice stays with the folder, so delete `.pw-kb/usage/`
+  before you hand a study over. Without a yes, nothing is recorded or sent.
+  - **What is sent:** small events that show which parts of the plugin work and
+    which do not: which steps ran, how long they took, counts, error codes and
+    versions. Each event carries a random study number, made when you say yes.
+    Never your interviews, names, quotes, prompts or file names.
+  - **Where to see it:** `.pw-kb/usage/sent.jsonl` holds every event exactly as
+    it left.
+  - **How to stop:** say "stop sharing" to your assistant, or set
+    `KB_TOOL_USAGE=0` or `DO_NOT_TRACK=1` in your environment.
+
+  The plugin sends nothing unless you turn on usage statistics for a study. The
+  new files are in `.pw-kb/usage/`. The details are on
+  https://www.productweaver.com/privacy.
+
 ## 0.10.0 — 2026-11-13
 
 ### What's new

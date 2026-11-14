@@ -1,6 +1,6 @@
 ---
 name: pw-discovery
-description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a knowledge base, one JSON file, that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, the outcomes grouped into a few value themes to guide ideation, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "JTBD". From Product Weaver (productweaver.com).
+description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a knowledge base, one JSON file, that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, the outcomes grouped into a few value themes to guide ideation, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "JTBD". Also use when the user asks to stop sharing usage statistics. From Product Weaver (productweaver.com).
 ---
 
 # pw-discovery: fold interviews into an ODI knowledge base
@@ -11,7 +11,7 @@ One JSON file is the knowledge base (KB). Each run reads new transcripts, extrac
 
 ## Running the script
 
-The script needs Python 3.9 or newer and nothing else: it uses only Python's standard library, so it installs nothing and needs no network. It finds its schemas and the map template next to itself, so run it from the root of the workspace, where the study lives:
+The script needs Python 3.9 or newer and nothing else: it uses only Python's standard library, so `kb_tool.py` installs nothing and needs no network. It finds its schemas and the map template next to itself, so run it from the root of the workspace, where the study lives:
 
 ```
 python3 <skill folder>/scripts/kb_tool.py <command> ...
@@ -67,7 +67,7 @@ Some users read English with difficulty. A study is written in one language, cho
 - Name each choice in its own language: "Italiano, come le interviste" and "English". When the interviews are in several languages, give one choice per language with its number of interviews, most first, then English: at most three choices in all, because some hosts allow no more.
 - Put first, marked as recommended, the choice that matches the language the user writes to you in. If none does, the interviews' language.
 - Do not add an "Other" choice. The host adds a free-text one, where the user can name another language.
-- Ask the git question of step 1 in the same call, so the user is interrupted once.
+- Ask the git question and the usage question of step 1 in the same call, so the user is interrupted once.
 - With no such tool, ask one short question in plain text that names both choices, such as "Scrivo lo studio in italiano, come le interviste, o in inglese?", and wait for the answer.
 - When nobody can answer, as in a scripted run, use the language the request is written in, or English when that is unclear, and say so in your report.
 
@@ -85,21 +85,25 @@ A study's language cannot change once it has interviews, because its statements 
 
 ## Workflow
 
+When the user only asks to stop sharing usage statistics, skip the workflow and follow "Usage statistics".
+
 ### 1. Find the KB and the transcripts
 
 The KB is `.pw-kb/pw-kb.json`. Ask where the new transcripts are only if they cannot be found.
 
 **A study the user attached.** In a chat where files are attached, a zip or folder that holds `pw-kb.json` is the study you handed back last time. Open it before anything else, so new interviews join it instead of starting a new study. If `.pw-kb/` already exists, do not unpack: ask which study to keep. Otherwise unpack it so that `.pw-kb/pw-kb.json` exists afterwards (not `.pw-kb/.pw-kb/`).
 
+Once an attached study is unpacked, run `pw_usage.py start` (see "Usage statistics"), unless `pw-start` already ran it in this conversation.
+
 No KB yet:
 
 1. Read the first lines of each new transcript, to see which language the interviews are in.
 2. If `.pw-kb/interview-guide.md` is already there, the user planned these interviews with the `pw-start` skill before the study existed. Read it. The kinds of people under "Who to find" may become trait values in the first plan, including kinds nobody has been heard from yet. The first `review` replaces the file with a guide built from the study.
 3. `kb_tool init .pw-kb/pw-kb.json --project "<name>"`. Add `--interviewer "<name>"` only when the user or the transcripts say who ran the interviews; never fill it in from anywhere else.
-4. Ask what the start needs to know, in one question call: the study's language, unless every transcript is in English (see "Study language"), and, when `init` printed a `git:` line, whether to share the study through git. `.pw-kb/` holds interviewees' names, their words and their transcripts, and the `git:` line means the workspace is a git repository. If the user does not want to share it, write `.pw-kb/.gitignore` containing the single line `*`. Do not ask either question again later.
+4. Ask what the start needs to know, in one question call of at most three questions: the study's language, unless every transcript is in English (see "Study language"); when `init` printed a `git:` line, whether to share the study through git; and, when `pw_usage.py start` printed `usage: no-study`, the usage question (see "Usage statistics"). `.pw-kb/` holds interviewees' names, their words and their transcripts, and the `git:` line means the workspace is a git repository. If the user does not want to share it, write `.pw-kb/.gitignore` containing the single line `*`. If they do, write it with the two lines `logs/` and `usage/`. Then run `pw_usage.py set` with the answer. Do not ask any of these questions again later.
 5. For a language other than English, run the `labels` steps in "Study language" before you extract.
 
-When nobody can answer, as in a scripted run, pass `--language <code>` to `init` instead: it writes the labels file to fill in the same call. Do not touch git then.
+When nobody can answer, as in a scripted run, pass `--language <code>` to `init` instead: it writes the labels file to fill in the same call. Do not touch git then, and run `pw_usage.py set .pw-kb no`.
 
 **A study written in YAML**, `.pw-kb/pw-kb.yaml`, was made by plugin 0.7.0 or earlier. Every command refuses it with `migrate_needed`. Run, from the workspace root:
 
@@ -422,11 +426,38 @@ Set this when the user asks for different limits or when a market's everyday abb
 
 Every file this skill produces carries a light Product Weaver credit: the map's header and badge, the review sheet's footer, `generated_with` in the KB's metadata, and `generated_with` at the top of each patch file (`"generated_with": "Made with Product Weaver · productweaver.com"`). Keep these when you edit or rebuild files. They tell readers where the method and the tools come from. Do not add marketing lines to chat replies; the credit lives in the files. The links to productweaver.com in the map and the review sheet carry fixed tags (`utm_source=productweaver-plugin` and so on) that tell the site which file a visit came from. They never hold anything from the study; leave them as they are.
 
+## Usage statistics
+
+Product Weaver learns which parts of the plugin work from small usage events, sent only after the user says yes. `references/usage.md` lists every event. Run from the workspace root:
+
+```
+python3 <skill folder>/scripts/pw_usage.py start .pw-kb --skill pw-discovery --assistant <name> --model <id>
+python3 <skill folder>/scripts/pw_usage.py set .pw-kb yes --skill pw-discovery --assistant <name> --model <id>
+python3 <skill folder>/scripts/pw_usage.py end .pw-kb --skill pw-discovery --assistant <name> --model <id>
+```
+
+For a no, write `no` in place of `yes`. `--assistant` is your host: `claude-code`, `claude-cowork`, `claude-ai`, `chatgpt`, `codex`, `copilot-cli`, `vscode`, `cursor`, `gemini-cli`, `antigravity`, or `other` for any other; `--model` is your model ID, when you know it. It prints one line, `usage: on`, `usage: off`, `usage: ask`, `usage: disabled` or `usage: no-study`.
+
+- **Start** of every run of this skill: `start`, unless `pw-start` already ran it in this conversation. After a hand-off from `pw-start`, `set` and `end` repeat the `--skill` and `--path` that its `start` used.
+- **End:** `end`, once, after the last `kb_tool` command (and after `set`, when you asked) and before your final message, so the message stays your last line.
+- `usage: ask`: an existing study that was never asked. Ask the question below now, on its own.
+- `usage: no-study`: a new study. Ask the question in step 4 with the other start questions.
+- `usage: on`, `usage: off`, `usage: disabled`: never ask. Only the line `start` prints decides; never ask because of what `set` or `end` print.
+
+The question, in the user's language except the example line, with two choices in this order, neither marked recommended: "Yes, share" and "No, don't share". Never suggest an answer, not even in an example reply. Use the host's question tool, else one plain-text question that names both choices.
+
+> Share anonymous usage statistics with Pancrazio at Product Weaver?
+> Only events like this one:
+> `{"event":"tool_run","command":"merge","exit_code":0,"counts":{"interviews_added":3},"at":"2026-11-13T10:42Z"}`
+> Never your interviews, names, quotes, prompts or file names. Everything sent is in .pw-kb/usage/sent.jsonl. Stop any time.
+
+Then run `set` with `yes` or `no` and the same options as `start` (and `--path` when `start` had one). No answer, a dismissed question or a scripted run: `no`. When the user asks to stop sharing ("stop sharing", in any words): run only `set .pw-kb no`, with no `start` or `end` before or after it, and say that `sent.jsonl` keeps the record of what was sent. Never ask for network access, never mention a failed send, never send anything yourself.
+
 ## What the script records
 
 Every run appends one JSON line to `.pw-kb/logs/kb_tool.jsonl`: the command and its options, how it ended, error and warning codes with counts, what changed as counts, the versions in use, the assistant that ran it and a hash of the KB before and after. Refused merges, dry runs and crashes are logged too; they are what shows where the instructions or the patch format confuse an assistant. The log never holds a quote, an interviewee's name, a transcript file name or an absolute path, so it can be shared for debugging. `references/run-log.md` lists every field and every code.
 
-Each changelog entry the script writes carries `ts` and `run_id`, so a change in the KB can be traced to its log line, its backup and its patch. The script recognises Claude Code and Gemini CLI from their environment; in any other assistant, set `KB_TOOL_AGENT=<assistant>/<model>` before calling it so the `agent` field is right. The `provenance` block in a patch does the same for merges. `KB_TOOL_LOG=0` switches the log off. The log belongs to the study: do not send it anywhere unless the user asks.
+Each changelog entry the script writes carries `ts` and `run_id`, so a change in the KB can be traced to its log line, its backup and its patch. The script recognises Claude Code and Gemini CLI from their environment; in any other assistant, set `KB_TOOL_AGENT=<assistant>/<model>` before calling it so the `agent` field is right. The `provenance` block in a patch does the same for merges. `KB_TOOL_LOG=0` switches the log off. The log belongs to the study: do not send it anywhere. `pw_usage.py` sends content-free events made from it, and only after the user's yes.
 
 ## Checking a KB
 
@@ -451,3 +482,4 @@ The KB's fields are explained one by one in `references/kb-schema.md`. Read it b
 - `references/kb-schema.md`: every field of the KB, what it means and who writes it.
 - `references/kb-schema.json`: the same model as a JSON Schema (draft 2020-12), checked by `validate`, `merge` and `apply`.
 - `references/run-log.md`: what `.pw-kb/logs/kb_tool.jsonl` records, field by field, and every error and warning code.
+- `scripts/pw_usage.py`, `assets/usage-readme.md`, `references/usage.md`: the opt-in usage statistics, their README for the study folder and every event they send.
