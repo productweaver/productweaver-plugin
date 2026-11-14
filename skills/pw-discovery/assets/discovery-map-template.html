@@ -408,6 +408,7 @@ svg.mk-ic{width:14px;height:14px;display:inline-block;flex:none;cursor:inherit;v
 .ov-made{grid-column:2;margin:14px 0 32px;font-size:.78rem;color:var(--muted);text-align:center}
 .ov-made a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 .ov-made a:hover{color:var(--accent)}
+.ov-saved{grid-column:2;margin:-26px 0 32px;font-size:.78rem;color:var(--muted);text-align:center;overflow-wrap:anywhere}
 .ov-end:hover{background:var(--accent-soft)}
 
 @media (max-width:860px){
@@ -434,7 +435,7 @@ svg.mk-ic{width:14px;height:14px;display:inline-block;flex:none;cursor:inherit;v
   .ov-theme{grid-template-columns:minmax(0,1fr)}
   .ov-theme .ov-heard{grid-column:1;grid-row:auto}
   .ov-end{padding:18px}
-  .ov-made{grid-column:1}
+  .ov-made,.ov-saved{grid-column:1}
 }
 
 .tip{position:fixed;z-index:30;pointer-events:none;max-width:320px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:9px 11px;font-size:.82rem;line-height:1.4}
@@ -530,10 +531,10 @@ button.nx-chip{cursor:pointer} button.nx-chip:hover{border-color:var(--amber)}
 .nx-grid td.nx-dot{color:var(--muted);text-align:center}
 .nx-grid td .ov-note{white-space:nowrap}
 .nx-ini{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--ev1);font-weight:700;font-size:.75rem;margin:2px}
-.nx-group{display:grid;gap:8px}
-.nx-group + .nx-group{margin-top:14px}
-.nx-group h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0}
-.nx-group ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.nx-group,.nx-decide{display:grid;gap:8px}
+.nx-group + .nx-group,.nx-decide{margin-top:14px}
+.nx-group h3,.nx-decide h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0}
+.nx-group ul,.nx-decide ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .nx-gap{width:100%;text-align:left;border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:8px;padding:8px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;font-size:.9rem;background:var(--surface);color:var(--ink)}
 button.nx-gap{cursor:pointer} button.nx-gap:hover{border-color:var(--amber)}
 .nx-gap small{color:var(--muted);grid-column:1}
@@ -1441,6 +1442,12 @@ function setView(want, keepMap){
   if(nextMode) renderNxView();
   if(panel){ padSolView(); panel.scrollTop=0; }
   else if(!keepMap) requestAnimationFrame(()=>fit(true));
+  try{ history.replaceState(null, "", "#"+v); }catch(e){} // a reload after a rebuild keeps this view
+}
+/* discovery-map.html#next opens that view, when the study has it; anything else keeps the view load() chose */
+function viewFromHash(want){
+  const hit = VIEWS.find(([name,id])=>name===want && !document.getElementById(id).hidden);
+  if(hit) setView(hit[0]);
 }
 VIEWS.forEach(([name,id])=>{ document.getElementById(id).onclick=()=>setView(name); });
 document.getElementById("viewsw").addEventListener("keydown",e=>{
@@ -1718,7 +1725,17 @@ function ovMade(){
   const at=new Date(g.at), when=isNaN(at) ? String(g.at)
     : at.toLocaleString(locale(),{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
   const by=g.plugin ? th("map.made.plugin",{brand:`<a href="${pwUrl("overview-footer")}" target="_blank" rel="noopener">${BRAND}</a>`, version:esc(g.plugin)}) : `kb_tool ${esc(g.tool||"")}`;
-  return `<p class="ov-made"${g.plugin&&g.tool?` title="kb_tool ${esc(g.tool)}"`:""}>${th("map.made.by",{by, when:`<time datetime="${esc(g.at)}">${esc(when)}</time>`})}</p>`;
+  return `<p class="ov-made"${g.plugin&&g.tool?` title="kb_tool ${esc(g.tool)}"`:""}>${th("map.made.by",{by, when:`<time datetime="${esc(g.at)}">${esc(when)}</time>`})}</p>${ovSaved()}`;
+}
+/* Where this file is, so the reader can find it again: read from its own address, never stored in the file. */
+function ovSaved(){
+  if(location.protocol!=="file:") return "";
+  let parts;
+  try{ parts=decodeURIComponent(location.pathname).split("/").filter(Boolean); }catch(e){ return ""; }
+  parts.pop();
+  if(!parts.length) return "";
+  const full=(/^[A-Za-z]:$/.test(parts[0])?"":"/")+parts.join("/");
+  return `<p class="ov-saved" title="${esc(full)}">${th("map.made.saved",{folder:esc(parts.slice(-2).join(" › "))})}</p>`;
 }
 function setNextOpen(open){
   nextOpen=open; const tog=document.getElementById("ovNextTog"); if(!tog) return;
@@ -1962,7 +1979,7 @@ function renderNxView(){
   const lead=`<section class="ov-blk ov-lead" id="nx-s0"><p class="ov-note">${esc(sentences(t("map.nx.kicker"), many()?t("map.next.shown_for",{job:jobName(M.job)}):""))}</p>
     <h2 class="ov-bl">${esc(nxTitle(round, gaps))}</h2>
     ${!gaps.length?`<button type="button" class="ov-lk" data-nx-view="over">${th("map.nx.see_next")}</button>`:!round.length?`<div class="ov-todo">${th("map.nx.ask_assistant")}</div>`:M.overStale?`<div class="flag">${th("map.ov.lead.stale")}</div>`:""}
-    <div class="nx-actions">${guide&&round.length?`<button type="button" class="nx-btn" data-nx-copy>${th("map.nx.copy")}</button>`:""}<button type="button" class="nx-btn nx-ghost" data-nx-print>${th("map.nx.print")}</button></div></section>`;
+    <div class="nx-actions">${guide&&round.length?`<button type="button" class="nx-btn" data-nx-copy>${th("map.nx.copy")}</button>`:""}<button type="button" class="nx-btn nx-ghost" data-nx-print>${th("map.nx.print")}</button></div>${nxDecide()}</section>`;
   const s1=nxStep(1, th("map.nx.q.sure"), sentences(fullStop(t(OV_SURE[sure.level-1])), nxToNext(sure, n)),
     `<div class="ov-sure"><ol class="ov-gauge" aria-label="${esc(t("map.ov.sure.aria",{name:t(OV_SURE[sure.level-1]), level:sure.level}))}">${OV_SURE.map((l,i)=>`<li class="${i+1<sure.level?"done":i+1===sure.level?"now":""}">${th(l)}</li>`).join("")}</ol><p class="ov-note">${esc(sure.text)}</p></div>
     ${last?`<div class="nx-last"><b>${th("map.nx.last",{closed:last.closed, targeted:last.targeted})}</b> ${last.open.length?th("map.nx.still_open",{list:esc(joinList(last.open.map(r=>byRef[r]||r)))}):""}</div>`:""}`);
@@ -2000,6 +2017,12 @@ function renderNxView(){
   nextview.innerHTML=`<div class="ov-page"><nav class="ov-rail" aria-label="${esc(t("map.nx.rail.aria"))}"><ol>${rail.map(([k,l])=>`<li><button type="button" data-nx-to="nx-s${k}"><b>${k}</b><span>${th(l)}</span></button></li>`).join("")}</ol></nav>
     <article class="ov-sheet">${lead}${s1}${s2}${s3}${s4}</article></div>`;
 }
+/* The decisions waiting: replies send people here for them, next to the plan they change. */
+function nxDecide(){
+  if(!M.proposals.length) return "";
+  const line=x=>`<li><div class="nx-gap"><span>${x.type==="confirm_core_job"?th("map.next.confirm_job",{proposal:esc(x.proposal)}):esc(x.proposal)}</span><small>${esc(x.rationale||"")}</small></div></li>`;
+  return `<div class="nx-decide"><h3>${th("map.next.proposals_title")}</h3><ul>${M.proposals.map(line).join("")}</ul></div>`;
+}
 function nxQuestions(i){
   const e=nxLearn().round[i]; return [e.who, ...(e.questions||[]).map((q,k)=>`${k+1}. ${q.ask}\n   ${t("map.nx.listen")}: ${q.listen}`)].join("\n");
 }
@@ -2031,7 +2054,10 @@ function load(raw){
   render(); requestAnimationFrame(()=>fit(true));
 }
 addEventListener("resize",()=>{ clearTimeout(window._rt); window._rt=setTimeout(()=>{ fit(true); padSolView(); },150); });
+addEventListener("hashchange",()=>viewFromHash(location.hash.slice(1)));
+const START_VIEW = location.hash.slice(1);
 load(SAMPLE);
+viewFromHash(START_VIEW);
 </script>
 </body>
 </html>

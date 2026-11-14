@@ -4,7 +4,8 @@
 Part of the Product Weaver pw-discovery skill · https://productweaver.com
 
 A study lives in one folder, .pw-kb/ at the root of the workspace: the KB .pw-kb/pw-kb.json, and next to it
-patches/, backups/, logs/, transcripts/ (a copy of every transcript the KB cites), review.md and discovery-map.html.
+patches/, backups/, logs/ and transcripts/ (a copy of every transcript the KB cites). review.md, interview-guide.md
+and discovery-map.html go to pw-output/, next to .pw-kb/, where the user finds them.
 
 Commands
   init      .pw-kb/pw-kb.json --project NAME [--interviewer NAME] [--language CODE]
@@ -18,8 +19,8 @@ Commands
                                                               copy new transcripts into .pw-kb/transcripts/
   apply     <kb.json> <proposal-id> --decision approve|reject [--note TEXT]
                                                               act on a proposed structural change
-  review    <kb.json> [--since DATE] [--out FILE]             write review.md, a plain sheet for human reviewers
-  map       <kb.json> [--template FILE] [--out FILE] [--open] write discovery-map.html, the interactive map, KB inside;
+  review    <kb.json> [--since DATE] [--out FILE]             write pw-output/review.md and the interview guide
+  map       <kb.json> [--template FILE] [--out FILE] [--open] write pw-output/discovery-map.html, the map, KB inside;
                                                               --open also shows it in the default browser
   themes    <kb.json> <themes.json> [--dry-run] [--json]      check one core job's value themes and write them:
                                                               few needs that group the outcomes, for ideation
@@ -53,14 +54,12 @@ import hashlib
 import importlib.util
 import json
 import os
-import pathlib
 import platform
 import re
 import shutil
 import sys
 import time
 import uuid
-import webbrowser
 import zipfile
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -71,7 +70,7 @@ try:  # optional: richer schema messages. jsonschema before 4.0 (3.2 on Ubuntu 2
 except ImportError:  # pragma: no cover - depends on the machine
     _LibraryValidator = None
 
-__version__ = "0.12.1"
+__version__ = "0.13.0"
 SCHEMA_VERSION = 3
 
 BRAND = "Product Weaver"
@@ -100,11 +99,12 @@ LOG_FOLDER, LOG_FILE = "logs", "kb_tool.jsonl"
 KB_FOLDER, KB_FILE, COPIES = ".pw-kb", "pw-kb.json", "transcripts"  # <workspace root>/.pw-kb/pw-kb.json
 OLD_KB_FILE, OLD_STUDY_LABELS = "pw-kb.yaml", "labels.yaml"  # what versions up to 0.10.0 wrote; migrate reads them
 KB_HOME = f"{KB_FOLDER}/{KB_FILE}"
+OUTPUT, OUTPUTS = "pw-output", ("review.md", "interview-guide.md", "discovery-map.html")  # what the user reads
 # The study's own labels (written by `labels`) override LABELS_FILE's English.
 ENGLISH = "en"
 LABELS_FILE, STUDY_LABELS = "labels-en.js", "labels.json"
 OLD_TRANSCRIPTS = "Interviews"  # where earlier versions kept a study's transcripts: <study>/Interviews/
-MOVED_ON_MIGRATE = ("patches", "backups", LOG_FOLDER, "review.md", "interview-guide.md", "discovery-map.html")
+MOVED_ON_MIGRATE = ("patches", "backups", LOG_FOLDER)  # into .pw-kb/; OUTPUTS go to pw-output/
 JOB_ID = re.compile(r"^[A-Z]{1,2}$")
 STEP_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+$")
 OUTCOME_ID = re.compile(r"^[A-Z]{1,2}\.[0-9]+\.[0-9]+$")
@@ -696,6 +696,33 @@ def check_home(kb_path: str) -> None:
                       f"If it was made by an earlier version of the skill, run `kb_tool.py migrate {kb_path}` from "
                       "the workspace root to move the study there", code="kb_location")
     raise KbError(f"the KB is {KB_HOME} at the root of the workspace, not {kb_path}", code="kb_location")
+
+
+def output_folder(kb_path: str) -> str:
+    """<workspace>/pw-output/, made if missing. It takes the study's .gitignore, so git treats it as the study, and
+    old copies of its files in .pw-kb/ (plugin 0.11 and earlier) go, with one line that says so."""
+    study = os.path.dirname(os.path.abspath(kb_path))
+    folder = os.path.join(os.path.dirname(study), OUTPUT)
+    ignore, copy = os.path.join(study, ".gitignore"), os.path.join(folder, ".gitignore")
+    try:
+        os.makedirs(folder, exist_ok=True)
+        if os.path.isfile(ignore) and file_sha256(ignore) != file_sha256(copy):  # unchanged: no write for sync to see
+            shutil.copyfile(ignore, copy)
+    except OSError as exc:  # a stale .gitignore could let git take the map: refuse
+        raise KbError(f"cannot write {OUTPUT}/ or {OUTPUT}/.gitignore ({exc.strerror or exc}). If {OUTPUT} is a file, "
+                      "move it out of the way; if a program holds the file, close it; then run again",
+                      code="output_blocked") from None
+    note = None if os.path.isfile(ignore) else git_note(kb_path)
+    if note:  # in a repository with no answer in .pw-kb/: the skill checks whether git ignores the study
+        print(note)
+    moved = False
+    for name in OUTPUTS:
+        with contextlib.suppress(OSError):
+            os.remove(os.path.join(study, name))
+            moved = True
+    if moved:
+        print(f"moved: the map, review.md and interview-guide.md now live in {OUTPUT}/")
+    return folder
 
 
 def copies_folder(kb_path: str) -> str:
@@ -4463,7 +4490,7 @@ def cmd_review(args: argparse.Namespace) -> int:
     text, missing = study_text(kb, args.kb)
     last = next((c for c in reversed(kb["changelog"]) if c.get("action") in ("merge", "init")), {})
     since = args.since or str(last.get("date", ""))
-    out = args.out or os.path.join(os.path.dirname(os.path.abspath(args.kb)), "review.md")
+    out = args.out or os.path.join(output_folder(args.kb), "review.md")
     guide = os.path.join(os.path.dirname(os.path.abspath(out)), "interview-guide.md")
     for path, lines in ((out, review_lines(kb, since, text)), (guide, guide_lines(kb, text))):
         with open(path, "w", encoding="utf-8") as handle:
@@ -4639,149 +4666,14 @@ def cmd_labels(args: argparse.Namespace) -> int:
 
 
 # ---------- map ----------
-MAP_KEYS = ["meta", "core_jobs", "job_map", "desired_outcomes", "current_solutions", "interviews", "clusters",
-            "proposed_changes", "changelog"]
-MAP_START, MAP_END = "/* @kb-data:start */", "/* @kb-data:end */"
 MAP_SCHEMA = f"/* @kb-schema:{SCHEMA_VERSION} */"  # the template can draw a KB of this schema version
 # English labels ship beside the template (size limit); `map` inlines them so each map works offline.
 MAP_ASSETS = (LABELS_FILE,)
 
 
-def inline_asset(template: str, template_path: str, name: str) -> str:
-    """Inline a script shipped beside the template; a map made earlier already holds it."""
-    tag = f'<script src="{name}"></script>'
-    if tag not in template:
-        return template
-    beside = os.path.join(os.path.dirname(os.path.abspath(template_path)), name)
-    path = beside if os.path.isfile(beside) else skill_file("assets", name)
-    if not path:
-        raise KbError(f"{name} not found: keep it next to discovery-map-template.html, as the skill ships them",
-                      code="skill_file_missing")
-    with open(path, encoding="utf-8") as handle:
-        library = handle.read()
-    if "</script" in library.lower():
-        raise KbError(f"{path} must not contain a closing script tag", code="template_invalid")
-    return template.replace(tag, f"<script>\n{library}</script>", 1)
-
-
-def embed_kb(template: str, payload: str) -> str:
-    """Put the KB's JSON between the template's data markers. Older generated maps without markers are upgraded."""
-    block = f"{MAP_START}\nconst SAMPLE = {payload};\n{MAP_END}"
-    start, end = template.find(MAP_START), template.find(MAP_END)
-    if start != -1 and end > start:
-        return template[:start] + block + template[end + len(MAP_END):]
-    lines = template.split("\n")
-    hits = [i for i, line in enumerate(lines) if line.startswith("const SAMPLE = ")]
-    if len(hits) != 1:
-        raise KbError("the template has no data markers and no single 'const SAMPLE = ' line; "
-                      "use discovery-map-template.html from the skill", code="template_invalid")
-    lines[hits[0]] = block
-    return "\n".join(lines)
-
-
-def plugin_version() -> str | None:
-    """The plugin's version from its manifest, or None outside the plugin folder."""
-    here = pathlib.Path(os.path.abspath(__file__)).parents
-    if len(here) < 4:
-        return None
-    root = here[3]  # <plugin>/skills/pw-discovery/scripts/kb_tool.py
-    for manifest in (root / "plugin.json", root / ".claude-plugin" / "plugin.json"):
-        try:
-            data = json.loads(manifest.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        version = str(data.get("version") or "") if isinstance(data, dict) else ""
-        if data.get("name") == "productweaver" and re.fullmatch(r"\d+\.\d+\.\d+", version):
-            return version
-    return None
-
-
-def map_stamp() -> Json:
-    """When the map was made and by which version, for the note at the end of its Overview."""
-    stamp: Json = {"at": dt.datetime.now().astimezone().isoformat(timespec="seconds"), "tool": __version__}
-    version = plugin_version()
-    if version:
-        stamp["plugin"] = version
-    return stamp
-
-
-def has_local_browser() -> bool:
-    """False on a machine the user is not sitting at: an SSH session, a remote container, Linux with no display."""
-    if os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_TTY"):
-        return False
-    if os.environ.get("CODESPACES") or os.environ.get("REMOTE_CONTAINERS"):
-        return False
-    if not sys.platform.startswith("linux"):
-        return True
-    if "microsoft" in platform.release().lower():  # WSL: the browser lives on the Windows side
-        return False
-    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
-
-
-def open_in_browser(uri: str) -> str:
-    """Show a file in the default browser. Returns what happened: opened, failed, no_display or off."""
-    if os.environ.get("KB_TOOL_OPEN", "").strip() in ("0", "off", "false"):
-        return "off"
-    if not has_local_browser():  # here webbrowser would start a text browser in the terminal, or hang
-        return "no_display"
-    try:
-        return "opened" if webbrowser.open(uri) else "failed"
-    except (webbrowser.Error, OSError):
-        return "failed"
-
-
-MAP_NEXT = {
-    None: "Open the link in any browser. If the map is already open, reload the tab.",
-    "opened": "Opened in the default browser. If nothing appeared, open the link.",
-    "failed": "Could not start a browser here. Open the link in any browser.",
-    "no_display": "This machine has no browser to show it (a remote session, or no display). Download the file, "
-                  "or open it from your editor's file tree.",
-    "off": "Opening is switched off (KB_TOOL_OPEN=0). Open the link in any browser.",
-}
-
-
 def cmd_map(args: argparse.Namespace) -> int:
-    """Rebuild the interactive discovery map with the current KB embedded, so it opens with no setup."""
-    kb = load_kb(args.kb)
-    data = {key: kb[key] for key in MAP_KEYS if key in kb}
-    if themes_of(kb):  # a KB with no themes gives the map it always gave
-        data["value_themes"] = kb["value_themes"]
-    if overviews_of(kb):  # the written findings of the Overview view; the map counts the rest itself
-        data["overview"] = kb["overview"]
-    data["generated"] = map_stamp()
-    own, missing = study_labels(kb, args.kb)
-    data["generated"]["guides"] = {str(j["id"]): "\n".join(guide_lines(kb, Text(study_language(kb), own), str(j["id"])))
-                                   for j in kb["core_jobs"]}
-    labels = {key: value for key, value in own.items() if key.startswith("map.")}
-    if labels:  # only a study in another language has any; the map shows English for the rest
-        data["labels"] = labels
-    payload = json.dumps(data, default=str, ensure_ascii=False)
-    payload = payload.replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
-    template_path = skill_file("assets", "discovery-map-template.html", args.template)
-    if not template_path:
-        raise KbError("map template not found: put discovery-map-template.html next to kb_tool.py, run the kb_tool.py "
-                      "that sits in the skill's scripts/ folder, or pass --template (a discovery-map.html made by this "
-                      "version also works)", code="skill_file_missing")
-    with open(template_path, encoding="utf-8") as handle:
-        template = handle.read()
-    if MAP_SCHEMA not in template:
-        raise KbError(f"the map template {template_path} is older than KB schema {SCHEMA_VERSION}; use "
-                      "discovery-map-template.html from the skill", code="template_old")
-    for name in MAP_ASSETS:
-        template = inline_asset(template, template_path, name)
-    out = args.out or os.path.join(os.path.dirname(os.path.abspath(args.kb)), "discovery-map.html")
-    with open(out, "w", encoding="utf-8") as handle:
-        handle.write(embed_kb(template, payload))
-    args.run.note(out=args.run.relative(out))
-    uri = pathlib.Path(os.path.abspath(out)).as_uri()
-    browser = open_in_browser(uri) if args.open else None
-    if browser:
-        args.run.note(browser=browser)
-    print(f"wrote {out} ({len(kb['interviews'])} interviews, {len(kb['desired_outcomes']['outcomes'])} outcomes)\n"
-          f"link: {uri}\n{MAP_NEXT[browser]}\n"
-          "It contains every name and quote in the KB, so treat it as personal data.")
-    labels_missing_note(args, kb, missing)
-    return 0
+    """Rebuild the interactive map. The code is in kb_map.py, loaded only for this command."""
+    return _sibling("kb_map").cmd_map(args, sys.modules[__name__])
 
 
 # ---------- validate, migrate ----------
@@ -4921,7 +4813,12 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
 def _sibling(name: str) -> Any:
     """A module shipped beside this script, loaded without writing a bytecode cache into the plugin folder."""
+    if name in sys.modules:  # loaded already: keep one copy, as tests patch it
+        return sys.modules[name]
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{name}.py")
+    if not os.path.isfile(path):
+        raise KbError(f"{name}.py is missing next to kb_tool.py: copy it from the skill's scripts/ folder, or "
+                      "reinstall the plugin", code="file_missing")
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         raise KbError(f"{path} is missing; reinstall the plugin", code="file_missing")

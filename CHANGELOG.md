@@ -4,6 +4,28 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.12.0 — 2026-11-14
+
+### What's improved
+
+- **Your map, review sheet and interview guide are in a folder you can
+  see.** They now go to `pw-output/`, next to the study's `.pw-kb/` folder,
+  which Finder and most file dialogs hide because its name starts with a
+  dot. Open `pw-output/discovery-map.html` with a double-click. The end of
+  the map's Overview says which folder it is saved in.
+- **One click in the chat opens the map.** Each run ends with one link, or
+  a file card where your app shows one, that opens the map. The interview
+  guide and the decisions waiting are in the map's Next interviews tab,
+  where you can print or copy the guide. `review.md` and
+  `interview-guide.md` stay in `pw-output/` as text copies.
+- **The map keeps your place.** Reload it after an update and it stays on
+  the view you were reading.
+- **Your study moves over by itself.** The next run removes the old copies
+  from `.pw-kb/` and says once that the files moved. `pw-output/` follows
+  your git choice: kept out of git when the study is, shared when it is.
+  Everyone who works on a shared study should update the plugin, so the
+  files are not written back into `.pw-kb/`.
+
 ## 0.11.4 — 2026-11-14
 
 ### What's fixed

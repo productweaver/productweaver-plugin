@@ -9,7 +9,7 @@ description: Help someone start with Product Weaver, or decide what to do next. 
 
 People install the plugin and then don't know what to say. They ask "Help me get started with Product Weaver", "What can this do?" or "What should I do next?". Your job: get them to one useful result in this conversation, then name the one thing to do after it.
 
-The work itself is done by the `pw-discovery` skill, which turns interview transcripts into a study in `.pw-kb/` with a discovery map. This skill decides which result the user can get now, and hands over.
+The work itself is done by the `pw-discovery` skill, which turns interview transcripts into a study in `.pw-kb/` and a discovery map in `pw-output/`. This skill decides which result the user can get now, and hands over.
 
 ## When not to use this
 
@@ -20,8 +20,8 @@ If the request already names work `pw-discovery` does, use `pw-discovery` and sa
 Ask nothing yet. Look at the workspace and at any files the user attached. The workspace is the user's folder, as `pw-discovery`'s "Where the study lives" defines it: in Cowork, the folder connected to the task or to its project, not the folder the shell starts in.
 
 1. **A study.** `.pw-kb/pw-kb.json` means a study exists. `.pw-kb/pw-kb.yaml`, or a `KB/` folder with a study file and no `.pw-kb/pw-kb.json`, means a study made by an older version: bring it up to date with `pw-discovery`'s migrate step, without running `context` first.
-2. **A first-round guide.** `.pw-kb/interview-guide.md` with no `pw-kb.json` beside it means the user planned their first interviews earlier.
-3. **Transcripts.** Look for `.md`, `.txt`, `.docx` and `.pdf` files at the root and one folder down. Read only their names and first lines. Skip `.pw-kb/` and the files every project has: README, CHANGELOG, LICENSE, CONTRIBUTING, and docs or source code in a code repository. A transcript reads like a conversation or call notes, with names or speaker turns.
+2. **A first-round guide.** `pw-output/interview-guide.md` (or `.pw-kb/interview-guide.md`, from plugin 0.11 or earlier) with no `.pw-kb/pw-kb.json` means the user planned their first interviews earlier.
+3. **Transcripts.** Look for `.md`, `.txt`, `.docx` and `.pdf` files at the root and one folder down. Read only their names and first lines. Skip `.pw-kb/`, `pw-output/` and the files the skill writes (`review.md`, `interview-guide.md`, `discovery-map.html`), and the files every project has: README, CHANGELOG, LICENSE, CONTRIBUTING, and docs or source code in a code repository. A transcript reads like a conversation or call notes, with names or speaker turns.
 4. **Recordings.** Audio and video files (`.mp3`, `.m4a`, `.wav`, `.mp4`, `.mov`) are recordings, not transcripts.
 5. **Attachments.** Files the user attached in this chat count too, wherever your host puts them. An attached zip or folder that holds `pw-kb.json` is a study they kept from an earlier chat. If `.pw-kb/` already exists, do not unpack: ask which study to keep. Otherwise unpack it so that `.pw-kb/pw-kb.json` exists afterwards (not `.pw-kb/.pw-kb/`), then take path C.
 
@@ -46,7 +46,7 @@ python3 <plugin folder>/skills/pw-discovery/scripts/pw_usage.py start .pw-kb --s
 
 `<name>` and `<id>` are as in `pw-discovery`'s "Usage statistics", which also says what its output line means and how to ask the question. When no `.pw-kb/` folder is made (path D, or a sandbox that keeps nothing), skip it and everything below that mentions `pw_usage.py`. Every run that ran `start` runs `end` once, when its work is done, with the same options: path B adds `--guide-written`, path C runs it right before you give the next step, and path A hands over to `pw-discovery`, which skips `start` and runs `end` itself.
 
-A first-round guide with no study: tell the user where it is (the full path). If transcripts are there now, take path A and do not ask the planning questions again. If not, ask how the interviews are going and say what to do when they have them: "When you have 3 or more, put the transcripts in one folder here and say: Add my interviews to the study." Never rewrite the guide unless they ask.
+A first-round guide with no study: put it in front of the user as `<plugin folder>/skills/pw-discovery/references/open-files.md` says for your host. If transcripts are there now, take path A and do not ask the planning questions again. If not, ask how the interviews are going and say what to do when they have them: "When you have 3 or more, put the transcripts in one folder here and say: Add my interviews to the study." Never rewrite the guide unless they ask.
 
 ## How to answer
 
@@ -63,7 +63,7 @@ A first-round guide with no study: tell the user where it is (the full path). If
 Tell the user, in 3 lines at most:
 
 - what will happen: you read every interview and build a study of what these people are trying to get done, where it goes wrong and what they use today;
-- where it goes: a `.pw-kb/` folder in this workspace; their own files are not changed;
+- where it goes: the study in a `.pw-kb/` folder in this workspace, and the map in a `pw-output/` folder next to it; their own files are not changed;
 - how long: roughly a minute or two per interview;
 - what they get: a discovery map that opens in their browser, and the one next step.
 
@@ -80,7 +80,7 @@ Then:
 
 ## Path B: no transcripts yet
 
-Plan their first round of interviews. Read `references/first-interviews.md` and follow it: ask up to 3 questions about who they want to learn from, then write `.pw-kb/interview-guide.md`, a guide they take into their first 5 to 8 conversations. In the chat, show who to find, the first 3 questions and the guide's full path, then the words to say when the calls are done. When `start` printed `usage: no-study`, ask the usage question in the same plain-text message as your questions about who to learn from, and never suggest an answer, not even in an example reply. Run `set` with the answer (`set .pw-kb yes` or `set .pw-kb no`) only after the guide is written: before `.pw-kb/` exists, `set` saves nothing. No answer to the usage question means `set .pw-kb no`. `set` and `end` take the same options as `start` (`--skill pw-start --path no_transcripts`). Then run `end --guide-written` (the command above with `end`, `--path no_transcripts` and `--guide-written`). With any other line, ask nothing, and run `end` without `--guide-written` if you wrote no new guide.
+Plan their first round of interviews. Read `references/first-interviews.md` and follow it: ask up to 3 questions about who they want to learn from, then write `pw-output/interview-guide.md`, a guide they take into their first 5 to 8 conversations. In the chat, show who to find and the first 3 questions, put the guide in front of the user as `<plugin folder>/skills/pw-discovery/references/open-files.md` says for your host (with no study yet, the guide is the one file to open), then give the words to say when the calls are done. When `start` printed `usage: no-study`, ask the usage question in the same plain-text message as your questions about who to learn from, and never suggest an answer, not even in an example reply. Run `set` with the answer (`set .pw-kb yes` or `set .pw-kb no`) only after the guide is written: before `.pw-kb/` exists, `set` saves nothing. No answer to the usage question means `set .pw-kb no`. `set` and `end` take the same options as `start` (`--skill pw-start --path no_transcripts`). Then run `end --guide-written` (the command above with `end`, `--path no_transcripts` and `--guide-written`). With any other line, ask nothing, and run `end` without `--guide-written` if you wrote no new guide.
 
 A sandbox that is gone after the chat counts as no folder: give the whole guide in the chat, or as a file to download, and ask the user to attach it next time with their transcripts. A folder connected in Cowork is a folder: write the guide there.
 
@@ -103,9 +103,9 @@ Then go down this list. The first item that applies is the next step:
 2. **New interviews.** Transcripts in the workspace whose names are not under `PROCESSED FILES:`. Compare names without their extension: a PDF read without pypdf is kept as a `.txt` copy. Say "Add the N new interviews to the study."
 3. **Missing text.** A `LABELS:` line: the map's own text in the study's language is not complete. Finish it with `pw-discovery`'s labels steps.
 4. **What the study is about is not confirmed.** A pending proposal of type `confirm_core_job`. Ask them to open the map's Overview, then to say "approve P1" or what to change.
-5. **Decisions waiting.** Other proposals under `PENDING PROPOSALS:`. Say how many, and that `.pw-kb/review.md` lists them with the words to answer.
+5. **Decisions waiting.** Other proposals under `PENDING PROPOSALS:`. Say how many, and that the map's Next interviews tab lists them; `pw-output/review.md` has the words to answer.
 6. **An old summary.** No `OVERVIEW` block, or `OVERVIEW [out of date]`: update the overview and the map.
-7. **Not sure enough yet.** Under `OPEN GAPS for core job X`, the line `level N of 3 after M conversations` with N of 1 or 2. Run the next round: how many more conversations, with which kinds of people, from the plan in `.pw-kb/interview-guide.md` and the map's Next interviews view.
+7. **Not sure enough yet.** Under `OPEN GAPS for core job X`, the line `level N of 3 after M conversations` with N of 1 or 2. Run the next round: how many more conversations, with which kinds of people, from the plan in the map's Next interviews tab, where the guide can be printed or copied.
 8. **A clear pattern, no themes.** Level 3, and no `VALUE THEMES` block: group the needs into value themes, so a team can sort ideas into a few needs.
 9. **Otherwise:** the overview's prototype step, or, once that is done, its market step. Say it is advice.
 
@@ -121,7 +121,7 @@ Then go down this list. The first item that applies is the next step:
 
 For items 2 to 6 and 8, and a migrate in item 1, offer to do it now ("Shall I do it now?"). Level names in words: 1 is "a hunch", 2 is "an early signal", 3 is "a clear pattern".
 
-`.pw-kb/` is a hidden folder, so the user cannot find its files by hand. When you point to one, give its full path. For the map, check that the file exists, then give a `file://` address made from that full path, with each space written as `%20`, such as `file:///Users/ana/My%20Study/.pw-kb/discovery-map.html`. When your commands run on another machine, as in Cowork, that address does not open for the user: name the file inside their folder instead, and say how to show the hidden folder, as in `pw-discovery`'s step 6.
+The files people read are in `pw-output/`, a folder Finder shows: point there, never inside `.pw-kb/`, which Finder hides. Check that the map exists. If it is missing, run `map` (a study made by plugin 0.11 or earlier keeps it in `.pw-kb/`, and `map` moves it): `python3 <plugin folder>/skills/pw-discovery/scripts/kb_tool.py map .pw-kb/pw-kb.json`. Then put it in front of the user as `<plugin folder>/skills/pw-discovery/references/open-files.md` says for your host: one link or file card that opens `pw-output/discovery-map.html`. Name its Next interviews tab, in words, for the interview guide and the decisions waiting.
 
 ## Path D: no folder, nothing attached
 

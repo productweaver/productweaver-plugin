@@ -1,6 +1,6 @@
 # Plan the first round of interviews
 
-For a user who has no interview transcripts yet. The result is `.pw-kb/interview-guide.md`: a guide they take into their first 5 to 8 conversations. When they bring the transcripts back, `pw-discovery` reads this guide on the first batch, and its `review` step then replaces it with a guide built from what people said.
+For a user who has no interview transcripts yet. The result is `pw-output/interview-guide.md`: a guide they take into their first 5 to 8 conversations. When they bring the transcripts back, `pw-discovery` reads this guide on the first batch, and its `review` step then replaces it with a guide built from what people said.
 
 Write everything, the questions to the user included, in the language the user writes to you in.
 
@@ -24,7 +24,7 @@ When the user says "just guess" or "you decide", propose the answers in 3 short 
 
 ## 3. Write the guide
 
-Write `.pw-kb/interview-guide.md`. Create `.pw-kb/` if it is missing, and write nothing else there. Never put a real person's name in the guide. Use these sections, in this order, with the titles in the user's language:
+Write `pw-output/interview-guide.md`. Create `pw-output/` and `.pw-kb/` if they are missing, and write nothing else in them: `.pw-kb/` is where the study will grow, and the usage answer is saved there. Never put a real person's name in the guide. Use these sections, in this order, with the titles in the user's language:
 
 1. **Title and purpose.** "Interview guide: first round", the line "Made on <date>, before the first interview.", and one sentence on what this round should learn, about whom.
 2. **Who to find.** The total, then each kind of person: how many, one line on who they are, and one on where to find them (an online group, a trade association, the user's own network, a referral from the last person interviewed). Then: contact about three times as many, by direct message, and before booking, check that they did the work in the last month.
@@ -70,7 +70,7 @@ Not the whole guide. Show:
 
 - who to find, one line per kind of person;
 - the first 3 questions;
-- the full path of the guide: `.pw-kb/` is a hidden folder, so the user cannot easily find it by hand;
+- the guide itself, put in front of the user as `<plugin folder>/skills/pw-discovery/references/open-files.md` says for your host;
 - the words to say next: "When you have 3 or more transcripts, put them in one folder here and say: Add my interviews to the study."
 
 With no folder to save in (path D in `SKILL.md`), give the whole guide in the chat and say they can copy it into a document.

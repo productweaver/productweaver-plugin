@@ -108,25 +108,36 @@ def _old_transcripts(kb: Json, kb_path: str, roots: list[str], report: kt.Report
 
 
 def _clashes(old_folder: str, new_folder: str, sources: list[str]) -> list[str]:
-    """What the move would overwrite in .pw-kb/: a file or folder of the same name, or a different transcript."""
-    found = [name for name in kt.MOVED_ON_MIGRATE
-             if os.path.exists(os.path.join(old_folder, name)) and os.path.exists(os.path.join(new_folder, name))]
+    """What the move would overwrite, as paths from the workspace root: in .pw-kb/ a file or folder of the same name
+    or a different transcript, in pw-output/ a review sheet, guide or map."""
+    places = [(kt.KB_FOLDER, new_folder, kt.MOVED_ON_MIGRATE), (kt.OUTPUT, _output(new_folder), kt.OUTPUTS)]
+    found = [f"{label}/{name}" for label, folder, names in places for name in names
+             if os.path.exists(os.path.join(old_folder, name)) and os.path.exists(os.path.join(folder, name))]
     for source in sources:
         target = os.path.join(new_folder, kt.COPIES, os.path.basename(source))
         if os.path.exists(target) and kt.file_sha256(target) != kt.file_sha256(source):
-            found.append(f"{kt.COPIES}/{os.path.basename(source)}")
+            found.append(f"{kt.KB_FOLDER}/{kt.COPIES}/{os.path.basename(source)}")
     return found
 
 
+def _output(new_folder: str) -> str:
+    """pw-output/, next to the new .pw-kb/."""
+    return os.path.join(os.path.dirname(new_folder), kt.OUTPUT)
+
+
 def _move_study(old: str, new: str, kb: Json, sources: list[str]) -> str:
-    """Copy transcripts into .pw-kb/, move the study's files there, write the KB, remove the old one. Backups keep
-    their time stamps. Returns the old KB's backup."""
+    """Copy transcripts into .pw-kb/, move the study's files there and its sheets and map to pw-output/, write the
+    KB, remove the old one. Backups keep their time stamps. Returns the old KB's backup."""
     old_folder, new_folder = os.path.dirname(os.path.abspath(old)), os.path.dirname(os.path.abspath(new))
     os.makedirs(new_folder, exist_ok=True)
     kt.copy_transcripts(new, sources)
     for name in kt.MOVED_ON_MIGRATE:
         if os.path.exists(os.path.join(old_folder, name)):
             shutil.move(os.path.join(old_folder, name), os.path.join(new_folder, name))
+    for name in kt.OUTPUTS:  # what people read goes where they find it
+        if os.path.exists(os.path.join(old_folder, name)):
+            os.makedirs(_output(new_folder), exist_ok=True)
+            shutil.move(os.path.join(old_folder, name), os.path.join(_output(new_folder), name))
     old_stem, new_stem = (os.path.splitext(os.path.basename(p))[0] for p in (old, new))
     backups = os.path.join(new_folder, "backups")
     for name in sorted(os.listdir(backups)) if os.path.isdir(backups) and old_stem != new_stem else []:
@@ -242,7 +253,7 @@ def _migrate_move(args: argparse.Namespace) -> int:
     report = kt.Report()
     sources = _old_transcripts(kb, args.kb, args.transcripts or [], report)
     for clash in _clashes(os.path.dirname(os.path.abspath(args.kb)), os.path.dirname(os.path.abspath(new)), sources):
-        report.error(f"{kt.KB_FOLDER}/{clash} exists already and would be overwritten; move it out of the way first",
+        report.error(f"{clash} exists already and would be overwritten; move it out of the way first",
                      code="move_conflict")
     args.run.add_report(report)
     lines = [f"WARN {warning}" for warning in report.warnings]

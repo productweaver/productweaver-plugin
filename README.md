@@ -173,17 +173,25 @@ More on https://www.productweaver.com/privacy.
 
 ## Files it writes
 
-All files go into one folder, `.pw-kb/`, at the root of your workspace. One
-workspace holds one study.
+Files go into two folders at the root of your workspace. One workspace
+holds one study.
+
+`pw-output/` holds what you read:
+
+- `discovery-map.html`, the interactive map, which works offline. The first
+  time it is made, it opens in your browser; after that, open it with a
+  double-click, or with the link the assistant gives at the end of each run;
+- `review.md`, the review sheet, as text;
+- `interview-guide.md`, the plan for your next interviews, as text, ready to
+  take into the calls: who to find, what to ask and what to listen for. The
+  map's Next interviews tab shows it too, ready to print or copy.
+
+`.pw-kb/` holds the study itself. Finder and most file dialogs hide it,
+because its name starts with a dot:
 
 - `pw-kb.json`, the knowledge base;
 - `transcripts/`, a copy of each transcript the knowledge base quotes. Your own
   files are never changed;
-- `review.md`, the review sheet;
-- `interview-guide.md`, the plan for your next interviews, ready to take into
-  the calls: who to find, what to ask and what to listen for;
-- `discovery-map.html`, the interactive map, which works offline. The first
-  time it is made, it opens in your browser;
 - `labels.json`, only for a study in another language than English: the map's
   and the review sheet's own text in that language;
 - `patches/`, one file per batch, the audit trail of what each batch added;
@@ -199,14 +207,15 @@ workspace holds one study.
 The knowledge base, transcripts, review sheet, map and patches contain
 interviewees' names and words. They stay on your machine unless you share
 them. If your workspace is a git repository, the assistant asks once whether
-to share the study through git.
+to share the study through git, and `pw-output/` follows the same answer.
 
 A study made by version 0.7.0 or earlier is kept in YAML files, `pw-kb.yaml`
 and `labels.yaml`. The assistant turns them into JSON once, the first time you
 use the study, and keeps the YAML files in `backups/`. That one time, the
 script needs PyYAML (`python3 -m pip install pyyaml==6.0.3`). A study made by
 version 0.2.0 or earlier sits in a `KB/` folder; the assistant moves it into
-`.pw-kb/` the same way.
+`.pw-kb/` and `pw-output/` the same way. Version 0.11 and earlier kept the map
+and the sheets in `.pw-kb/`; the next run moves them to `pw-output/`.
 
 ## Where it works
 

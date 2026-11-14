@@ -158,6 +158,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 
 | Code | Meaning |
 |---|---|
+| `output_blocked` | `pw-output/` or its `.gitignore` could not be written: `pw-output` is a file, or a program holds the file |
 | `file_missing` | The KB, the patch or another file given to the tool does not exist |
 | `json_invalid` | The KB, the patch or another file given to the tool is not valid JSON, is not UTF-8, or writes a key twice in one object or NaN. The message gives the line and column |
 | `yaml_invalid` | `migrate`: the KB of a study written in YAML is not valid YAML |
