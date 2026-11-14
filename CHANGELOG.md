@@ -4,6 +4,19 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.11.3 — 2026-11-14
+
+### What's fixed
+
+- **In Cowork, the study is saved in your folder.** With a folder connected
+  to a Cowork task or to its project, the map, the review sheet and the
+  study now go into that folder's `.pw-kb/`. Before, the assistant could
+  build the study in Cowork's temporary folder and show the map and the
+  review sheet in the chat. A later task in the same project now finds the
+  study there and adds to it. The study is handed back in the chat only
+  when the interviews were uploaded to the chat, as on claude.ai or
+  ChatGPT.
+
 ## 0.11.2 — 2026-11-13
 
 ### What's improved

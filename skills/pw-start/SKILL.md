@@ -17,7 +17,7 @@ If the request already names work `pw-discovery` does, use `pw-discovery` and sa
 
 ## Look before you ask
 
-Ask nothing yet. Look at the workspace (the folder the session started in) and at any files the user attached:
+Ask nothing yet. Look at the workspace and at any files the user attached. The workspace is the user's folder, as `pw-discovery`'s "Where the study lives" defines it: in Cowork, the folder connected to the task or to its project, not the folder the shell starts in.
 
 1. **A study.** `.pw-kb/pw-kb.json` means a study exists. `.pw-kb/pw-kb.yaml`, or a `KB/` folder with a study file and no `.pw-kb/pw-kb.json`, means a study made by an older version: bring it up to date with `pw-discovery`'s migrate step, without running `context` first.
 2. **A first-round guide.** `.pw-kb/interview-guide.md` with no `pw-kb.json` beside it means the user planned their first interviews earlier.
@@ -70,13 +70,13 @@ Then:
 - **Only recordings:** say the plugin reads text. Most call tools (Zoom, Google Meet, Teams) save a transcript; ask them to export it into this folder. Offer path B for their next calls.
 - Then follow the `pw-discovery` skill from its step 1. The questions in its step 4 are the only ones the user gets.
 
-**Upload hosts.** When the files were attached to the chat and the workspace is a sandbox that is gone after the chat (ChatGPT, claude.ai), say so in your first lines. Do not promise that the map opens in their browser. At the end, `pw-discovery` hands back the map and the whole `.pw-kb/` folder, as a zip when your host needs one. Say: "Keep this folder. Next time, upload it with your new interviews."
+**Upload hosts.** A Cowork task with a connected folder is not an upload host: the study goes into that folder. When the files were attached to the chat and the workspace is a sandbox that is gone after the chat (ChatGPT, claude.ai), say so in your first lines. Do not promise that the map opens in their browser. At the end, `pw-discovery` hands back the map and the whole `.pw-kb/` folder, as a zip when your host needs one. Say: "Keep this folder. Next time, upload it with your new interviews."
 
 ## Path B: no transcripts yet
 
 Plan their first round of interviews. Read `references/first-interviews.md` and follow it: ask up to 3 questions about who they want to learn from, then write `.pw-kb/interview-guide.md`, a guide they take into their first 5 to 8 conversations. In the chat, show who to find, the first 3 questions and the guide's full path, then the words to say when the calls are done. When `start` printed `usage: no-study`, ask the usage question in the same plain-text message as your questions about who to learn from, and never suggest an answer, not even in an example reply. Run `set` with the answer (`set .pw-kb yes` or `set .pw-kb no`) only after the guide is written: before `.pw-kb/` exists, `set` saves nothing. No answer to the usage question means `set .pw-kb no`. `set` and `end` take the same options as `start` (`--skill pw-start --path no_transcripts`). Then run `end --guide-written` (the command above with `end`, `--path no_transcripts` and `--guide-written`). With any other line, ask nothing, and run `end` without `--guide-written` if you wrote no new guide.
 
-A sandbox that is gone after the chat counts as no folder: give the whole guide in the chat, or as a file to download, and ask the user to attach it next time with their transcripts.
+A sandbox that is gone after the chat counts as no folder: give the whole guide in the chat, or as a file to download, and ask the user to attach it next time with their transcripts. A folder connected in Cowork is a folder: write the guide there.
 
 ## Path C: the one next step
 
@@ -115,8 +115,8 @@ Then go down this list. The first item that applies is the next step:
 
 For items 2 to 6 and 8, and a migrate in item 1, offer to do it now ("Shall I do it now?"). Level names in words: 1 is "a hunch", 2 is "an early signal", 3 is "a clear pattern".
 
-`.pw-kb/` is a hidden folder, so the user cannot find its files by hand. When you point to one, give its full path. For the map, check that the file exists, then give a `file://` address made from that full path, with each space written as `%20`, such as `file:///Users/ana/My%20Study/.pw-kb/discovery-map.html`.
+`.pw-kb/` is a hidden folder, so the user cannot find its files by hand. When you point to one, give its full path. For the map, check that the file exists, then give a `file://` address made from that full path, with each space written as `%20`, such as `file:///Users/ana/My%20Study/.pw-kb/discovery-map.html`. When your commands run on another machine, as in Cowork, that address does not open for the user: name the file inside their folder instead, and say how to show the hidden folder, as in `pw-discovery`'s step 6.
 
 ## Path D: no folder, nothing attached
 
-Say in one line how to give you the files: attach the transcripts here, or open the folder that holds them (in Cowork, choose the folder when you start the task; in Codex or Claude Code, start in that folder). If they have no transcripts yet, take path B and give the guide in the chat, since there is no folder to save it in.
+Say in one line how to give you the files: attach the transcripts here, or open the folder that holds them (in Cowork, connect the folder to the task or to its project; in Codex or Claude Code, start in that folder). If they have no transcripts yet, take path B and give the guide in the chat, since there is no folder to save it in.

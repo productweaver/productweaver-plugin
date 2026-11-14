@@ -39,7 +39,7 @@ Every interview's own core functional job links to the core job it rolls up to (
 
 ## Where the study lives
 
-Everything the skill makes goes into one folder, `.pw-kb/`, at the root of the workspace: the folder the session started in (in Claude Code, the project folder). One workspace holds one study.
+Everything the skill makes goes into one folder, `.pw-kb/`, at the root of the workspace. One workspace holds one study. **The workspace is the user's own folder, whenever they gave you one:** in Claude Code, Codex and other coding tools, the folder the session started in; in Cowork, the folder connected to the task or to its project. Cowork's shell often starts in a temporary folder of its own; that folder is never the workspace. When several folders are connected, take the one that holds the transcripts, and ask only if that does not settle it. Only when no folder is connected and the transcripts were uploaded to the chat (claude.ai, ChatGPT, Claude Desktop's chat) is the workspace a sandbox that is gone after the chat; step 6 says what to hand back then.
 
 ```
 .pw-kb/
@@ -54,6 +54,8 @@ Everything the skill makes goes into one folder, `.pw-kb/`, at the root of the w
 ```
 
 Run every command from the workspace root, with the paths as shown. The tool refuses a KB anywhere else. Never write the skill's files outside `.pw-kb/`. The user's own transcripts stay where they are; the merge copies them in.
+
+**When the user gave you a folder, the study is files in that folder, never text in the chat.** If your shell can reach the folder, `cd` into it and run every command there. If it cannot, because the commands run on another machine and you reach the folder only with a file tool: first copy the folder's `.pw-kb/` (everything except `backups/`) to where the commands run; at the end, before your report, save every file the run created or changed into the user's `.pw-kb/`, with the same names and sub-folders. Never paste the map, `review.md` or the KB into the chat. Never offer them as downloads or put them in an outputs folder instead.
 
 ## Study language
 
@@ -89,7 +91,7 @@ When the user only asks to stop sharing usage statistics, skip the workflow and 
 
 ### 1. Find the KB and the transcripts
 
-The KB is `.pw-kb/pw-kb.json`. Ask where the new transcripts are only if they cannot be found.
+First find the workspace, as "Where the study lives" says: in Cowork, the connected folder. Look there, not in the shell's starting folder, for `.pw-kb/pw-kb.json` and the transcripts. The KB is `.pw-kb/pw-kb.json`. Ask where the new transcripts are only if they cannot be found.
 
 **A study the user attached.** In a chat where files are attached, a zip or folder that holds `pw-kb.json` is the study you handed back last time. Open it before anything else, so new interviews join it instead of starting a new study. If `.pw-kb/` already exists, do not unpack: ask which study to keep. Otherwise unpack it so that `.pw-kb/pw-kb.json` exists afterwards (not `.pw-kb/.pw-kb/`).
 
@@ -196,12 +198,13 @@ Add `--open` to `map` when it writes the study's first map, and whenever the use
 - `.pw-kb/interview-guide.md` is that plan as a guide to take into the calls: who to find, what to ask, what to listen for. `review` rewrites it.
 - `.pw-kb/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It opens on an Overview view, the study as a short story with what to do next; see "Write the overview". Its Next interviews view shows the plan for the next round: who to talk to, what to ask, who has not been heard from yet, and what is still thin. When the study has value themes, it has a Value themes view: one card per theme with its outcomes, what people use today and the quotes. It is one file with the KB inside: it opens in any browser and works offline. The end of its Overview says which plugin version made it, and when.
 
-A folder whose name starts with a dot is hidden in Finder and in most file dialogs, so the user cannot easily find the map by hand. `map` prints a `link:` line with a `file://` address. Give the user that address, exactly as printed, every time you point to the map, and give the full path of `review.md`.
+A folder whose name starts with a dot is hidden in Finder and in most file dialogs, so the user cannot easily find the map by hand. `map` prints a `link:` line with a `file://` address. When the commands ran on the user's computer, give the user that address, exactly as printed, every time you point to the map, and give the full path of `review.md`. When they ran on another machine (the address starts with a folder the user does not have, such as `/sessions/` or `/mnt/`), that address does not open for them: name each file inside their folder instead, such as "`.pw-kb/discovery-map.html` in your folder Interviews", and say the folder is hidden. In Finder, Cmd+Shift+. shows it; in Windows Explorer, View › Show › Hidden items.
 
 - After `map --open`, say what the tool said: the map is open in their browser, or it could not be opened here and what to do instead. Never say it is open when the tool did not.
 - After a rebuild without `--open`, say the map is updated and that an open tab must be reloaded.
 - Do not run a command of your own to open the map (`open`, `xdg-open`, `start`). It would cost the user one more permission question.
-- When the files are on a machine the user cannot reach, such as a sandbox that is gone after the chat (the transcripts were attached to it), hand back the map and the whole `.pw-kb/` folder the way your host shares files, as a zip when it needs one, and say: "Keep this folder. Next time, upload it with your new interviews." Do not say the map is open in their browser.
+- Only when no folder is connected and the transcripts were uploaded to the chat, so the study sits in a sandbox that is gone after the chat: hand back the map and the whole `.pw-kb/` folder the way your host shares files, as a zip when it needs one, and say: "Keep this folder. Next time, upload it with your new interviews." Do not say the map is open in their browser.
+- With a connected folder, as in Cowork, never hand back: check that `discovery-map.html` and `review.md` are in the user's own `.pw-kb/`, then report.
 
 **The map contains personal data.** It embeds every interviewee's name and every quote. Before suggesting that anyone share it, say so, and let the user decide who may see it. The same goes for the KB file and `review.md`.
 
@@ -219,7 +222,7 @@ The reader may be a founder or a domain expert, not an ODI specialist, so write 
 - current solutions, briefly: each new group in one line with its why and its most used solutions, then what people stopped using and why. Point to the Solutions view in the map for the full list
 - the next interviews, in 3 to 5 lines (1 or 2 per core job when there are several): who to talk to, the top questions, and where the full plan is, the map's Next interviews view and `.pw-kb/interview-guide.md`; and which derived layers are now out of date
 - who the overview says the study is about, its bottom line and its three next steps, one line each, the steps marked as advice
-- a pointer to `review.md` and the map's `file://` link, with the note that the map holds the interviewees' names and quotes
+- a pointer to `review.md` and the map, by the address that opens on the user's computer (step 6), with the note that the map holds the interviewees' names and quotes
 
 **After a first batch** everything is new, so that list would be the whole study. Report this instead, and leave the rest to `review.md` and the map:
 
