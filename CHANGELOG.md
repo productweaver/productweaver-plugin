@@ -4,6 +4,27 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.11.2 — 2026-11-13
+
+### What's improved
+
+- **Claude Desktop is named correctly in usage statistics.** The skill now
+  says which name Claude Desktop uses: `claude-cowork` in a Cowork task,
+  `claude-code` in its Code tab and `claude-ai` in a chat. An assistant in a
+  Cowork task had passed `claude-ai`.
+- **The usage README says how to let Claude Desktop send.** A Cowork task
+  reaches www.productweaver.com only after you allow it under Settings,
+  Capabilities, Additional allowed domains. Until then the events wait in
+  the study folder and leave from the next session where the network is
+  open.
+
+### What's fixed
+
+- **The usage README now says it also reads git's index.** To tell whether
+  git tracks the run log, the plugin reads `.pw-kb/.gitignore` and git's
+  index, looking only for the run log's path. The README had said it reads
+  only the run log and two things in `pw-kb.json`.
+
 ## 0.11.1 — 2026-11-13
 
 ### What's fixed

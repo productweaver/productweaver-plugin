@@ -438,6 +438,8 @@ python3 <skill folder>/scripts/pw_usage.py end .pw-kb --skill pw-discovery --ass
 
 For a no, write `no` in place of `yes`. `--assistant` is your host: `claude-code`, `claude-cowork`, `claude-ai`, `chatgpt`, `codex`, `copilot-cli`, `vscode`, `cursor`, `gemini-cli`, `antigravity`, or `other` for any other; `--model` is your model ID, when you know it. It prints one line, `usage: on`, `usage: off`, `usage: ask`, `usage: disabled` or `usage: no-study`.
 
+Claude Desktop is `claude-cowork` in a Cowork task, `claude-code` in its Code tab and `claude-ai` in a chat, as on claude.ai.
+
 - **Start** of every run of this skill: `start`, unless `pw-start` already ran it in this conversation. After a hand-off from `pw-start`, `set` and `end` repeat the `--skill` and `--path` that its `start` used.
 - **End:** `end`, once, after the last `kb_tool` command (and after `set`, when you asked) and before your final message, so the message stays your last line.
 - `usage: ask`: an existing study that was never asked. Ask the question below now, on its own.

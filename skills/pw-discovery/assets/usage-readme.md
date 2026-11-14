@@ -16,13 +16,20 @@ More: https://www.productweaver.com/privacy
 What is sent: small events that show which parts of the plugin work and which do not. They hold counts, codes and
 versions. They never hold interviews, transcripts, names, quotes, notes or file names. They never hold your prompts,
 the text of labels, the arguments of a command or the paths of your files.
-To make them, the plugin reads only the run log, `.pw-kb/logs/kb_tool.jsonl`, and two things in `pw-kb.json`:
-the study's language and how many entries its plan for the next interviews holds.
+To make them, the plugin reads the run log, `.pw-kb/logs/kb_tool.jsonl`, and two things in `pw-kb.json`:
+the study's language and how many entries its plan for the next interviews holds. To tell whether git tracks the
+run log, it also reads `.pw-kb/.gitignore` and git's index, and looks there for the run log's path only.
 
 Each event carries a random study number. It is made when you say yes, from nothing else. It is in `settings.json`.
 
 Where it goes: to www.productweaver.com, which passes the events on to PostHog. Claude Code's sandbox may ask you
 to allow www.productweaver.com. Allow it, or the events stay in this folder.
+
+In Claude Desktop, a Cowork task can reach www.productweaver.com only after you allow it. Open Settings, then
+Capabilities. Keep Allow network egress on, add `www.productweaver.com` under Additional allowed domains, then start a
+new conversation. Until then the events wait here. They leave from the next session where the network is open, for
+example Claude Code on your computer. Or run this in a terminal, from the folder that holds `.pw-kb`:
+`python3 <plugin folder>/skills/pw-discovery/scripts/pw_usage.py end .pw-kb --skill pw-discovery`
 
 The files:
 - `waiting.jsonl`: events not sent yet.

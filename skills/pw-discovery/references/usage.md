@@ -45,7 +45,7 @@ Every event carries these fields, first, in this order.
 | `study` | uuid4 | The random ID of this study. Made at the yes |
 | `plugin` | `^[0-9]+\.[0-9]+\.[0-9]+$` or `null` | The plugin version |
 | `tool` | `^[0-9]+\.[0-9]+\.[0-9]+$` or `null` | The `kb_tool.py` version (`tool_version` in the run log) |
-| `assistant` | `claude-code`, `claude-cowork`, `claude-ai`, `chatgpt`, `codex`, `copilot-cli`, `vscode`, `cursor`, `gemini-cli`, `antigravity` or `other` | The assistant. Anything not in the list is `other` |
+| `assistant` | `claude-code`, `claude-cowork`, `claude-ai`, `chatgpt`, `codex`, `copilot-cli`, `vscode`, `cursor`, `gemini-cli`, `antigravity` or `other` | The assistant. Anything not in the list is `other`. Claude Desktop: `claude-cowork` in a Cowork task, `claude-code` in its Code tab, `claude-ai` in a chat |
 | `model` | `^[a-z0-9][a-z0-9.-]{0,47}$` or `null` | The model ID, when the assistant gives it |
 | `os` | `macos`, `windows`, `linux` or `other` | The operating system family |
 | `python` | `^[0-9]+\.[0-9]+$` | Python major and minor version, such as `3.11` |
