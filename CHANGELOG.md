@@ -4,6 +4,19 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.13.1 — 2026-11-15
+
+### What's improved
+
+- **A README that shows the result first.** The plugin's front page now opens
+  with a picture of the discovery map and what you get, then a 10-minute way
+  to try it with 6 sample interviews, so you can see it work before you use
+  your own. Install steps come next, one section per assistant, and the
+  steps for the Claude desktop app now follow its menus one by one. Under
+  "Can you trust it?" you find what runs on your computer and what is sent.
+  A short list of fixes for common problems follows. Nothing in the plugin's
+  behaviour changed.
+
 ## 0.13.0 — 2026-11-15
 
 ### What's new

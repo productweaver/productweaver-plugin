@@ -1,60 +1,96 @@
-# Product Weaver plugin
+# Product Weaver
 
 Product Weaver is a free, open-source plugin for Claude, ChatGPT and Codex, and
 GitHub Copilot that turns customer interview transcripts into a
 jobs-to-be-done knowledge base, with every quote checked word for word against
 its transcript.
 
-More on [productweaver.com](https://www.productweaver.com): the
-[install guide](https://www.productweaver.com/plugin), an
-[example study](https://www.productweaver.com/example), a guide to
-[analyzing customer interviews with AI](https://www.productweaver.com/customer-interview-analysis)
-and [jobs to be done, explained](https://www.productweaver.com/jobs-to-be-done).
+Free, under the Apache 2.0 license. It runs on your computer, needs only
+Python, and sends nothing unless you say yes.
 
-The first skill, **pw-discovery**, turns customer interview transcripts into an
-Outcome-Driven Innovation (ODI) knowledge base: the jobs your customers are
-trying to get done, the steps of each job, and the outcomes they measure
-success by, each backed by verbatim quotes. Every quote is checked against its
-transcript before it goes in, so the knowledge base never holds paraphrased
-evidence. It grows with every batch of interviews. When the people you
-interviewed do different jobs, it finds each core job and keeps track of who
-does which. It also collects what people use today to get each step done, and
-what they stopped using: their current solutions, grouped by the work they
-compete for. When you are ready for ideas, it groups the outcomes into a few
-value themes, such as "Help me order what the week will really need", so a
-team can sort ideas into a handful of needs. And it plans your next round of
-interviews: who to talk to and what to ask, to back up what still rests on
-too few people.
+[![The discovery map of the example study: who the study is about, the main finding and what to do next](https://www.productweaver.com/example/discovery-map-overview.png)](https://www.productweaver.com/example)
 
-The second skill, **pw-start**, gets you going: it plans your first
-interviews, or turns the ones you have into a discovery map, and says what to
-do next.
+*The discovery map of the example study, made from 6 interviews.
+[Open the live map](https://www.productweaver.com/example).*
 
-Before version 0.5.0 this skill was called distill-kb.
+## What you get
+
+You give your assistant a folder of interview transcripts and ask in plain
+words. You get back a discovery map you can open in any browser. It shows
+
+- **what your customers are trying to get done**: their jobs, the steps of
+  each job, and the outcomes they measure success by;
+- **the proof**: every finding is backed by quotes in the words people used.
+  Each quote is checked against its transcript before it goes in, so the
+  study never holds paraphrased evidence;
+- **who does which job**, when the people you interviewed do different jobs;
+- **what people use today** to get each step done, and what they stopped
+  using;
+- **value themes**: the outcomes grouped into a few needs, such as "Help me
+  order what the week will really need", so your team can sort ideas;
+- **your next interviews**: who to talk to and what to ask, to back up what
+  still rests on too few people.
+
+The study grows with every batch of interviews you add. The method is
+Outcome-Driven Innovation (ODI), a way to do jobs-to-be-done research. You
+do not need to know it to start.
+
+## Try it in 10 minutes
+
+You do not need your own interviews to try it.
+
+1. **Install the plugin** in your assistant:
+   [Claude desktop app](#claude-desktop-app-cowork),
+   [Claude Code](#claude-code), [ChatGPT and Codex](#chatgpt-and-codex) or
+   [GitHub Copilot CLI](#github-copilot-cli).
+2. **Get some interviews.** Use a folder with your own transcripts
+   (`.md`, `.txt`, `.docx` or `.pdf`). Or
+   [download 6 sample interviews](https://www.productweaver.com/example/bookkeeper-interviews.zip)
+   and unzip the file. You get a folder called `bookkeeper-interviews`.
+3. **Open your assistant in that folder** (in Cowork, choose the folder) and
+   say
+
+   > Help me get started with Product Weaver.
+
+What happens next
+
+- The assistant reads the interviews. This takes about a minute or two for
+  each interview, so about 10 minutes for the 6 samples.
+- The discovery map opens in your browser.
+- The assistant asks you in the chat, with a click, whether it got right
+  what these people are trying to get done.
+- It names one next step.
+
+No interviews yet? Say the same sentence in an empty folder. The assistant
+asks 3 questions and writes a guide for your first interviews: who to talk to
+and what to ask.
 
 ## Install
 
-**Claude desktop app (Cowork)**, no terminal needed:
+### Claude desktop app (Cowork)
 
-1. Open **Customize**, then **Plugins**.
-2. Choose **Add marketplace** and enter `productweaver/productweaver-plugin`.
-3. Install `productweaver` from the list.
-4. Start a task in **Cowork**, choose the folder with your transcripts, and
-   ask in plain words.
+No terminal needed.
+
+1. Open **Customize** in the left menu.
+2. Choose **Plugins**, then **Yours**.
+3. Click **Add**, then **Add marketplace**.
+4. Choose **Add from repository**.
+5. Type `productweaver/productweaver-plugin`.
+6. Turn on **Sync automatically**.
+7. Click **Sync**.
+8. In the list, find **Product Weaver** and click **Add**.
+
+Then start a task in **Cowork**, choose the folder with your transcripts, and
+ask in plain words.
 
 If you use claude.ai in a browser, run the plugin in the desktop app: it works
 with the files on your computer. You can add it on the web with the same steps
 at [claude.ai/customize/plugins](https://claude.ai/customize/plugins); Claude
 saves it to your account, so it is ready in Cowork.
 
-**If Claude says it can't reach your files.** A Cowork task runs in the cloud
-and reaches your folder through the desktop app. That link sometimes drops for
-a few seconds, and the plugin tells Claude to wait and try again by itself. If
-the link stays down, check that the Claude app is open and your computer is
-awake, then say "Try again". Nothing is lost: Claude goes on from where it
-stopped.
+### Claude Code
 
-**Claude Code** (version 2.1.292 or later), in a terminal:
+Version 2.1.292 or later. In a terminal:
 
 ```sh
 claude plugin install productweaver --marketplace productweaver/productweaver-plugin
@@ -66,7 +102,9 @@ Or inside a Claude Code session:
 /plugin install productweaver --marketplace productweaver/productweaver-plugin
 ```
 
-**ChatGPT and Codex** (Codex CLI and the ChatGPT desktop app):
+### ChatGPT and Codex
+
+For Codex CLI and the ChatGPT desktop app:
 
 ```sh
 codex plugin marketplace add productweaver/productweaver-plugin
@@ -74,7 +112,7 @@ codex plugin marketplace add productweaver/productweaver-plugin
 
 Then open `/plugins` in Codex and install `productweaver`.
 
-**GitHub Copilot CLI:**
+### GitHub Copilot CLI
 
 ```sh
 copilot plugin marketplace add productweaver/productweaver-plugin
@@ -83,24 +121,26 @@ copilot plugin install productweaver@productweaver-plugin
 
 ### Requirements
 
-- Python 3.9 or newer. Nothing else to install: the skill's scripts use only
-  Python's standard library, so it also runs where packages cannot be
-  downloaded.
+- Python 3.9 or newer. To check, run `python3 --version` in a terminal.
+  Nothing else to install: the skill's scripts use only Python's standard
+  library, so it also runs where packages cannot be downloaded.
 - Transcripts as `.md`, `.txt`, `.docx` or `.pdf` files. To read a `.pdf`
   directly, the script needs pypdf (`python3 -m pip install pypdf==6.21.4`).
   Without it, the assistant first saves the PDF's text, word for word, as a
   `.txt` file in the study.
 
-## Use it
+The [install guide](https://www.productweaver.com/plugin) on
+productweaver.com has the same steps.
 
-New here? Say: **Help me get started with Product Weaver.** (In Claude Code
-you can also type `/pw-start`.) If you have interview transcripts, the
-assistant turns them into a discovery map. If you have none yet, it asks
-three questions and writes a guide for your first interviews: who to talk to
-and what to ask. When you come back to a study, ask "What should I do next?"
-and it names one next step.
+## What to say
 
-Once you know your way around, ask in plain words, for example:
+To start, or when you come back to a study and do not know what to do
+
+- "Help me get started with Product Weaver." (In Claude Code you can also
+  type `/pw-start`.)
+- "What should I do next?" The assistant names one next step.
+
+Once you know your way around, ask in plain words, for example
 
 - "Process this week's discovery interviews in the Interviews folder."
 - "Start an ODI knowledge base for the Acme study from these transcripts."
@@ -110,8 +150,7 @@ Once you know your way around, ask in plain words, for example:
 
 The assistant reads the transcripts, proposes what to add, and merges it into
 the knowledge base. It then writes a review sheet and a discovery map you can
-open in any browser. After the first interviews, it asks you in the chat, with
-a click, whether it got right what these people are trying to get done.
+open in any browser.
 
 When the interviews are not in English, the assistant asks once, when the
 study starts, whether to write the study in the interviews' language or in
@@ -119,20 +158,62 @@ English. Everything you read follows your answer: the findings, the review
 sheet and the map's own buttons and help. Quotes always stay in the words
 people used.
 
-## What the plugin runs
+The plugin has two skills. **pw-start** gets you going: it plans your first
+interviews, or turns the ones you have into a discovery map, and says what to
+do next. **pw-discovery** does the work on the interviews. You do not need to
+name them: the assistant picks the right one from what you ask.
 
-Two local Python scripts inside the skill. `kb_tool.py` (its `migrate` command
-also loads `kb_migrate.py`, next to it) reads the files you point it to and
-writes the files listed below; it makes no network calls. `pw_usage.py` keeps
-your answer about usage statistics and, only after a yes, sends the events. The
-plugin has no hooks, no MCP servers and no background processes.
+## Can you trust it?
+
+Interviews hold people's names and words, so here is what the plugin does
+with them.
+
+- **It runs on your computer.** The plugin is two local Python scripts
+  inside the skill. `kb_tool.py` (its `migrate` command also loads
+  `kb_migrate.py`, next to it) reads the files you point it to and writes
+  the files listed under [Files it writes](#files-it-writes); it makes no
+  network calls. `pw_usage.py` keeps your answer about usage statistics
+  and, only after a yes, sends the events.
+- **It has no hooks, no MCP servers and no background processes**, and it
+  downloads nothing.
+- **It sends nothing unless you turn on usage statistics** for a study, and
+  even then never your interviews, names, quotes, prompts or file names.
+  The full list is under [What it sends and where](#what-it-sends-and-where).
+- **Your own files are never changed.** The study keeps a copy of each
+  transcript it quotes.
+- **Every quote is checked** word for word against its transcript before it
+  goes into the study.
+- **You can read all of it.** The code is open source under the Apache 2.0
+  license and ships no third-party code.
+
+Your assistant itself works as it always does with the files it reads.
+
+## If something goes wrong
+
+- **Claude says it can't reach your files.** A Cowork task runs in the
+  cloud and reaches your folder through the desktop app. That link
+  sometimes drops for a few seconds, and the plugin tells Claude to wait
+  and try again by itself. If the link stays down, check that the Claude
+  app is open and your computer is awake, then say "Try again". Nothing is
+  lost: Claude goes on from where it stopped.
+- **You use the Codex IDE extension.** It does not load plugins. Use Codex
+  CLI or the ChatGPT desktop app.
+- **You use chat on claude.ai in a browser.** It is not tested yet. Use the
+  desktop app for now.
+- **You can't find the study folder.** `.pw-kb/` is hidden in Finder and
+  most file dialogs, because its name starts with a dot. What you read is
+  in `pw-output/`.
+- **You closed the map.** Open `pw-output/discovery-map.html` with a
+  double-click. It works offline.
+
+Still stuck? Ask in this repository's
+[Issues](https://github.com/productweaver/productweaver-plugin/issues).
 
 ## What it sends and where
 
 The plugin sends nothing unless you turn on usage statistics for a study, and
 even then never your interviews, names, quotes, prompts or file names. It
-downloads nothing. Your assistant itself works as it always does with the files
-it reads.
+downloads nothing.
 
 **Usage statistics are opt-in.** The first time you work on a study, the
 assistant asks once whether to share them. Each person who gets the study
@@ -177,7 +258,7 @@ More on https://www.productweaver.com/privacy.
 Files go into two folders at the root of your workspace. One workspace
 holds one study.
 
-`pw-output/` holds what you read:
+`pw-output/` holds what you read
 
 - `discovery-map.html`, the interactive map, which works offline. The first
   time it is made, it opens in your browser; after that, open it with a
@@ -188,7 +269,7 @@ holds one study.
   map's Next interviews tab shows it too, ready to print or copy.
 
 `.pw-kb/` holds the study itself. Finder and most file dialogs hide it,
-because its name starts with a dot:
+because its name starts with a dot
 
 - `pw-kb.json`, the knowledge base;
 - `transcripts/`, a copy of each transcript the knowledge base quotes. Your own
@@ -210,14 +291,6 @@ interviewees' names and words. They stay on your machine unless you share
 them. If your workspace is a git repository, the assistant asks once whether
 to share the study through git, and `pw-output/` follows the same answer.
 
-A study made by version 0.7.0 or earlier is kept in YAML files, `pw-kb.yaml`
-and `labels.yaml`. The assistant turns them into JSON once, the first time you
-use the study, and keeps the YAML files in `backups/`. That one time, the
-script needs PyYAML (`python3 -m pip install pyyaml==6.0.3`). A study made by
-version 0.2.0 or earlier sits in a `KB/` folder; the assistant moves it into
-`.pw-kb/` and `pw-output/` the same way. Version 0.11 and earlier kept the map
-and the sheets in `.pw-kb/`; the next run moves them to `pw-output/`.
-
 ## Where it works
 
 - Cowork in the Claude desktop app.
@@ -228,6 +301,30 @@ and the sheets in `.pw-kb/`; the next run moves them to `pw-output/`.
 - GitHub Copilot CLI and VS Code.
 
 Chat on claude.ai in a browser is not tested yet. Use the desktop app for now.
+
+## Coming from an older version
+
+You have nothing to do: the assistant brings an older study up to date the
+first time you use it.
+
+- A study made by version 0.7.0 or earlier is kept in YAML files,
+  `pw-kb.yaml` and `labels.yaml`. The assistant turns them into JSON once
+  and keeps the YAML files in `backups/`. That one time, the script needs
+  PyYAML (`python3 -m pip install pyyaml==6.0.3`).
+- A study made by version 0.2.0 or earlier sits in a `KB/` folder; the
+  assistant moves it into `.pw-kb/` and `pw-output/` the same way.
+- Version 0.11 and earlier kept the map and the sheets in `.pw-kb/`; the
+  next run moves them to `pw-output/`.
+- Before version 0.5.0 the pw-discovery skill was called distill-kb.
+
+What changed in each version is in the [changelog](CHANGELOG.md).
+
+## Learn more
+
+On [productweaver.com](https://www.productweaver.com): an
+[example study](https://www.productweaver.com/example), a guide to
+[analyzing customer interviews with AI](https://www.productweaver.com/customer-interview-analysis)
+and [jobs to be done, explained](https://www.productweaver.com/jobs-to-be-done).
 
 ## Support
 
