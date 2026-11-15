@@ -4,6 +4,16 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.13.2 — 2026-11-15
+
+### What's improved
+
+- **A clearer first paragraph in the README.** It now says in plain words
+  that Product Weaver is a plugin for AI assistants such as Claude,
+  ChatGPT/Codex and Copilot, and that it builds one knowledge base from your
+  interviews that grows with every batch. Nothing in the plugin's behaviour
+  changed.
+
 ## 0.13.1 — 2026-11-15
 
 ### What's improved

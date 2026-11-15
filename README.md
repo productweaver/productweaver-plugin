@@ -1,9 +1,7 @@
 # Product Weaver
 
-Product Weaver is a free, open-source plugin for Claude, ChatGPT and Codex, and
-GitHub Copilot that turns customer interview transcripts into a
-jobs-to-be-done knowledge base, with every quote checked word for word against
-its transcript.
+Product Weaver is a plugin for AI assistants like Claude, ChatGPT/Codex, and Copilot that turns customer interview transcripts into a
+consolidated and growing knowledge base, with every quote checked word for word against its transcript.
 
 Free, under the Apache 2.0 license. It runs on your computer, needs only
 Python, and sends nothing unless you say yes.
