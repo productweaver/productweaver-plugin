@@ -240,7 +240,7 @@ svg.mk-ic{width:14px;height:14px;display:inline-block;flex:none;cursor:inherit;v
 /* Value themes view: one card per theme, in the same kind of overlay as the Solutions view */
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr));gap:14px;align-items:start}
 .tcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:grid;gap:12px;min-width:0}
-.solin .tcard h3{margin:0;font-size:1.08rem;line-height:1.3;text-wrap:balance}
+.solin .tcard h3{margin:0;font-size:1.08rem;line-height:1.3;text-wrap:balance;scroll-margin-top:calc(var(--soltop,64px) + 28px)}
 .tneed{margin:3px 0 0;font-family:var(--font-read);font-size:1rem;line-height:1.4}
 .tsig{display:grid;gap:5px;font-size:.84rem}
 .tsig small{color:var(--muted);font-size:.74rem}
@@ -348,6 +348,8 @@ svg.mk-ic{width:14px;height:14px;display:inline-block;flex:none;cursor:inherit;v
 .ov-track:last-child{padding-right:0}
 .ov-tname{font-size:.84rem;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .ov-track h3{font-size:1.05rem;line-height:1.3}
+.ov-track.ov-first h3{color:var(--accent)}
+.ov-start{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--surface);background:var(--accent);border-radius:999px;padding:2px 8px;white-space:nowrap}
 .ov-track dl{margin:0;display:grid;gap:8px;font-size:.9rem}
 .ov-track dt{font-size:.78rem;color:var(--muted)}
 .ov-track dd{margin:0}
@@ -542,7 +544,28 @@ button.nx-gap{cursor:pointer} button.nx-gap:hover{border-color:var(--amber)}
 .nx-gap em.nx-out{color:var(--muted);font-weight:400}
 .nx-ok{font-size:.88rem;color:var(--ev4);margin:0}
 .nx-more{justify-self:start;border:0;background:none;color:var(--accent);font-weight:700;font-size:.86rem;cursor:pointer;padding:0}
-.nx-wait{font-size:.95rem;margin:0 0 4px}
+/* Decisions for you: a block of the Overview, also in Next interviews and Progress */
+.ov-decide{display:grid;gap:12px;scroll-margin-top:var(--soltop,64px)}
+.dc-title{font-size:1.15rem;line-height:1.25;margin:0}
+.nx-decide .dc-title,.dc-side .dc-title{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.dc-side{display:grid;gap:8px}
+.dc-side .ov-note{font-size:.8rem;color:var(--muted);margin:0}
+.dc-side .dc-item{padding:10px 12px} .dc-side .dc-ask{font-size:.9rem}
+.dc-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.dc-item{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:12px 14px;background:var(--surface);display:grid;gap:6px;max-width:66ch}
+.dc-ask{font-size:1rem;line-height:1.45;margin:0}
+.dc-why{font-size:.86rem;color:var(--muted);margin:0}
+.dc-why span{font-weight:700;color:var(--ink)}
+.dc-foot{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;font-size:.82rem;color:var(--muted)}
+.dc-replies{display:grid;gap:6px;margin-top:2px}
+.dc-reply{display:flex;gap:8px;align-items:center}
+.dc-say{flex:1;min-width:0;quotes:none;font-size:.88rem;line-height:1.4;padding:6px 10px;border:1px dashed var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.dc-side .dc-say{font-size:.8rem}
+.nx-btn.dc-copy{flex:none;font-size:.82rem;padding:5px 12px}
+.flag.dc-flag{width:100%;text-align:left;font:inherit;font-size:.85rem;cursor:pointer;color:inherit;border-top:0;border-right:0;border-bottom:0}
+.mdet{font-size:.82rem;color:var(--muted)}
+.mdet summary{cursor:pointer;font-weight:600}
+.mdet[open] summary{margin-bottom:6px}
 /* Progress: how sure the study is, in amber until it shows a clear pattern, and the way to get surer */
 .pg-sure{border:1px solid var(--line);border-left:5px solid var(--amber);border-radius:10px;padding:12px;background:var(--amber-soft);display:grid;gap:6px}
 .pg-sure.pg-ok{border-left-color:var(--ev3);background:var(--surface)}
@@ -609,7 +632,7 @@ button.nx-gap{cursor:pointer} button.nx-gap:hover{border-color:var(--amber)}
     <div class="actions">
       <button class="btn" id="btnRead" type="button" data-t="map.btn.read"></button>
       <button class="btn" id="btnBuilt" type="button" data-t="map.btn.built"></button>
-      <button class="btn primary" id="btnOpen" type="button" data-t="map.btn.open_file"></button>
+      <button class="btn primary" id="btnOpen" type="button" data-t="map.file.open" hidden></button>
       <input type="file" id="file" accept=".json" hidden>
     </div>
   </div>
@@ -669,7 +692,7 @@ button.nx-gap{cursor:pointer} button.nx-gap:hover{border-color:var(--amber)}
 <script>
 /* @kb-schema:3 */ /* draws KBs of schema 3 (and 2, the same data in YAML), with one or more core jobs, and still reads schema 1 */
 /* @kb-data:start */
-const SAMPLE = {"meta":{"project":"Open a KB file to begin"}};
+const SAMPLE = {"meta":{"project":"Open a study file to begin"}};
 /* @kb-data:end */
 
 /* ---------- labels ---------- */
@@ -961,10 +984,12 @@ function renderHeader(){
   document.title = t("map.header.doc_title", {project:M.project, brand:BRAND});
   document.getElementById("title").innerHTML = M.goal ? th("map.header.title", {project:esc(M.project), goal:`<span class="goal">${esc(M.goal)}</span>`}) : esc(M.project);
   const dates = M.ivs.map(i=>i.date).filter(Boolean).sort();
-  document.getElementById("subtitle").textContent = sentences(
+  // a goal still to confirm links to the decisions waiting for the reader
+  document.getElementById("subtitle").innerHTML = esc(sentences(
     dates.length ? t("map.header.built_dates", {n:M.ivs.length, from:fmtDate(dates[0]), to:fmtDate(dates[dates.length-1])}) : t("map.header.built", {n:M.ivs.length}),
-    many() ? t("map.header.jobs", {n:M.jobs.length}) : "",
-    M.goalStatus==="proposed" ? (many() ? t("map.header.proposed_job") : t("map.header.proposed_goal")) : "");
+    many() ? t("map.header.jobs", {n:M.jobs.length}) : ""))
+    + (M.goalStatus==="proposed" ? esc(t("map.text.sentence_sep"))+`<button type="button" class="linkbtn" data-go-decide>${th("map.header.to_confirm")}</button>` : "");
+  document.getElementById("btnOpen").hidden = M.ivs.length>0 || M.jobs.length>0;
   const thin = M.steps.filter(s=>s.allPeople.length<3).length, perJob = many() ? t("map.chip.per_job") : "";
   const chips = [
     [M.ivs.length,"map.chip.conversations",t("map.chip.conversations_tip")],
@@ -1029,10 +1054,10 @@ function renderProgress(){
   const area = series.length?`${path} L${x(series[series.length-1].k)},${y(0)} L${x(1)},${y(0)} Z`:"";
   const yt=[0,Math.round(Y/2),Y];
   const unlinked = M.ivs.filter(i=>!i.main);
-  const wait = (unlinked.length&&M.jobs.length?`<div class="sect">${th("map.next.unlinked_title")}</div><p class="hint">${th("map.next.unlinked")}</p>`+unlinked.map(i=>`<button class="gap" type="button" data-person="${esc(i.id)}">${esc(i.name)}<small>${esc(i.whyNone||i.note||i.goal)}</small></button>`).join(""):"")
-    + (M.proposals.length?`<div class="sect">${th("map.next.proposals_title")}</div>`+M.proposals.map(x=>`<div class="gap"><b>${x.type==="confirm_core_job"?th("map.next.confirm_job",{proposal:esc(x.proposal)}):esc(x.proposal)}</b><small>${esc(x.rationale||"")}</small></div>`).join(""):"")
+  const wait = (M.proposals.length?`<div class="dc-side">${decideHTML("h3")}</div>`:"")
+    + (unlinked.length&&M.jobs.length?`<div class="sect">${th("map.next.unlinked_title")}</div><p class="hint">${th("map.next.unlinked")}</p>`+unlinked.map(i=>`<button class="gap" type="button" data-person="${esc(i.id)}">${esc(i.name)}<small>${esc(i.whyNone||i.note||i.goal)}</small></button>`).join(""):"")
     + (M.caveat?`<div class="sect">${th("map.next.caveat")}</div><div class="gap">${esc(M.caveat)}</div>`:"");
-  p.innerHTML = pgSure() + (wait?`<h3 class="nx-wait">${th("map.progress.wait")}</h3>${wait}`:"") + `
+  p.innerHTML = pgSure() + wait + `
     <div class="callout"><b>${th("map.progress.lead")}</b> ${th("map.progress.callout",{n:Math.min(5,order.length), added:th("map.count.new_outcomes",{n:fresh}), firmed})}</div>
     <div class="sect">${th("map.progress.chart_title")}</div>
     <svg class="pg-chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(t("map.progress.chart_aria"))}">
@@ -1539,7 +1564,7 @@ function ktag(k){ const [l,v]=kindOf(k); return `<span class="ktag"><i style="ba
 /* The study as a short story: who, their goal, today, the gaps, the needs, the focus. The sentences come from the
    KB's overview layer, written by the assistant; the counts, the needs and the themes are computed here. */
 const overview=document.getElementById("overview");
-let nextOpen=false, overSpy=null;
+let nextOpen=true, overSpy=null; // what to do next starts open: it is what the reader came for
 const OV_STEPS = [["map.ov.rail.people","map.ov.rail.people_sub"],["map.ov.rail.goal","map.ov.rail.goal_sub"],["map.ov.rail.today","map.ov.rail.today_sub"],
   ["map.ov.rail.gaps","map.ov.rail.gaps_sub"],["map.ov.rail.needs","map.ov.rail.needs_sub"],["map.ov.rail.focus","map.ov.rail.focus_sub"]];
 const OV_SURE = ["map.ov.sure.guess","map.ov.sure.early","map.ov.sure.clear","map.ov.sure.survey"];
@@ -1634,7 +1659,8 @@ function ovNext(ov){
   const val = (f,v) => Array.isArray(v) ? v.map(x=>f==="ask"||f==="words"?`<q>${esc(x)}</q>`:esc(x)).join(" ") : esc(v);
   const link = {learn:`<button type="button" class="ov-lk" data-ov-view="next">${th("map.ov.next.see_plan")}</button>`,
     prototype:M.hasThemes?`<button type="button" class="ov-lk" data-ov-view="themes">${th("map.ov.next.see_themes")}</button>`:""};
-  const card = x => `<div class="ov-track"><p class="ov-tname">${x.name} ${x.pill}</p><h3>${esc(fullStop(x.t.action))}</h3>
+  const first = Math.max(0, tracks.findIndex(x=>x.t.status==="now" || x.t.status==="ready")); // the step to start with
+  const card = (x,i) => `<div class="ov-track${i===first?" ov-first":""}"><p class="ov-tname">${i===first?`<span class="ov-start">${th("map.ov.next.first")}</span>`:""}${x.name} ${x.pill}</p><h3>${esc(fullStop(x.t.action))}</h3>
     <dl>${x.fields.filter(([f])=>x.t[f] && x.t[f].length).map(([f,l])=>`<div><dt>${th(l)}</dt><dd>${val(f,x.t[f])}</dd></div>`).join("")}</dl>${link[x.k]||""}</div>`;
   return `<section class="ov-blk ov-next" id="ov-next">
     <button type="button" class="ov-nexttog" id="ovNextTog" aria-expanded="${nextOpen}" aria-controls="ovNextBody">
@@ -1711,7 +1737,7 @@ function renderOverView(){
     <nav class="ov-rail" aria-label="${esc(t("map.ov.rail.aria"))}">${who?`<button type="button" class="ov-railwho" data-ov-go="ov-who">${ovRole(who.icon)}<span><small>${th("map.ov.rail.about")}</small><b>${esc(who.label||who.text)}</b></span></button>`:""}<p>${th("map.ov.rail.title")}</p>
       <ol>${OV_STEPS.map(([a,b],i)=>`<li><button type="button" data-ov-go="ov-s${i+1}"><b>${i+1}</b><span>${th(a)}<small>${th(b)}</small></span></button></li>`).join("")}</ol>
       ${ov && ov.next?`<button type="button" class="ov-railnext" data-ov-next>${th("map.ov.next.title")}</button>`:""}</nav>
-    <article class="ov-sheet">${ovWho(ov,scope)}${ovLead(ov,scope)}${ovNext(ov)}${ovPeople(ov,scope)}${ovGoal()}${ovToday(ov)}${ovGaps(ov)}${ovNeeds(ov,total)}${ovFocus(ov,total)}
+    <article class="ov-sheet">${ovWho(ov,scope)}${ovLead(ov,scope)}${ovDecide()}${ovNext(ov)}${ovPeople(ov,scope)}${ovGoal()}${ovToday(ov)}${ovGaps(ov)}${ovNeeds(ov,total)}${ovFocus(ov,total)}
       ${ov && ov.next?`<button type="button" class="ov-end" data-ov-next><span>${th("map.ov.end.text")}</span><b>${th("map.ov.end.see")}</b></button>`:""}</article>${ovMade()}</div>`;
   if(overSpy) overSpy.disconnect();
   if("IntersectionObserver" in window){
@@ -1719,6 +1745,49 @@ function renderOverView(){
     overview.querySelectorAll(".ov-step").forEach(s=>overSpy.observe(s));
   }
 }
+/* Decisions for you: what the assistant needs the reader to confirm, with the same words in the Overview, Next
+   interviews and Progress. Each one is a plain question, why, how many people back it, and two replies shown in
+   full, each with its own Copy button: the reader sees what they will say, and no code. The assistant asks the
+   same question in the chat after a first batch, and finds the decision from the reply's words. */
+function decideBacked(x){
+  if(x.type==="confirm_core_job"){ const j=M.jobById[String(x.target)]; return j ? j.main.length : 0; }
+  return new Set((Array.isArray(x.evidence)?x.evidence:[]).map(e=>String(e && e.interview))).size;
+}
+/* [what to copy, what to show after it]: a reply that the reader finishes shows "…" but copies without it. */
+function decideReplies(x, goal){
+  const brand=BRAND, change=x.proposal||"";
+  return goal!=null
+    ? [[t("map.decide.reply_yes_goal",{brand, goal}), ""], [t("map.decide.reply_change_goal",{brand})+" ", "…"]]
+    : [[t("map.decide.reply_yes",{brand, change}), ""], [t("map.decide.reply_no",{brand, change}), ""]];
+}
+function decideItem(x){
+  const n=decideBacked(x), job=x.type==="confirm_core_job" && n ? M.jobById[String(x.target)] : null;
+  const goal=x.type==="confirm_core_job" ? String((job && job.statement)||x.proposal||"") : null;
+  const ask=job ? th("map.decide.goal",{n, goal:`<b>${esc(goal)}</b>`}) : th("map.decide.change",{change:`<b>${esc(x.proposal)}</b>`});
+  const why=goal!=null ? `<p class="dc-why">${th("map.decide.why_goal")}</p>`
+    : x.rationale ? `<p class="dc-why"><span>${th("map.ov.field.why")}</span> ${esc(x.rationale)}</p>` : "";
+  const replies=decideReplies(x, goal).map(([say, more])=>`<div class="dc-reply"><q class="dc-say">${esc(say.trim())}${more?" "+more:""}</q>
+      <button type="button" class="nx-btn nx-ghost dc-copy" data-reply="${esc(say)}">${th("map.decide.copy")}</button></div>`).join("");
+  return `<li class="dc-item"><p class="dc-ask">${ask}</p>${why}
+    ${n && !job?`<div class="dc-foot"><span>${th("map.decide.backed",{n})}</span></div>`:""}
+    <div class="dc-replies">${replies}</div></li>`;
+}
+function decideHTML(tag){
+  return `<${tag} class="dc-title">${th("map.decide.title")}</${tag}><p class="ov-note">${th("map.decide.intro")}</p><ul class="dc-list">${M.proposals.map(decideItem).join("")}</ul>`;
+}
+const ovDecide = () => M.proposals.length ? `<section class="ov-blk ov-decide" id="ov-decide">${decideHTML("h2")}</section>` : "";
+/* The header's "confirm it" link, and the drawer's: the Overview's block, else the one in Next interviews. */
+function goDecide(){
+  const v = M.hasOver ? "over" : M.hasNext ? "next" : "";
+  if(!v){ showTab("progress"); return; }
+  setView(v);
+  const el = v==="over" ? document.getElementById("ov-decide") : nextview.querySelector(".nx-decide");
+  if(el) el.scrollIntoView({block:"start"});
+}
+document.addEventListener("click",e=>{
+  const c=e.target.closest("[data-reply]"); if(c){ nxCopy(c.dataset.reply, c); return; }
+  if(e.target.closest("[data-go-decide]")) goDecide();
+});
 /* When this file was made, and by which version: kb_tool map stamps it. A KB opened from a file has no stamp. */
 function ovMade(){
   const g=M.made; if(!g) return "";
@@ -1777,6 +1846,8 @@ function quotesHTML(ev){
   return Object.entries(by).map(([id,es])=>{ const iv=M.ivById[id]; return `<div class="qgroup"><div class="qwho"><button type="button" data-person="${esc(id)}">${esc(iv?.name||t("map.common.person_fallback",{id}))}</button><small>${esc(iv?.who||"")}</small></div>`+
     es.map(e=>`<blockquote class="${e.source==="interviewer_notes"?"para":""}">${esc(quoted(e.quote))}<span class="src">${esc(srcLabel(e.source)||t("map.src.unknown"))}</span></blockquote>`).join("")+`</div>`; }).join("");
 }
+/* The method's own words, closed by default: readers who know the method open them, everyone else reads plain words. */
+const methodHTML = inner => `<details class="mdet"><summary>${th("map.drawer.method")}</summary><div class="formal">${inner}</div></details>`;
 function dots(n){ let h=""; for(let i=0;i<5;i++) h+=`<i class="${i<Math.min(5,n)?"on":""}"></i>`; return `<span class="dots" aria-label="${esc(t("map.count.people",{n}))}">${h}</span>`; }
 function openDetails(n){
   if(n.type==="root"){
@@ -1786,13 +1857,14 @@ function openDetails(n){
       <div class="explain">${th("map.drawer.root.explain")}</div>
       ${many()?`<div class="explain">${th("map.drawer.root.jobs",{n:M.jobs.length})}</div>`:""}
       ${M.executor?`<div><div class="sect">${th("map.drawer.root.who")}</div><p>${esc(M.executor)}</p></div>`:""}
-      ${M.goalStatus==="proposed"?`<div class="flag">${th("map.drawer.root.proposed")}</div>`:""}
+      ${M.goalStatus==="proposed"?`<button type="button" class="flag dc-flag" data-go-decide>${th("map.drawer.root.to_confirm")}</button>`:""}
       <div><div class="sect">${th("map.drawer.root.goals")}</div><div class="feel">${linked.map(i=>`<div><b>${esc(i.name)}:</b> ${esc(i.goal)}${job&&i.main!==job.id?` <small>${th("map.drawer.root.also")}</small>`:""}</div>`).join("")||`<p class="hint">${th("map.drawer.root.none")}</p>`}</div></div>`);
     return;
   }
   if(n.type==="stage"){
-    setDrawer(t("map.drawer.stage.kind"),n.name,`<div class="explain">${esc(n.desc)} ${th("map.drawer.stage.term",{term:`<b>${esc(n.key)}</b>`})}</div>
-      <div class="olist">${n.kids.map(k=>`<button class="oitem" type="button" data-go="${k.id}"><span>${esc(k.ref.text)}</span>${dots(k.ref.allPeople.length)}</button>`).join("")}</div>`);
+    setDrawer(t("map.drawer.stage.kind"),n.name,`<div class="explain">${esc(n.desc)}</div>
+      <div class="olist">${n.kids.map(k=>`<button class="oitem" type="button" data-go="${k.id}"><span>${esc(k.ref.text)}</span>${dots(k.ref.allPeople.length)}</button>`).join("")}</div>
+      ${methodHTML(th("map.drawer.stage.term",{term:`<b>${esc(n.key)}</b>`}))}`);
     return;
   }
   if(n.type==="step"){ const s=n.ref;
@@ -1810,9 +1882,9 @@ function openDetails(n){
   setDrawer(t("map.node.out_kind"),o.plain,`
     ${meter(o.people.length)}
     <div class="explain">${th("map.drawer.out.explain",{step:`<b>${esc(step?.text||t("map.drawer.out.this_step"))}</b>`})}</div>
-    <div class="formal"><b>${th("map.drawer.out.formal")}</b> ${esc(o.text)} <span style="opacity:.7">(#${esc(o.oid)})</span></div>
     ${o.people.length===1?`<div class="flag">${th("map.drawer.out.one")}</div>`:""}
-    <div><div class="sect">${th("map.drawer.out.words",{quotes:th("map.count.quotes",{n:o.ev.length})})}</div>${quotesHTML(o.ev)}</div>`, mkOut());
+    <div><div class="sect">${th("map.drawer.out.words",{quotes:th("map.count.quotes",{n:o.ev.length})})}</div>${quotesHTML(o.ev)}</div>
+    ${methodHTML(`<b>${th("map.drawer.out.formal")}</b> ${esc(o.text)} <span style="opacity:.7">(#${esc(o.oid)})</span>`)}`, mkOut());
 }
 function openPerson(id){
   const i=M.ivById[id]; if(!i) return;
@@ -1884,7 +1956,10 @@ document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>
 const modal=document.getElementById("modal");
 function openModal(html){ document.getElementById("mBody").innerHTML=html; modal.hidden=false; document.getElementById("mClose").focus(); }
 document.getElementById("mClose").onclick=()=>modal.hidden=true;
-modal.addEventListener("click",e=>{ if(e.target===modal) modal.hidden=true; });
+modal.addEventListener("click",e=>{
+  if(e.target===modal) modal.hidden=true;
+  else if(e.target.closest("[data-open-file]")){ modal.hidden=true; fileIn.click(); }
+});
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(!modal.hidden) modal.hidden=true; else closeDrawer(); } });
 const gloss = (term, text) => `<dt>${th(term)}</dt><dd>${text}</dd>`;
 document.getElementById("btnRead").onclick=()=>openModal(`
@@ -1915,6 +1990,7 @@ document.getElementById("btnBuilt").onclick=()=>openModal(`
     <li><b>${th("map.built.honest")}</b> ${th("map.built.honest_text")}</li>
   </ol>
   <p class="hint">${th("map.built.method")}</p>
+  <p class="hint"><button type="button" class="linkbtn" data-open-file>${th("map.file.open")}</button></p>
   ${M.caveat?`<div class="err">${esc(M.caveat)}</div>`:""}
   <div class="cta"><span>${th("map.built.cta",{brand:BRAND, site:`<a href="${pwUrl("built-panel")}" target="_blank" rel="noopener">${SITE}</a>`})}</span></div>`);
 const fileIn=document.getElementById("file");
@@ -2017,12 +2093,8 @@ function renderNxView(){
   nextview.innerHTML=`<div class="ov-page"><nav class="ov-rail" aria-label="${esc(t("map.nx.rail.aria"))}"><ol>${rail.map(([k,l])=>`<li><button type="button" data-nx-to="nx-s${k}"><b>${k}</b><span>${th(l)}</span></button></li>`).join("")}</ol></nav>
     <article class="ov-sheet">${lead}${s1}${s2}${s3}${s4}</article></div>`;
 }
-/* The decisions waiting: replies send people here for them, next to the plan they change. */
-function nxDecide(){
-  if(!M.proposals.length) return "";
-  const line=x=>`<li><div class="nx-gap"><span>${x.type==="confirm_core_job"?th("map.next.confirm_job",{proposal:esc(x.proposal)}):esc(x.proposal)}</span><small>${esc(x.rationale||"")}</small></div></li>`;
-  return `<div class="nx-decide"><h3>${th("map.next.proposals_title")}</h3><ul>${M.proposals.map(line).join("")}</ul></div>`;
-}
+/* The decisions waiting, here too, next to the plan they change. */
+function nxDecide(){ return M.proposals.length ? `<div class="nx-decide">${decideHTML("h3")}</div>` : ""; }
 function nxQuestions(i){
   const e=nxLearn().round[i]; return [e.who, ...(e.questions||[]).map((q,k)=>`${k+1}. ${q.ask}\n   ${t("map.nx.listen")}: ${q.listen}`)].join("\n");
 }
@@ -2049,7 +2121,7 @@ function load(raw){
   setLanguage(raw);
   try{ M=build(raw); }catch(err){ Object.assign(UI, was); labelCache=wasCache; applyLabels(); throw err; }
   chooseJob(null); expanded=new Set(); selected=null; personHL=null; searchHL=null; solHL=null; showSols=false; closeDrawer();
-  nextOpen=false; syncSolControls(); setView(M.hasOver?"over":"map", true); if(overMode) renderOverView();
+  nextOpen=true; syncSolControls(); setView(M.hasOver?"over":"map", true); if(overMode) renderOverView();
   renderHeader(); renderJobs(); renderPeople(); renderProgress(); updatePill();
   render(); requestAnimationFrame(()=>fit(true));
 }

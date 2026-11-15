@@ -70,7 +70,7 @@ try:  # optional: richer schema messages. jsonschema before 4.0 (3.2 on Ubuntu 2
 except ImportError:  # pragma: no cover - depends on the machine
     _LibraryValidator = None
 
-__version__ = "0.13.0"
+__version__ = "0.14.0"
 SCHEMA_VERSION = 3
 
 BRAND = "Product Weaver"
@@ -3127,7 +3127,8 @@ def cmd_apply(args: argparse.Namespace) -> int:
         message += ": " + (handler(candidate, proposal) if handler
                            else "no automatic action for this type; edit the KB by hand")
         recount(candidate)
-        mark_stale(candidate, message)
+        if proposal.get("type") != "confirm_core_job":  # a confirmed goal changes nothing the overview says
+            mark_stale(candidate, message)
     candidate["changelog"].append(changelog_entry(args.run, "decide", proposal=args.id, decision=status,
                                                   summary=message))
     problems = structure_problems(candidate)
@@ -4223,7 +4224,19 @@ def _review_decisions(kb: Json, text: Text) -> list[str]:
     for proposal in pending:
         lines.append(f"- **{proposal['id']} · {describe_proposal(proposal, text)}:** {proposal['proposal']}. "
                      f"*{why}:* {proposal['rationale']}")
-    return lines + ["", text("review.reply"), ""]
+        lines += [f"  - \"{reply}\"" for reply in decision_replies(kb, proposal, text)]
+    return lines + ["", text("review.reply_confirm"), ""]
+
+
+def decision_replies(kb: Json, proposal: Json, text: Text) -> list[str]:
+    """The two replies the map shows under a decision, to paste in the chat: they name the study, not a code."""
+    change = str(proposal.get("proposal", ""))
+    if proposal.get("type") == "confirm_core_job":
+        goal = jobs_by_id(kb).get(str(proposal.get("target")), {}).get("statement") or change
+        return [text("map.decide.reply_yes_goal", brand=BRAND, goal=goal),
+                text("map.decide.reply_change_goal", brand=BRAND) + " …"]
+    return [text("map.decide.reply_yes", brand=BRAND, change=change),
+            text("map.decide.reply_no", brand=BRAND, change=change)]
 
 
 def _new_solution_lines(kb: Json, since: str, text: Text) -> list[str]:
@@ -4373,6 +4386,14 @@ NX_GROUP_MAX = 5
 NX_GROUPS = (("main", "review.nx.g.main"), ("step", "review.nx.g.step"), ("need", "review.nx.g.need"),
              ("who", "review.nx.g.who"))
 NX_LEVELS = ("review.nx.level.1", "review.nx.level.2", "review.nx.level.3")
+GUIDE_STEPS = ("review.guide.step.1", "review.guide.step.2", "review.guide.step.3", "review.guide.step.4",
+               "review.guide.step.5")
+GUIDE_HELP = (("review.guide.invite.h", "review.guide.invite.1", "review.guide.invite.2"),
+              ("review.guide.before.h", "review.guide.before.1", "review.guide.before.2"),
+              ("review.guide.start.h", "review.guide.start.1", "review.guide.start.2"),
+              ("review.guide.short.h", "review.guide.short.1", "review.guide.short.2"),
+              ("review.guide.idea.h", "review.guide.idea.1"),
+              ("review.guide.end.h", "review.guide.end.1", "review.guide.end.2"))
 PLAIN = ((r"Minimize the time (it takes )?to ", "Less time to "), (r"Minimize the likelihood that ", "Less risk that "),
          (r"Minimize the likelihood of ", "Less risk of "), (r"Minimize the number of ", "Fewer "),
          (r"Minimize (the amount of |the )?", "Less "), (r"(Maximize|Increase) (the )?", "More "),
@@ -4413,10 +4434,11 @@ def _nx_round(kb: Json, learn: Json, text: Text, guide: bool) -> list[str]:
                       *("   " + a.replace("\n", "\n   ") for a in asks)]
             continue
         hints = [names[ref] for ref in entry.get("traits", [])]
-        lines += [f"### {n}. {talk}", ""] + [f"**{text('review.guide.recruit')}:** "
-                                             + text("review.list_sep").join(hints), ""] * bool(hints)
-        checks = text("review.list_sep").join(f"{names.get(ref, '')} ({ref})" for ref in entry["gaps"])
-        lines += [f"**{text('review.guide.ask')}**", "", *asks, "", f"**{text('review.guide.checks')}:** {checks}", ""]
+        lines += [f"### {n}. {talk}", ""]
+        lines += [f"**{text('review.guide.fit')}**", "", *(f"- {h}" for h in hints), ""] * bool(hints)
+        learns = [f"- {names[ref]}" for ref in entry["gaps"] if ref in names and ref not in entry.get("traits", [])]
+        lines += [f"**{text('review.guide.ask')}**", "", *asks, ""]
+        lines += [f"**{text('review.guide.learns')}**", "", *learns, ""] * bool(learns)
     return lines
 
 
@@ -4443,11 +4465,16 @@ def next_lines(kb: Json, text: Text) -> list[str]:
 def guide_lines(kb: Json, text: Text, job: str | None = None) -> list[str]:
     """interview-guide.md, or one core job's part of it (the map copies that): who to find and what to ask."""
     lines = ["# " + text("review.guide.title", project=kb["meta"].get("project", "")), "",
-             text("review.guide.made", date=today(), n=len(kb["interviews"])), "", text("review.guide.how"), ""]
+             text("review.guide.made", date=today(), n=len(kb["interviews"])), "",
+             f"**{text('review.guide.use')}**", "",
+             *(f"{i}. {text(key)}" for i, key in enumerate(GUIDE_STEPS, 1)), ""]
     for entry in [j for j in kb["core_jobs"] if job in (None, str(j["id"]))]:
         learn = learn_of(kb, str(entry["id"]))
         lines += [f"## {entry['statement']}", ""]
         lines += _nx_round(kb, learn, text, True) if learn.get("round") else [text("review.nx.no_plan"), ""]
+    lines += ["## " + text("review.guide.help"), ""]
+    for head, *rest in GUIDE_HELP:
+        lines += [f"**{text(head)}**", "", *(f"- {text(key)}" for key in rest), ""]
     return lines
 
 
@@ -4920,6 +4947,12 @@ def main(argv: list[str] | None = None) -> int:
     code = 2
     try:
         code = run_command(args)
+        sys.stdout.flush()  # here, not at exit, so a closed pipe is caught below
+    except BrokenPipeError:  # the reader stopped reading, as `| head` does: not a bug, and no traceback
+        run.fail("output_closed")
+        code = 1
+        with contextlib.suppress(OSError):  # so the final flush at exit does not fail again
+            os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
     except Exception as exc:  # a bug, not a user error: record it in the log, then let the traceback show
         run.fail("crash")
         run.note(exception=type(exc).__name__)

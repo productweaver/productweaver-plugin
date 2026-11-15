@@ -52,7 +52,8 @@ Write `pw-output/interview-guide.md`. Create `pw-output/` and `.pw-kb/` if they 
 - **Never describe the idea.** If they ask, say you will tell them at the end.
 - **Never suggest an answer.** When nothing comes, wait or move on. Words you offer become their answer.
 - **One question at a time**, short, then follow up: "What happened next?", "How did you notice?", "What did you do about it?"
-- **Listen for** what would show the problem is real: what it cost, how often, what they tried. Add what would show it is not, when it fits in a few words. These lines are notes for the interviewer, never questions to read out.
+- **Easy to say and easy to hear.** The interviewer or the person may speak in a second language. Write each question as you would say it across a table: under 15 words when you can, common words, one topic, no idiom. "Cancelled", not "fell through"; "have fewer", not "cut down on".
+- **Listen for** names things the interviewer can write down, and what would show the problem is real: what it cost, how often, what they tried. Add what would show it is not, when it fits in a few words. These lines are notes for the interviewer, never questions to read out.
 
 | Before | After |
 |---|---|
@@ -62,6 +63,8 @@ Write `pw-output/interview-guide.md`. Create `pw-output/` and `.pw-kb/` if they 
 | "What features do you want?" | They are not designers. "What did you try last time a booking went wrong? How did that go?" |
 | "What's your biggest pain point?" | Too vague to answer. "What part of last Saturday took longer than it should have?" |
 | "How much would you pay to never have a no-show?" | A guess about money. "What did the last no-show cost you, roughly?" |
+| "How do you keep on top of your bookings and deal with it when one falls through?" | Two topics and two idioms. "How did next week's bookings reach you? Start from the first one." |
+| *Listen for:* scheduling habits | Nothing to write down. *Listen for:* every place they check for bookings, and where they write them down |
 | Six questions about no-shows | It assumes the problem. Walk the whole day first; at most 3 questions on no-shows. |
 
 ## 5. What to show in the chat
@@ -84,7 +87,7 @@ The user wrote: "I want to build something for dog groomers. They lose money whe
 
 Made on 2026-11-13, before the first interview.
 
-This round learns how independent dog groomers fill their days and what happens when a booking falls through.
+This round learns how independent dog groomers fill their days and what happens when a client cancels or does not come.
 
 ## Who to find
 
@@ -113,7 +116,7 @@ The questions marked ★ are must-ask. Skip any question already answered. The *
 1. ★ Walk me through yesterday, from the first booking to the last dog.
    *Listen for:* how the day was planned, and what changed on the day
 2. ★ How did next week's bookings reach you? Start from the first one.
-   *Listen for:* every channel they check, and how they keep track
+   *Listen for:* every place they check for bookings, and where they write them down
 3. ★ What part of last week took longer than it should have?
    *Listen for:* whatever they name. Never suggest an answer; if nothing comes, move on
 4. Tell me about the last time a dog took much longer than booked.
@@ -122,10 +125,10 @@ The questions marked ★ are must-ask. Skip any question already answered. The *
    *Listen for:* deposits, late payments, cash
 6. Tell me about the last client who did not show up. (Ask it only if they brought up missed bookings without being asked.)
    *Listen for:* when they found out, what the empty slot cost, whether they filled it. Or that it rarely happens
-7. What did you try last time to cut down on missed bookings? How did it go? (Ask it only if they brought up missed bookings without being asked.)
+7. What did you try last time to have fewer missed bookings? How did it go? (Ask it only if they brought up missed bookings without being asked.)
    *Listen for:* tools they tried and stopped using, and why
 8. What did you do the last time a client cancelled the same day? (Ask it only if they brought up cancellations without being asked.)
-   *Listen for:* fees, rules, or letting it go
+   *Listen for:* a fee, a rule, or that they did nothing
 
 Follow-ups, the only probes to use: "Last time, specifically?", "Can you give me an example from last month?", "What happened next?", "How long did that take?", "What did that mean for you?", "Why was that?" If they get stuck, wait or repeat the question; never offer options.
 If the talk drifts: "Going back to yesterday, what happened next?"

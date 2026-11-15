@@ -1,6 +1,6 @@
 ---
 name: pw-discovery
-description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a knowledge base, one JSON file, that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, the outcomes grouped into a few value themes to guide ideation, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "JTBD". Also use when the user asks to stop sharing usage statistics. From Product Weaver (productweaver.com).
+description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a knowledge base, one JSON file, that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, the outcomes grouped into a few value themes to guide ideation, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "JTBD". Also use for answers to its decisions, such as "In my Product Weaver study, the goal is right", and when the user asks to stop sharing usage statistics. From Product Weaver (productweaver.com).
 ---
 
 # pw-discovery: fold interviews into an ODI knowledge base
@@ -91,7 +91,7 @@ A study's language cannot change once it has interviews, because its statements 
 
 ## Workflow
 
-When the user only asks to stop sharing usage statistics, skip the workflow and follow "Usage statistics".
+When the user only asks to stop sharing usage statistics, skip the workflow and follow "Usage statistics". When the user only answers a decision, such as "In my Product Weaver study, the goal is right: …", skip the workflow too: run `start`, then `context` to find the decision, act as item 3 of "Ask the decisions as a click" in step 7 says, then run `end`.
 
 ### 1. Find the KB and the transcripts
 
@@ -139,7 +139,7 @@ A KB with an older schema is refused with a message to run `kb_tool migrate .pw-
 
 ### 3. Read each new transcript in full, then extract
 
-Read the whole transcript before writing anything. The rules for each statement are in `references/pw-rules.md`; read that file once per session, starting with "Write for the reviewer first". Founders, product managers, domain experts and architects will review these statements, so each one should be short, plain and land on the first read. The merge blocks statements that are too long or carry asides. In short:
+Read the whole transcript before writing anything. The rules for each statement are in `references/pw-rules.md`; read that file once per session, starting with "Write for the reviewer first" and "Plain language for a second-language reader". Founders, product managers, domain experts and architects will review these statements, so each one should be short, plain and land on the first read. The merge blocks statements that are too long or carry asides. In short:
 
 - **Per interview:** the job executor (who they are, in this market), their core functional job (verb + object + context, no solution, no success words), related jobs, emotional jobs ("feel…", "avoid feeling…") and social jobs ("be seen as…"). Each needs 1 to 3 supporting quotes. If there is no evidence for a job type, use an empty list. Do not infer.
 - **Which core job:** ask "why?" of the person's own core job until it meets one of the study's core jobs. Link it there with `job`. Link a related job too when it is another core job of the study. If none fits, leave `job` out and raise a `new_core_job` proposal that lists the interview, or, when the person carries out none of the study's jobs, say why in `unlinked_reason` on their `core_functional_job`. For example, a driver whose carrier picks the loads does not plan loads. Their quotes still count as evidence for the steps they do perform.
@@ -200,9 +200,9 @@ Add `--open` to `map` when it writes the study's first map, and whenever the use
 
 - `pw-output/review.md` is a plain sheet listing decisions waiting, what is new since the last merge, the job map by stage with how many people back each step, and the next interviews: where the study stands, the plan and every thin spot.
 - `pw-output/interview-guide.md` is that plan as a guide to take into the calls: who to find, what to ask, what to listen for. `review` rewrites it.
-- `pw-output/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It opens on an Overview view, the study as a short story with what to do next; see "Write the overview". Its Next interviews view shows the plan for the next round: who to talk to, what to ask, who has not been heard from yet, and what is still thin. When the study has value themes, it has a Value themes view: one card per theme with its outcomes, what people use today and the quotes. It is one file with the KB inside: it opens in any browser and works offline. The end of its Overview says which plugin version made it, when, and the folder it is saved in. It remembers its view in its address, so a reload keeps the user on the same view.
+- `pw-output/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It opens on an Overview view, the study as a short story with what to do next; see "Write the overview". When decisions wait for the user, the Overview shows them right under the main finding, as "Decisions for you", each with two replies to copy, written out in full; Next interviews and the Progress tab list them too. Its Next interviews view shows the plan for the next round: who to talk to, what to ask, who has not been heard from yet, and what is still thin. When the study has value themes, it has a Value themes view: one card per theme with its outcomes, what people use today and the quotes. It is one file with the KB inside: it opens in any browser and works offline. The end of its Overview says which plugin version made it, when, and the folder it is saved in. It remembers its view in its address, so a reload keeps the user on the same view.
 
-**Put the map in front of the user.** Read `references/open-files.md` once per session and do what it says for your host: one link, or the host's file card, that opens `pw-output/discovery-map.html`. The interview guide and the decisions waiting are in the map's Next interviews tab: name the tab in words. `map` prints a `link:` line with the map's `file://` address. When the commands ran on another machine (the address starts with a folder the user does not have, such as `/sessions/` or `/mnt/`), that address does not open for them, and `open-files.md` says what to give instead.
+**Put the map in front of the user.** Read `references/open-files.md` once per session and do what it says for your host: one link, or the host's file card, that opens `pw-output/discovery-map.html`. The interview guide is in the map's Next interviews tab. The decisions waiting are near the top of its Overview, under "Decisions for you". Name the tab or the heading in words. `map` prints a `link:` line with the map's `file://` address. When the commands ran on another machine (the address starts with a folder the user does not have, such as `/sessions/` or `/mnt/`), that address does not open for them, and `open-files.md` says what to give instead.
 
 - When `review` or `map` printed a `moved:` line, the files left `.pw-kb/` in this run. Say so once, in one plain sentence, such as "Your map and review sheet now live in the pw-output folder, where Finder shows them", and give the new link. In that run, skip the tool's line about an open tab: a tab still open shows the old copy, which is gone.
 - When `review` or `map` printed a `git:` line (the study sits in a git repository and `.pw-kb/` has no `.gitignore`) and `pw-output/` has none either, run `git check-ignore -q .pw-kb/pw-kb.json` once. Only when it succeeds, the user keeps the study out of git some other way, such as the repository's own `.gitignore`: then write `pw-output/.gitignore` with the single line `*`, so the map stays out of git too.
@@ -218,33 +218,41 @@ Add `--open` to `map` when it writes the study's first map, and whenever the use
 
 ### 7. Report to the user
 
-The reader may be a founder or a domain expert, not an ODI specialist, so write in plain words, in the language the user writes to you in. Lead with one sentence on what changed. Then keep it short:
+The reader may be a founder or a domain expert, not an ODI specialist, so write in plain words and short sentences, as "Plain language for a second-language reader" in `references/pw-rules.md` says, in the language the user writes to you in. Lead with one sentence on what changed. Then keep it short:
 
 - new interviews: name, who they are and their core job, and which of the study's core jobs it links to, one line each, plus any skipped as already processed
 - when the study has several core jobs, name each by its statement with the letter after it ("Keep the trucks on the road (B)"), never by the letter alone
 - what the new evidence strengthened: name the outcomes in words, with the ID after the text, never as a bare list of IDs. This holds for every mention, including a passing one in a closing remark: a reviewer cannot hold "1.1 and 5.1" in their head.
 - new outcomes, each as its full statement
-- decisions waiting: what and why in one line each, and how to answer ("approve P1")
+- decisions waiting: ask them as a click, as "Ask the decisions as a click" says, never as a list of codes to type
 - current solutions, briefly: each new group in one line with its why and its most used solutions, then what people stopped using and why. Point to the Solutions view in the map for the full list
 - the next interviews, in 3 to 5 lines (1 or 2 per core job when there are several): who to talk to, the top questions, and where the full plan is: the map's Next interviews tab, where the guide can be printed or copied; and which derived layers are now out of date
-- who the overview says the study is about, its bottom line and its three next steps, one line each, the steps marked as advice
-- the map, last before the "Next:" line, as step 6 says: one link or file card that opens it, with words as its text, such as "Open your discovery map", never the file name; then at most three short lines: the interview guide is in its Next interviews tab, to print or copy; the decisions waiting are in the same tab, when there are some; and where it is saved, in words a person can follow in Finder without the chat: their own folder's name, then pw-output, then the file, such as "It's saved in your Interviews folder, in pw-output: double-click discovery-map.html to open it again", never the word "workspace". Add that the map holds the interviewees' names and quotes
+- who the overview says the study is about, its bottom line and its three next steps, one line each, every step starting with a verb, the steps marked as advice
+- the map, last before the "Next:" line, as step 6 says: one link or file card that opens it, with words as its text, such as "Open your discovery map", never the file name; then at most three short lines: the interview guide is in its Next interviews tab, to print or copy; the decisions still waiting, when there are some, are near the top of its Overview, under "Decisions for you"; and where it is saved, in words a person can follow in Finder without the chat: their own folder's name, then pw-output, then the file, such as "It's saved in your Interviews folder, in pw-output: double-click discovery-map.html to open it again", never the word "workspace". Add that the map holds the interviewees' names and quotes
 
 **After a first batch** everything is new, so that list would be the whole study. Report this instead, and leave the rest to the map:
 
-- each core job by its statement, how many people have it as their main job, its number of steps and three of them in plain words; then ask the user to confirm each one or say what to change, and say which proposal confirms which job ("approve P1 confirms the gallery job (A)")
 - each person in one line: who they are and the core job they are linked to, or why none
 - the language the study is written in, in one line, and that it stays that way
 - the rest as counts, with the one or two findings that matter most: outcomes, current solutions and their groups, and what people stopped using
 - the next interviews, as above, and the map, as above. When `map --open` showed it in their browser, say so, and still give the link for later
+- last, after the map and right before the question that confirms it: each core job as a goal, in the words of its statement, how many people have it as their main goal, how many steps it has, and three of the steps in plain words. Then ask, as "Ask the decisions as a click" says
 
-**End every report**, the first one too, with one line that starts "Next:" and names one step, the first that applies: confirm what the study is about (after a first batch), decide the changes waiting, run the next round (how many people, of which kind), or, once the study shows a clear pattern, group the needs into value themes. Give it as words the user can say: `Next: open the map's Overview, then say "approve P1" or what to change.`
+**End every report**, the first one too, with one line that starts "Next:" and names one step, the first that applies: confirm what the study is about (after a first batch), decide the changes waiting, run the next round (how many people, of which kind), or, once the study shows a clear pattern, group the needs into value themes. Give it as words the user can say. When you ask a decision, the question takes the place of this line, and the "Next:" line ends your message after the answer. When the goal still waits because nobody answered: `Next: tell me if the goal is right. Reply "yes", or say what to change.` Once it is confirmed, for example: `Next: talk to 3 more restaurant owners who order for two sites. Say "show me the interview guide" for the questions.`
 
-Skip tool jargon such as "patch", "object of control" or "verbatim check" unless the user uses it. Say "every quote matches the transcript word for word". Flag anything that should change how the user reads the KB, such as a new interview that contradicts the core job, or a segment that keeps growing without a home.
+**Ask the decisions as a click.** A decision is a proposal that `context` lists under `PENDING PROPOSALS:`. After a first batch, the first one is whether each goal (core job) is right. The rest of the study rests on it, so ask it in the chat at once, as a click. The user may also answer in their own words, with a code such as "approve P1", or with a reply copied from the map or the review sheet: "In my Product Weaver study, the goal is right: …", "…change the goal to: …", "…make this change: …" or "…don't make this change: …". Find the decision under `PENDING PROPOSALS:` by its words and act on it the same way. Never ask them to type a code.
+
+1. Right before the question, show each goal in plain words with three of its steps, as the first-batch report says.
+2. Ask with your host's question tool, as in "Study language": `AskUserQuestion` in Claude Code and Cowork, `ask_user` in Gemini CLI and GitHub Copilot CLI, `request_user_input` in Codex's Plan mode. Use one call with at most 3 questions: one per goal to confirm (`confirm_core_job`), then other decisions, oldest first; the others stay in the map. Ask in the language the user writes to you in. Mark no choice as recommended, and add no "Other" choice: the host adds one for the user's own words.
+   - A goal: "These 5 people are all trying to: Order what the kitchen needs for the week. Is that right?", with the choices "Yes, that's it" and "Close, but change it". With one person, start with "This person is trying to:".
+   - Any other decision: the change in plain words, then "Should the study change like this?", with the choices "Yes, change it" and "No, keep it".
+3. Act on the answer right away. On "Yes, that's it" or "Yes, change it", run `kb_tool apply .pw-kb/pw-kb.json P1 --decision approve --note "confirmed in the chat"`, with that decision's code in place of `P1`, then `review` and `map` without `--open`, and say in one line that it is done and that an open map tab must be reloaded. On "No, keep it", the same with `--decision reject`. On "Close, but change it", or words of their own, never reject the goal's decision: leave it waiting. If they did not say what to change, ask once, in plain text. Then propose the change in a small patch, as step 8 says (`reword_core_job`, or `move_step` and `relink_interview`; the format is in `references/patch-format.md`), and merge it without `--transcripts`. Show the change in plain words as one more question, with the choices "Yes, use it" and "Change it again". On yes, approve that proposal, then the goal's decision, then run `review` and `map`. On "Change it again", ask what to change and propose again.
+4. With no question tool, as in Codex's default mode, ask the same question in plain text, one goal per line, and end with "Reply yes, or tell me what to change." This message ends your turn.
+5. When nobody can answer, as in a scripted run, or the user closes the question, leave the decision waiting. Say in one line that it is near the top of the map's Overview, under "Decisions for you".
 
 ### 8. Acting on proposals
 
-When the user decides:
+When the user decides, with a click in the chat or in their own words:
 
 ```
 kb_tool apply .pw-kb/pw-kb.json P3 --decision approve --note "agreed in review"
@@ -266,7 +274,7 @@ Run `context` and read the CURRENT SOLUTIONS block, or point the user to the Sol
 
 The discovery map opens on its Overview view: who the study is about, then the study as a short story in six steps, with a "What to do next" block on top. It is made for a person who does not know the method, often a founder starting discovery. The map counts what it can from the KB. The sentences are yours, and without them the view says "No written findings yet".
 
-Write the overview for each core job that got new evidence, at the end of every run that merged interviews, right after the merge (and `themes`, when you rebuild them) and before `review` and `map`. Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules. Write it in the study's language.
+Write the overview for each core job that got new evidence, at the end of every run that merged interviews, right after the merge (and `themes`, when you rebuild them) and before `review` and `map`. Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules, with the first-read test and the "so what" test every sentence must pass. Write it in the study's language.
 
 1. Run `kb_tool context .pw-kb/pw-kb.json` for the outcomes, the solutions and who stopped using them, and the value themes. `context` prints no quotes and does not say who said what. For those, read `.pw-kb/pw-kb.json` itself: the `evidence` lists of the steps, the outcomes, the solution uses and each person's own statements. `context` also prints OPEN GAPS per core job, ranked, with who backs each one, and each person's tags: plan the next round from them.
 2. Write `.pw-kb/patches/<YYYY-MM-DD>-overview-<job>.json`:
@@ -280,37 +288,37 @@ Write the overview for each core job that got new evidence, at the end of every 
     "icon": "cook",
     "others": ["their suppliers"]
   },
-  "bottom_line": "Owners throw away food every week because they order by gut feeling.",
+  "bottom_line": "Owners throw away food every week because they order from memory, without numbers.",
   "why": "The stock apps they tried need a count nobody has time to do.",
   "opening": "Tell the owner what the week will need before the order goes out.",
   "people": {
-    "answer": "Five owners of small restaurants who place the orders themselves.",
-    "text": "They order twice a week, between services, with no one to check the numbers.",
+    "answer": "5 owners of small restaurants who place the orders themselves.",
+    "text": "They order 2 times a week, between services, and nobody checks the numbers.",
     "quote": {"interview": "02", "quote": "I order on Sunday night, half asleep."}
   },
   "today": {
-    "answer": "By memory, with a paper stock sheet.",
-    "text": "The sheet is filled in when there is time, so the order rests on what the owner remembers."
+    "answer": "Owners order from memory, with a paper stock sheet.",
+    "text": "Owners fill in the sheet when they have time, so the order depends on what they remember."
   },
   "gaps": {
-    "answer": "It breaks in two places.",
+    "answer": "The stock sheet is out of date when owners place the second order.",
     "items": [
       {
-        "label": "The stock sheet is wrong by Wednesday",
-        "text": "Nobody updates it during service, so the second order of the week is a guess.",
+        "label": "The sheet is wrong by Wednesday",
+        "text": "Nobody updates the sheet during service, so owners guess the second order and throw food away.",
         "kind": "struggle",
         "solutions": ["S2"],
         "quote": {"interview": "03", "quote": "We threw out two cases of fish that week."}
       }
     ]
   },
-  "needs": {"answer": "Above all, less food thrown away at the end of the week."},
-  "focus": {"answer": "On ordering the right amount."},
+  "needs": {"answer": "Owners most want to throw away less food at the end of the week."},
+  "focus": {"answer": "Build first for ordering the right amount."},
   "next": {
     "learn": {
       "status": "now",
-      "action": "Talk to four more owners, two of them with more than one site.",
-      "why": "Every owner so far runs one site, and the last two still named new needs.",
+      "action": "Talk to 4 more owners, 2 of them with more than one site.",
+      "why": "All 5 owners run one site. These calls show if a second site changes how they order.",
       "ask": ["Tell me about the last time you ran out of something. What did you do?"],
       "tip": "Ask what they did last time, not what they would like.",
       "traits": [
@@ -323,29 +331,29 @@ Write the overview for each core job that got new evidence, at the end of every 
       ],
       "rests_on": ["A.3.1", "A.3.2"],
       "round": [
-        {"kind": "new", "count": 2, "who": "Owners who order for two or more sites",
+        {"kind": "new", "count": 2, "who": "Owners who order for 2 or more sites",
          "traits": ["T1.2"], "gaps": ["T1.2", "A.3.2"],
          "questions": [{"ask": "Walk me through last Sunday's order, from the first item to sending it.",
-                        "listen": "how they guessed the amounts, and who checked them", "gaps": ["A.3.2"]}]},
+                        "listen": "how they chose the amounts: a guess means they lack numbers", "gaps": ["A.3.2"]}]},
         {"kind": "new", "count": 1, "who": "An owner whose chef counts the stock",
          "traits": ["T2.2"], "gaps": ["A.4"],
          "questions": [{"ask": "Tell me about the last time the count and the shelf did not match.",
-                        "listen": "what was thrown away, and when they noticed", "gaps": ["A.4"]}]}
+                        "listen": "what they threw away: wasted food means the count came too late", "gaps": ["A.4"]}]}
       ]
     },
     "prototype": {
       "status": "ready",
-      "action": "Sketch one thing, an order list built from last week's sales.",
-      "why": "All five raised it, and two paid for a stock app and gave it up.",
-      "test": "Ask two owners to place one real order from the sketch.",
-      "later": "Anything about staff rotas."
+      "action": "Draw an order list built from last week's sales, on one page.",
+      "why": "All 5 owners raised it, and 2 paid for a stock app and stopped using it.",
+      "test": "Ask Ana and Luis to place one real order from the drawing. Build it if both finish without help.",
+      "later": "Do not plan staff rotas yet."
     },
     "market": {
       "status": "early",
-      "action": "Keep a list of the owners who asked to see it.",
+      "action": "Write to Ana and Luis, who asked to see it, and offer to show the drawing.",
       "who": "Owners who place the orders themselves.",
       "words": ["half asleep"],
-      "unknown": "What they would pay."
+      "unknown": "Nobody said what they would pay. Ask the first owner who wants it to pay for a trial."
     }
   }
 }
@@ -369,7 +377,7 @@ kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<file>.json
 
 A clean dry run ends with "dry run OK". The tool refuses a quote or a solution the KB does not hold, a sentence over its word limit, a percentage or a score word, a word of the method ("core job", "desired outcome"), an unknown icon, a missing part, and a plan ID that is not a step, outcome or trait value of the core job. It warns on vague words such as "pain point" or "workflow": rewrite them in plain words unless they are the customers' own. It also warns when the round misses a thin spot the main finding rests on, or asks what people would do: fix those. It replaces that core job's overview and leaves other core jobs alone. Then run `review` and `map`.
 
-4. In your report, say who the study is about, give the bottom line and the three next steps in one line each, and point to the Overview view and the Next interviews view. The next steps are advice: say so. Never call a count a score.
+4. In your report, say who the study is about, give the bottom line and the three next steps in one line each, every step starting with a verb, and point to the Overview view and the Next interviews view. The next steps are advice: say so. Never call a count a score.
 
 The user changes the overview by telling you ("the bottom line is too strong", "we are ready to prototype"). Edit the file and run `overview` again; there is no proposal step.
 
@@ -409,7 +417,7 @@ kb_tool themes .pw-kb/pw-kb.json .pw-kb/patches/<file>.json
 
 The tool refuses a theme that cites an outcome or a quote the KB does not hold, and warns about a set that is too large, too small or overlapping. Fix what it refuses; weigh what it warns about. It replaces that core job's themes, keeps their IDs, leaves other core jobs alone and prints what changed. Then run `review` and `map`.
 
-4. Report each theme with its label, its need and its outcomes in words, how many people voiced them, and the outcomes left in no theme. Point to the Value themes view in the map. The counts are a signal from interviews, not an opportunity score: say so, and never call them a score.
+4. Report each theme with its label, its need and its outcomes in words, how many people voiced them, and the outcomes left in no theme. Point to the Value themes view in the map, and say what to do with the themes: put every idea under one theme, and build first for the theme most people raised. The counts are a signal from interviews, not an opportunity score: say so, and never call them a score.
 
 The user changes themes by telling you ("merge these two", "rename that one"). Edit the file and run `themes` again; there is no proposal step. When new interviews arrive, the themes are marked out of date. Update them only when asked, and keep the labels and groupings the team already uses.
 
@@ -422,11 +430,7 @@ Surveys and use cases are rebuilt only on request. When the study has several co
 The word limits, the banned tokens, the idioms allowed to contain "and" or "or" and the acronyms that need no spelling out are defaults for any market. A study can override them in `meta.style` of the KB, an object such as:
 
 ```json
-{
-  "limits": {"outcome": 14},
-  "acronyms": ["OTR", "ELD", "DOT"],
-  "idioms": ["bread and butter", "in and out", "pick and pack"]
-}
+{"limits": {"outcome": 14}, "acronyms": ["OTR", "ELD", "DOT"], "idioms": ["bread and butter", "in and out", "pick and pack"]}
 ```
 
 Set this when the user asks for different limits or when a market's everyday abbreviations keep tripping the acronym warning. `references/kb-schema.md` lists the keys.
@@ -450,7 +454,7 @@ For a no, write `no` in place of `yes`. `--assistant` is your host: `claude-code
 Claude Desktop is `claude-cowork` in a Cowork task, `claude-code` in its Code tab and `claude-ai` in a chat, as on claude.ai.
 
 - **Start** of every run of this skill: `start`, unless `pw-start` already ran it in this conversation. After a hand-off from `pw-start`, `set` and `end` repeat the `--skill` and `--path` that its `start` used.
-- **End:** `end`, once, after the last `kb_tool` command (and after `set`, when you asked) and before your final message, so the message stays your last line.
+- **End:** `end`, once, after the last `kb_tool` command (and after `set`, when you asked) and before your final message, so the message stays your last line. A decision asked with the question tool comes back in the same turn: ask, run `apply` and the rebuild, then `end`, then your last message. A question in plain text ends your turn, so run `end` before it. When the user answers later in the conversation, run `apply` and the rebuild without `start` or `end`: those runs are sent with the next session.
 - `usage: ask`: an existing study that was never asked. Ask the question below now, on its own.
 - `usage: no-study`: a new study. Ask the question in step 4 with the other start questions.
 - `usage: on`, `usage: off`, `usage: disabled`: never ask. Only the line `start` prints decides; never ask because of what `set` or `end` print.
@@ -489,9 +493,7 @@ The KB's fields are explained one by one in `references/kb-schema.md`. Read it b
 - `assets/discovery-map-template.html`: the interactive map viewer. `map` fills it with the KB. Opened on its own, it lets anyone load a KB file, `pw-kb.json`.
 - `assets/labels-en.js`: the English text of the map and the review sheet, the source of every study's own text. The template loads it from beside itself and `map` puts it inside each map, with the study's own labels. The template opened on its own shows English.
 - `references/pw-rules.md`: how to write each kind of statement, with examples and common mistakes. Read it before extracting.
-- `references/patch-format.md`: the patch format the merge accepts, with a worked example. Read it before writing a patch.
-- `references/patch-schema.json`: the same format as a JSON Schema, checked first by every merge.
-- `references/kb-schema.md`: every field of the KB, what it means and who writes it.
-- `references/kb-schema.json`: the same model as a JSON Schema (draft 2020-12), checked by `validate`, `merge` and `apply`.
+- `references/patch-format.md`: the patch format the merge accepts, with a worked example. Read it before writing a patch. `references/patch-schema.json` is the same format as a JSON Schema, checked first by every merge.
+- `references/kb-schema.md`: every field of the KB, what it means and who writes it. `references/kb-schema.json` is the same model as a JSON Schema (draft 2020-12), checked by `validate`, `merge` and `apply`.
 - `references/run-log.md`: what `.pw-kb/logs/kb_tool.jsonl` records, field by field, and every error and warning code.
 - `scripts/pw_usage.py`, `assets/usage-readme.md`, `references/usage.md`: the opt-in usage statistics, their README for the study folder and every event they send.

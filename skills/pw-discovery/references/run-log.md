@@ -194,6 +194,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `proposal_missing` | `apply` named a proposal that is not in the KB |
 | `proposal_decided` | `apply` named a proposal that was already approved or rejected |
 | `proposal_stale` | The proposal's target no longer exists as it was raised; fix the KB or reject it |
+| `output_closed` | The program reading the output stopped before the tool finished printing, as `\| head` does. Not a bug: no traceback, exit code 1 |
 | `crash` | The tool raised an unexpected exception. A bug; the traceback was printed |
 
 ## Reading the log with the changelog

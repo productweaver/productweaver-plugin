@@ -109,8 +109,9 @@ Once you know your way around, ask in plain words, for example:
 - "What do people use today to find suppliers, and what did they give up?"
 
 The assistant reads the transcripts, proposes what to add, and merges it into
-the knowledge base. It then writes a review sheet with decisions waiting for
-you and a discovery map you can open in any browser.
+the knowledge base. It then writes a review sheet and a discovery map you can
+open in any browser. After the first interviews, it asks you in the chat, with
+a click, whether it got right what these people are trying to get done.
 
 When the interviews are not in English, the assistant asks once, when the
 study starts, whether to write the study in the interviews' language or in

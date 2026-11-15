@@ -38,6 +38,20 @@ Before and after, from real runs:
 | Plan each load together with the next load out of its destination. | Plan each load around the freight leaving its destination. |
 | New lease-on dry-van owner-operator, four months in, leased to a Dallas carrier that dispatches him; former mega-carrier company driver. | New lease-on owner-operator whose carrier picks his loads. |
 
+## Plain language for a second-language reader
+
+Many readers read the study's language as a second language. They read each sentence once, then decide what to do. These rules hold for every sentence the user reads: statements, value themes, the overview, the plan for the next round and your report in the chat. Quotes stay as people said them.
+
+- **Who, then what they do, then to what.** Put the people first and use an active verb: "Owners count the stock on Sunday", not "Stock is counted weekly". Aim for 8 to 15 words. A word limit is the most you may write, not a length to reach.
+- **The most common word that fits.** "Use", "start", "enough", "about" and "help", not "utilize", "initiate", "sufficient", "regarding" and "facilitate".
+- **No idioms and no figures of speech.** They get lost in translation. "From memory, without numbers", not "by gut feeling". "Fails", not "falls short". "Know what is on the shelf", not "stay on top of stock". A customer's idiom stays inside the quote.
+- **Verbs with their plain meaning.** "Find", not "figure out". "Stopped using", not "gave up on". "Cancelled", not "fell through".
+- **Every "it", "this" and "they" has its noun in the same sentence.** When in doubt, repeat the noun.
+- **Say what is, not what is not.** "Owners order from memory", not "Owners do not rely on data". Never two negatives in one sentence.
+- **No chain of nouns.** "How they order from suppliers", not "the supplier order process".
+- **Digits and names, in the overview, the plan and the report.** "3 owners", "on Sunday night", "2 cases of fish", "the paper stock sheet". Not "a few owners", "regularly", "some tools".
+- **The fixed forms stay.** An outcome still opens with "Minimize…" and a theme's need with "Help me…". These rules hold for the words after the opening.
+
 ## Job executor
 
 The person who carries out the core job, described in the market's own terms: role, scale, setup and anything that changes how they do the job.
@@ -205,23 +219,24 @@ A value theme is a need in the customer's own voice that gathers the desired out
 | Need "Help me order through one app for all suppliers" | It names a solution. "Help me place the week's orders without chasing each supplier" |
 | Need "Help me cut waste and keep staff happy" | Two needs, so two themes |
 | Label "Inventory management optimization" | No verb, and nobody says it. "Order the right amount" |
+| Need "Help me stay on top of my stock" | An idiom. "Help me know what is on the shelf before I order" |
 | A theme with one outcome | Leave the outcome in no theme, or find the need it shares with others |
 
 ## Overview
 
 The overview is the first thing a person sees in the discovery map. Its reader is often a founder who has just started discovery and does not know the method. It tells one core job's study as a short story in six steps, each a question with a one-sentence answer: who you listened to, what they try to get done, how they do it today, where that falls short, what they most want to get better, and where a new solution should focus. Above the story sit who the study is about, the bottom line and what to do next.
 
-You write the sentences. The map counts everything else from the KB, so do not repeat its counts: how many people use a solution, how many raised a need, how many quotes there are. Saying how many people a claim rests on is different, and welcome: "one owner so far".
+You write the sentences. The map counts everything else from the KB, so do not repeat its counts: how many people use a solution, how many raised a need, how many quotes there are. Saying how many people a claim rests on is different, and welcome: "one owner so far", "All 5 owners raised it".
 
 **How to write it:**
 1. Run `context`. Read the outcomes with how many people voiced each, the current solutions with who stopped using them, and the value themes when there are some.
 2. Write `executor` first: who the study is about. Every sentence after it is about these people.
 3. Write the six answers. Read them in order: they must make sense as one story, each building on the one before.
-4. Then write the bottom line: the one thing a busy person must remember. Then `why` (why the problem is still there) and `opening` (where a new solution fits, with no feature named).
+4. Then write the bottom line: the one thing a busy person must remember, with what it costs the people. Then `why` (why the problem is still there) and `opening` (where a new solution fits, with no feature named).
 5. Write the gaps from what people said went wrong, and from the reasons they stopped using a solution. Each gap needs a quote.
 6. Write `next` last. It is advice, so it may go beyond the evidence, but each track names the evidence it rests on, in `why` or `who`, and says what is not known.
 7. When the core job has no value themes yet, `focus` names the need with the most support, and its `text` says the themes are not built.
-8. Read the whole overview once as a stranger would (see "The first-read test"), and rewrite every sentence that needs a second read.
+8. Read the whole overview once as a stranger would (see "The first-read test"), and rewrite every sentence that needs a second read. Then read it again with the "so what" test, and rewrite every sentence that leaves the reader with nothing to do or decide.
 
 **Who the study is about** (`executor`). The map shows it first, with an icon, so readers know whose story this is:
 - `label`: what these people would call themselves, in at most 4 words, singular: "Small-restaurant owner", not "Restaurant operators" or "Food-service decision maker". Add one detail only when it tells them apart from others in the story ("Small-restaurant owner", because the story also has chefs).
@@ -235,6 +250,16 @@ You write the sentences. The map counts everything else from the KB, so do not r
 - **Things you can picture.** An action, an object, a moment: "on Sunday night", "two cases of fish". Not "the supply side", "visibility", "inefficiencies".
 - **One idea per sentence.** No colon that joins two findings in the bottom line. If you need "and" twice, split it.
 - **Short, common words.** "Use", not "leverage"; "how they work", not "workflow"; "problem", not "pain point". The tool refuses words of the method and warns on these words, each with a plain one to use. Keep a warned word only when it is the customers' own word, and quote it.
+- **Plain language.** Every rule in "Plain language for a second-language reader" holds here: people first, common words, no idioms, digits.
+- **Explain each word of the trade once.** The reader may not work in this trade. Write "a bank rule, which sorts bank payments by itself" the first time, then "bank rule". In the next steps and in `listen`, describe what the reader will see or hear, in common words: "they changed a number to make the totals agree", not "a forced entry".
+- **Name every thing you count.** "3 needs that only Dana raised" tells the reader nothing unless the sentence names them. Name the 1 or 2 that matter, or leave the count out.
+
+**The "so what" test.** After each sentence the reader asks "so what?" and "what can I do with this?". The sentence must hold the answer:
+- `bottom_line`: who, what happens to them, and what it costs them in time, money or customers. "Owners throw away food every week because they order from memory, without numbers."
+- `why`: one cause that a product could remove. "The stock apps they tried need a count nobody has time to do."
+- `opening`: starts with a verb and says what a product must do for these people. A team can give it to a designer as the brief.
+- The six answers: full sentences with the people as the subject, never a fragment. "Owners most want to throw away less food", not "Above all, less waste". `focus` reads as an instruction: "Build first for ordering the right amount." Under an answer, `text` says what the answer means for what to build or who to talk to.
+- A gap: `label` says what goes wrong. `text` says when it happens and what it costs.
 
 **Rules for every sentence:**
 - **Plain words.** No method words: write "what they want to get better", not "desired outcome"; "the goal", not "core job". The tool refuses them.
@@ -245,23 +270,27 @@ You write the sentences. The map counts everything else from the KB, so do not r
 - **Do not join two people into one story.** `context` does not show who said what. Check in the KB whether the person with the problem is also the person who tried the fix. If not, say "one owner" and "another owner".
 - **A need that is already met is not a gap.** "I know my costs to the cent" shows something that works. Leave it out of the gaps.
 
-**What to do next:**
-- `learn`: `now` while new conversations still bring new needs, or some part of the job has fewer than 3 people. Name how many more people, and which kind. The questions in `ask` are about what the person did last time, never about what they would like or would pay.
-- `prototype`: `ready` only when most people raised the same need and at least one tried to solve it. Name one thing to sketch, how to test it with people from the study, and what to leave for later. When it is `early`, `action` says what must be true first ("Wait until three owners describe the same problem"), `test` says how you would try it once that is true, and `later` still names what to leave out.
-- `market`: `early` until someone has agreed to try or pay. Its evidence goes in `who` and `unknown`. `words` are phrases to reuse in messages, copied from the customers' quotes. `unknown` says what the interviews do not tell, such as price.
+**What to do next.** Each track is one thing the reader can start this week, without asking you how:
+- Every `action` starts with a verb and holds one action, with a number and a kind of person or thing: "Talk to 4 more owners, 2 of them with more than one site." Never "wait", "consider", "explore" or "validate": they give the reader nothing to do. When an action is about people from the study, name them by the first names the map shows: "Write to Ana and Luis", not "the 2 owners who lose the most time". The reader never saw the interviews.
+- Every `why` gives the evidence, then what the reader will know or can decide when the action is done: "All 5 owners run one site. These calls show if a second site changes how they order."
+- `learn`: `now` while new conversations still bring new needs, or some part of the job has fewer than 3 people. Name how many more people, and which kind. The questions in `ask` are about what the person did last time, never about what they would like or would pay. `tip` is one thing to do or say in the call.
+- `prototype`: `ready` only when most people raised the same need and at least one tried to solve it. Name one thing to make, in a form the reader can make in a day and with its form named: a drawing on one page, a draft message, a list. `test` says who, what they do, and the result that tells the reader to build it: "Ask Ana and Luis to place one real order from the drawing. Build it if both finish without help." `later` names what not to build yet: "Do not plan staff rotas yet." When it is `early`, `action` is the step that makes it ready ("Talk to 3 more owners, and draw it only when 3 describe the same problem"), `test` says how you would try it then, and `later` still names what to leave out.
+- `market`: `early` until someone has agreed to try or pay. `action` is a first small step with people from the study: "Write to Ana and Luis, who asked to see it, and offer to show the drawing." Its evidence goes in `who` and `unknown`. `words` are phrases to reuse in messages, copied from the customers' quotes. `unknown` says what the interviews do not tell, such as price, and how to find out.
 
 **Plan the next round** (`traits`, `rests_on` and `round` in `learn`). The goal is the fewest conversations that make the findings safer. Start from `context`'s OPEN GAPS: every gap a round names must be one of them.
 - `traits`: 2 or 3 things that change how people do the job, such as team size, how inputs arrive or the tools they use, never age or city unless it changes the work. Only people whose main goal is this core job go in a value: put each in the value that fits, or in none when you do not know. Add a value nobody has only when the interviews name such people ("the owner next door runs three sites"), or the first-round plan named them (a `pw-output/interview-guide.md`, or `.pw-kb/interview-guide.md` from plugin 0.11 or earlier, written before the first interview), and say so in `why`. In later rounds keep each trait's and value's ID and label, add new values with the next free number, and move people as you learn more: the next plan compares kinds of people by ID and label.
 - `rests_on`: the outcomes the bottom line and the focus stand on. OPEN GAPS marks their thin spots `main`, and lists them first.
-- `round`: at most 5 entries, in the order to do them. Start with the people who can back up the `main` gaps; when there are none, start with the entry that fills the most gaps. One entry is one kind of person; `count` says how many to find. Keep the total close to what OPEN GAPS says the next level needs, and go above it only when the gaps need different kinds of people.
-- Questions: about the last time they did that step, never about the need itself. To check "less risk of filing a receipt twice", ask how last month's receipts reached them, then listen. When someone else does the step (the client prints the album), ask about the last time they dealt with it. A gap of the kind "nobody yet" needs no question: talking to such a person closes it. `listen` says what would confirm the gap; add what would show it is not real when it fits in 15 words.
+- `round`: at most 5 entries, in the order to do them. Start with the people who can back up the `main` gaps; when there are none, start with the entry that fills the most gaps. One entry is one kind of person; `count` says how many to find. `who` names people the reader can search for or ask a contact to introduce: "Owners who order for 2 or more sites", not "multi-site operators". Keep the total close to what OPEN GAPS says the next level needs, and go above it only when the gaps need different kinds of people.
+- Questions: about the last time they did that step, never about the need itself. To check "less risk of filing a receipt twice", ask how last month's receipts reached them, then listen. When someone else does the step (the client prints the album), ask about the last time they dealt with it. A gap of the kind "nobody yet" needs no question: talking to such a person closes it.
+- How a question reads: the interviewer says it aloud, often in a second language, to a person who may hear it in a second language. Write it as you would say it across a table: under 15 words when you can, common words, no idiom, one topic. A question that joins two topics with "and" gets half an answer.
+- `listen` says what to write down, then what it shows, in words of its own: "how they chose the amounts: a guess means they lack numbers". Never close every line with the same words, such as "the problem is real". Keep the second part to a few words: the limit is 15 words for the whole line. Add what would show the gap is not real only when it still fits.
 - `action`, `why` and `ask` sum up the round for the Overview: `ask` holds its first 1 or 2 questions. Do not write how the last round went: kb_tool keeps each round's targets, and the map and `review.md` count what closed.
 
 | Before | After |
 |---|---|
 | Bottom line "There is a significant opportunity in inventory management" | It says nothing a person can picture. "Owners throw away food every week because they order by gut feeling" |
 | Opening "Build an app that predicts orders" | It names a feature. "Tell the owner what the week will need before the order goes out" |
-| Gap "Poor tooling" | "The stock sheet is wrong by Wednesday" |
+| Gap "Poor tooling" | "The sheet is wrong by Wednesday" |
 | Ask "Would you pay for a tool that plans your orders?" | It asks for an opinion. "Tell me about the last time you ran out of something. What did you do?" |
 | Ask "Do you also throw away fish?" | It names the need, so people agree to be polite. "Walk me through last week's fish order. What happened to what was left?" |
 | Today "80% use spreadsheets" | The map shows the counts. "Mostly by hand, with a paper stock sheet" |
@@ -269,6 +298,20 @@ You write the sentences. The map counts everything else from the KB, so do not r
 | Why "Ordering friction drives waste: the stack is fragmented" | Jargon. "Each supplier wants the order in a different way, so owners order from memory" |
 | Label "F&B operator" | Nobody calls themselves that. "Small-restaurant owner" |
 | Text "Owners and their suppliers who manage inventory" | Two groups, and a vague verb. "An owner who runs one restaurant and places every order themselves" |
+| Bottom line "Owners order by gut feeling" | An idiom, and no cost. "Owners throw away food every week because they order from memory, without numbers" |
+| Needs "Above all, less waste" | A fragment. Who wants it? "Owners most want to throw away less food at the end of the week" |
+| Focus "On ordering the right amount" | A fragment. "Build first for ordering the right amount" |
+| Action "Wait until three owners describe the same problem" | Nothing to do. "Talk to 3 more owners, and draw it only when 3 describe the same problem" |
+| Action "Validate the concept with users" | Who? Doing what? "Ask Ana and Luis to place one real order from the drawing" |
+| Action "Write to the 2 owners who lose the most food" | The reader cannot tell who they are. "Write to Ana and Luis, and offer to show the drawing" |
+| Action "Sketch a smarter ordering flow" | What does the reader make? "Draw an order list built from last week's sales, on one page" |
+| Why "4 needs come from 1 owner each" | Which needs? "Only Ana said the fish order is hard. These calls show if other owners say it too" |
+| Later "Leave rotas and reports to staff for later" | It reads two ways. "Do not plan staff rotas yet" |
+| Test "Show it to some owners" | No sign of success. "Ask Ana and Luis to place one real order from the drawing. Build it if both finish without help" |
+| Unknown "Pricing" | So what? "Nobody said what they would pay. Ask the first owner who wants it to pay for a trial" |
+| Ask "Can you tell me how you figure out your order amounts and how you keep track of what's left over?" | Long, two topics, two idioms. "Walk me through last Sunday's order, from the first item to sending it." |
+| Listen "ordering habits" | What to write down? What does it show? "how they chose the amounts: a guess means they lack numbers" |
+| Listen "what they threw away: it means the problem is real" | Which problem? Say it. "what they threw away: wasted food means the count came too late" |
 
 ## Writing in another language
 
@@ -277,6 +320,7 @@ A study has one language, `meta.language`, which `context` prints. Write every s
 - **The same rules, the same idea of short.** Everything in this file holds in every language. The tool allows about a fifth more words, because most languages need more words than English for the same idea. In Chinese, Japanese and Thai it counts letters instead.
 - **Keep the forms of the method.** An outcome is still direction, metric, object of control and context, in the language's natural order. In the first batch, pick one wording for each fixed part, such as "Ridurre al minimo il tempo per…" and "Ridurre al minimo la probabilità di…", and reuse it in every later outcome, so a reviewer reads the list as one family. Do the same for a theme's need ("Aiutami a…"), and for emotional ("sentirsi…", "evitare di sentirsi…") and social jobs ("essere visto come…").
 - **Use the customers' own words.** Write as the people you interviewed would say it, not as a translation of the English examples in this file. Product names stay as people say them.
+- **Plain language in every language.** "Plain language for a second-language reader" holds everywhere. Use the language's everyday words and its natural word order, never English phrasing word for word, and none of the language's own idioms.
 - **Plain words in every language.** The overview's rules hold everywhere: no words of the method, in English or translated ("lavoro principale", "risultato desiderato"), no percentages and no score words. The tool only knows the English words, so this check is yours.
 - **An interview in a third language.** Read it in its own language, write its statements in the study's language, and quote the person's original words.
 - **No abbreviations of the language's own** such as "ad es." or "z. B.": the tool only knows the English ones.

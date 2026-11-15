@@ -4,7 +4,7 @@ Most people who use this plugin are founders and product managers, not developer
 
 ## Rules for every host
 
-- Lead with one thing to open: the map, `pw-output/discovery-map.html`. It opens in any browser, works offline, and holds the rest: the Overview, the decisions waiting and the interview guide, in its Next interviews tab, where it can be printed or copied.
+- Lead with one thing to open: the map, `pw-output/discovery-map.html`. It opens in any browser, works offline, and holds the rest: the Overview, with the decisions waiting under "Decisions for you", and the interview guide, in its Next interviews tab, where it can be printed or copied.
 - When your host has a tool that shows a file to the user, use it. Otherwise give a link.
 - Check that the file exists before you link it.
 - Write the link text in plain words, such as "Open your discovery map", never as a path.

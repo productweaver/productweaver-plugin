@@ -4,6 +4,73 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.13.0 — 2026-11-15
+
+### What's new
+
+- **Confirm what your study is about with one click, in the chat.** After
+  your first interviews, the assistant shows what these people are trying to
+  get done, with three of its steps, and asks: "Is that right?" Choose
+  "Yes, that's it", or say what to change, and the map updates at once. You
+  no longer have to find a code in the map and type "approve P1". Other
+  decisions are asked the same way, at most three at a time.
+- **With no interviews yet, see where your calls lead.** Next to the guide
+  for your first interviews, pw-start now links to the example study, so you
+  can see the map you will have after your calls.
+
+### What's improved
+
+- **Findings you understand at first reading, and next steps you can start
+  this week.** The assistant now writes the Overview, the value themes and
+  the interview guide for people who read in a second language: short
+  sentences that start with the people, common words, no idioms, digits
+  for numbers. The main finding says what the problem costs these people.
+  Each next step starts with a verb and names how many people, of which
+  kind. A test says what result tells you to go on. Interview questions
+  are short enough to say aloud, and each "listen for" line says what to
+  write down and what it shows.
+- **An interview guide a first-time interviewer can follow.** The guide now
+  starts with five short steps, "How to use this guide", from finding the
+  people to giving the transcript to your assistant. Under each kind of
+  person it lists what to check before you book the call, and what the
+  study learns from the call, in plain words with no codes. It ends with
+  "More help for your calls": a message to ask for a call, how to get a
+  transcript, the words to open and end the call, what to ask when an
+  answer is short, and what to say if they ask what you are building. If your study
+  is in another language, the assistant writes these new lines in your
+  language the next time it updates the map.
+- **The map opens on what you learned and what to do now.** Under the main
+  finding, the Overview now shows "Decisions for you": each one as a plain
+  question, why it is asked, how many people back it, and two replies
+  written out in full, such as "In my Product Weaver study, the goal is
+  right: …", each with a Copy button, so you see what you will say. No
+  codes to look up. The review sheet lists the same replies under each
+  decision. Next interviews and the
+  Progress tab list the same decisions with the same words. "What to do
+  next" is open from the start, and the step to start with is marked.
+- **One name and one verb.** The chat, the map and the review sheet all say
+  "Decisions for you", and they ask you to confirm. The line under the
+  map's title, "This goal waits for you to confirm it", takes you to the
+  decision.
+- **A quieter map.** "Open a study file" moved from the top of the map to
+  How it was built; dropping a study file on the map still works. In the
+  details panel, the method's own words, such as the formal statement, sit
+  behind a small "Method details" toggle, after the plain words.
+- In a study that is not in English, the assistant writes the 13 new labels
+  of the map and the review sheet in your language the next time it runs.
+  Until then they show in English.
+
+### What's fixed
+
+- **No crash when the output is cut short.** When the assistant read only
+  the first lines of a long `kb_tool` output, for example with `| head`,
+  the tool showed an error and logged a crash. Now it stops quietly and
+  logs `output_closed`.
+- **Confirming the goal no longer marks your findings out of date.** After
+  a click on "Yes, that's it", the map said the findings were written
+  before the latest conversations. Confirming changes nothing the overview
+  says, so it now stays as it was.
+
 ## 0.12.0 — 2026-11-14
 
 ### What's improved

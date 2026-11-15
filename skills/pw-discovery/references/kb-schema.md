@@ -96,7 +96,7 @@ The letter is there even when the study has one core job (`A.6.3`), so no ID cha
 
 | Field | Type | Meaning |
 |---|---|---|
-| `limits` | object of kind to integer | Maximum words per kind of statement: `executor` (16), `job` (10), `step` (10), `outcome` (16), `feeling` (12), `rationale` (30, also a solution group's `why`), `solution` (6, a solution's name), `group` (6, a solution group's name), `theme` (6, a value theme's label), `need` (25, a value theme's need), `headline` (20), `finding` (50) and `action` (20) for the overview's sentences, `role` (4, the overview's label for who the study is about) and `who` (25, the sentence under it) |
+| `limits` | object of kind to integer | Maximum words per kind of statement: `executor` (16), `job` (10), `step` (10), `outcome` (16), `feeling` (12), `rationale` (30, also a solution group's `why`), `solution` (6, a solution's name), `group` (6, a solution group's name), `theme` (6, a value theme's label), `need` (25, a value theme's need), `headline` (20), `finding` (50) and `action` (20) for the overview's sentences, `role` (4, the overview's label for who the study is about) and `who` (25, the sentence under it), and for the plan for the next round `plan_who` (15, who to find), `question` (25) and `listen` (15) |
 | `banned` | list of strings | Tokens a statement may not contain. Default: `(`, `;`, `e.g.`, `i.e.`, ` and/or `, `/`, and the full-width and Arabic forms `（`, `；`, `／`, `؛`. A Greek study (`el`) drops `;`, its question mark |
 | `idioms` | list of strings | Phrases with "and" or "or" that are one idea. Default: `bread and butter`, `in and out` |
 | `acronyms` | list of strings | Abbreviations every reviewer in this market knows. Default: `OTR`, `US`, `UK`, `EU` |
@@ -324,9 +324,9 @@ The layer holds only the sentences the assistant writes. The map counts the rest
 |---|---|---|---|
 | `job` | core job ID | yes | The core job the overview is about |
 | `executor` | object | yes for `overview` | Who the study is about, shown first: see below. An overview written before 0.9.0 has none; the map then shows the core job's `job_executor`, and `context` marks the overview out of date |
-| `bottom_line` | string | yes | The main finding, in one sentence of at most 20 words |
+| `bottom_line` | string | yes | The main finding, with what it costs the people, in one sentence of at most 20 words |
 | `why` | string | yes | Why the problem is still there. At most 30 words |
-| `opening` | string | yes | Where a new solution fits. At most 30 words |
+| `opening` | string | yes | Where a new solution fits: starts with a verb and says what a product must do for these people. At most 30 words |
 | `people` | object | yes | Who was listened to: `answer` (at most 20 words), optional `text` (at most 50 words) and optional `quote` |
 | `today` | object | yes | How they get the job done today: `answer`, optional `text`. Every `answer` is at most 20 words and every `text` at most 50 |
 | `gaps` | object | yes | Where today's way falls short: `answer` and `items`, 1 to 5 gaps |
@@ -348,13 +348,13 @@ The layer holds only the sentences the assistant writes. The map counts the rest
 
 **A quote** is `{interview, quote}`. It must be a quote the KB already holds for that core job: on one of its steps, outcomes or solution uses, or in what a person linked to it said about themselves. The script fills in `source` and `name`.
 
-**A track** of `next` holds `status`, `action` (at most 20 words) and three more fields, each at most 30 words:
+**A track** of `next` holds `status`, `action` (at most 20 words: starts with a verb, one thing the reader can start this week) and three more fields, each at most 30 words:
 
 | Track | `status` | Other fields |
 |---|---|---|
-| `learn` | `now` or `enough` | `why`, `ask` (1 or 2 questions for the next conversations), `tip`, and the plan for the next round below |
-| `prototype` | `ready` or `early` | `why`, `test` (how to try it with real people), `later` (what to leave out for now) |
-| `market` | `ready` or `early` | `who` (whom to approach first), `words` (1 to 3 phrases in the customers' own words, each part of a quote in the KB), `unknown` (what is not known yet) |
+| `learn` | `now` or `enough` | `why` (the evidence, then what the reader will know when it is done), `ask` (1 or 2 questions for the next conversations), `tip` (one thing to do or say in the call), and the plan for the next round below |
+| `prototype` | `ready` or `early` | `why`, `test` (how to try it with real people: who, what they do, and the result that says build it), `later` (what to leave out for now) |
+| `market` | `ready` or `early` | `who` (whom to approach first), `words` (1 to 3 phrases in the customers' own words, each part of a quote in the KB), `unknown` (what is not known yet, and how to find out) |
 
 **The plan for the next round** sits in `learn`. Its three fields come together or not at all, and every ID in them must be a step, an outcome or a trait value of the core job. The map's Next interviews view, `review.md` and `interview-guide.md` show it.
 
@@ -362,7 +362,7 @@ The layer holds only the sentences the assistant writes. The map counts the rest
 |---|---|---|
 | `traits` | list | 2 or 3 people traits that change how the job gets done: `{id: "T1", name, values}`, each value `{id: "T1.1", label, interviews}`. Names and labels are at most 4 words. A person sits in at most one value of a trait. A value with no interviews is a kind of person not heard from yet |
 | `rests_on` | list of outcome IDs | 1 to 8 outcomes the main finding rests on. Their gaps rank first |
-| `round` | list | 1 to 5 entries, in the order to do them: `kind` (`new`), `count` (1 to 3 people), `who` (at most 15 words), optional `traits` (value IDs), `gaps` (1 to 4 IDs it fills) and `questions` (1 to 4 `{ask, listen, gaps}`: a question of at most 25 words, what to listen for in at most 15, and which of the entry's gaps it checks) |
+| `round` | list | 1 to 5 entries, in the order to do them: `kind` (`new`), `count` (1 to 3 people), `who` (at most 15 words), optional `traits` (value IDs), `gaps` (1 to 4 IDs it fills) and `questions` (1 to 4 `{ask, listen, gaps}`: a question of at most 25 words, easy to say aloud; what to write down and what it shows, in at most 15; and which of the entry's gaps it checks) |
 | `at_write` | object | *Computed.* When the plan was written: the round's targets and the people heard so far |
 | `previous` | object | *Computed.* The `at_write` of the plan before the last batch, so the next plan can say how that round went |
 
