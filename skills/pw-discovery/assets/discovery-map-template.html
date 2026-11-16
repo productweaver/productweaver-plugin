@@ -89,17 +89,17 @@ button{cursor:pointer}
 svg.ap-ic{width:16px;height:16px;flex:none;display:inline-block;vertical-align:-3px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;cursor:inherit}
 
 /* Liquid Glass: the controls that float over content. Text and cards below them stay solid. */
-aside.side,.search,.tgroup,.viewsw,.ap-cap,.legend,.madewith,.drawer,.tip{
+aside.side,.search,.tgroup,.viewsw,.ap-cap,.legend,.madewith,.drawer,.tip,.lv-note{
   background:var(--glass);-webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);
   box-shadow:var(--glass-edge),var(--shadow)}
-.drawer,.tip{background:var(--glass-strong)}
+.drawer,.tip,.lv-note{background:var(--glass-strong)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  aside.side,.search,.tgroup,.viewsw,.ap-cap,.legend,.madewith,.drawer,.tip{background:var(--surface)} }
+  aside.side,.search,.tgroup,.viewsw,.ap-cap,.legend,.madewith,.drawer,.tip,.lv-note{background:var(--surface)} }
 @media (prefers-reduced-transparency: reduce){
-  aside.side,.search,.tgroup,.viewsw,.ap-cap,.legend,.madewith,.drawer,.tip{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none} }
+  aside.side,.search,.tgroup,.viewsw,.ap-cap,.legend,.madewith,.drawer,.tip,.lv-note{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none} }
 @media (prefers-contrast: more){
   :root{--line:rgba(0,0,0,.3);--muted:#515154}
-  aside.side,.search,.tgroup,.viewsw,.ap-cap,.legend,.madewith,.drawer,.tip{background:var(--surface);outline:1px solid var(--muted)} }
+  aside.side,.search,.tgroup,.viewsw,.ap-cap,.legend,.madewith,.drawer,.tip,.lv-note{background:var(--surface);outline:1px solid var(--muted)} }
 
 /* title bar: the study on the left, the views in the middle, help on the right (like Calendar and Mail) */
 header.ap-bar{padding:10px 16px;display:grid;grid-template-columns:minmax(0,1.5fr) auto minmax(0,1fr);gap:8px 16px;align-items:center;
@@ -133,6 +133,48 @@ h1 .goal{color:inherit}
 .viewsw button:hover{background:var(--fill)}
 .viewsw button[aria-selected="true"]{background:var(--seg-on);box-shadow:0 0 0 .5px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.14);font-weight:600}
 .ap-dot{width:7px;height:7px;border-radius:50%;background:var(--amber-dot);flex:none}
+
+/* the live map: when it was updated (title bar), what is going on, what changed (a notice), what is new (badges) */
+.lv-stamp{border:0;background:none;color:var(--muted);font-size:12px;line-height:1.3;padding:5px 10px;border-radius:999px;
+  display:inline-flex;align-items:center;gap:7px;white-space:nowrap;min-width:0;max-width:min(40vw,440px);transition:background-color .2s,color .2s}
+.lv-stamp[hidden]{display:none}
+.lv-stamp span{overflow:hidden;text-overflow:ellipsis}
+.lv-stamp:hover{background:var(--fill);color:var(--ink)}
+.lv-stamp i{width:7px;height:7px;border-radius:50%;flex:none;background:var(--ok)}
+.lv-stamp.lv-wait i,.lv-stamp.lv-dead i{display:none}
+.lv-stamp.lv-busy{color:var(--link);background:var(--accent-soft)}
+.lv-stamp.lv-busy i{background:var(--accent-ring);animation:lv-pulse 1.4s ease-in-out infinite}
+.lv-stamp.lv-ready{color:#fff;background:var(--accent);font-weight:600}
+.lv-stamp.lv-ready:hover{filter:brightness(1.08)}
+.lv-stamp.lv-ready i{background:#fff}
+.lv-stamp.lv-fresh{animation:lv-flash 2.6s var(--ease)}
+@keyframes lv-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
+@keyframes lv-flash{0%,35%{background:var(--ok-soft);color:var(--ok-ink)}100%{background:transparent}}
+.lv-stamp[aria-expanded="true"]:not(.lv-busy):not(.lv-ready){background:var(--fill);color:var(--ink)}
+/* the card opens under the stamp, its caret on it: where the reader just clicked, or where the stamp just flashed after
+   an update. The script places it: inside the title bar it would sit below the drawer. */
+.lv-note{position:absolute;top:0;left:0;z-index:35;width:max-content;max-width:min(340px,calc(100vw - 24px));box-sizing:border-box;
+  display:flex;gap:10px;align-items:flex-start;padding:10px 8px 10px 12px;border-radius:14px;font-size:13px;line-height:1.4;color:var(--ink);
+  transform-origin:var(--lv-caret,50%) 0;animation:lv-in .2s var(--ease)}
+.lv-note::before{content:"";position:absolute;top:-6px;left:calc(var(--lv-caret,50%) - 6px);width:12px;height:12px;border-radius:2px 0 0 0;
+  transform:rotate(45deg);clip-path:polygon(0 0,100% 0,0 100%);background:inherit;-webkit-backdrop-filter:inherit;backdrop-filter:inherit;
+  box-shadow:inset .5px .5px 0 rgba(0,0,0,.12)}
+.lv-note[hidden]{display:none}
+.lv-note .lv-body{display:grid;gap:4px;min-width:0;padding-top:1px}
+.lv-note p{margin:0}
+.lv-note .lv-more{color:var(--muted);font-size:12px}
+.lv-note > svg.ap-ic{width:20px;height:20px;padding:4px;border-radius:50%;background:var(--ok);color:#fff;stroke-width:2.4;box-sizing:border-box}
+.lv-note.lv-info > svg.ap-ic{background:var(--accent)}
+.lv-note button{flex:none;border:0;background:var(--fill);color:var(--muted);border-radius:50%;width:26px;height:26px;padding:0;display:grid;place-items:center;margin:-3px 0}
+.lv-note button:hover{background:var(--fill2);color:var(--ink)}
+.lv-note button svg.ap-ic{width:11px;height:11px;stroke-width:2.2}
+@keyframes lv-in{from{opacity:0;transform:translateY(-4px) scale(.98)}}
+.lv-new{display:inline-block;margin-inline-start:6px;padding:0 7px;border-radius:999px;background:var(--accent);color:#fff;font:600 10.5px/17px var(--font);
+  letter-spacing:.01em;vertical-align:1px;white-space:nowrap}
+.node .t2 .lv-newt{fill:var(--link);font-weight:700}
+@media (prefers-reduced-motion: reduce){.lv-stamp i,.lv-stamp.lv-fresh,.lv-note{animation:none!important}}
+@media (max-width:620px){.lv-stamp{max-width:42vw}}
+@media print{.lv-stamp,.lv-note{display:none!important}}
 @media (max-width:1100px){
   header.ap-bar{grid-template-columns:minmax(0,1fr) auto}
   .viewsw{grid-column:1 / -1;grid-row:2}
@@ -832,6 +874,7 @@ table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
     <button type="button" role="tab" id="vNext" aria-selected="false" aria-controls="nextview" tabindex="-1" hidden><span data-t="map.view.next"></span><span class="ap-dot" id="thinChip" data-tip="" hidden><span class="ap-sr" id="thinWords"></span></span></button>
   </div>
   <div class="actions">
+    <button class="lv-stamp lv-wait" id="lvStamp" type="button" aria-expanded="false" aria-controls="lvNote" hidden><i aria-hidden="true"></i><span id="lvStampText"></span></button>
     <button class="btn primary" id="btnOpen" type="button" data-t="map.file.open" hidden></button>
     <div class="ap-cap">
       <button class="ap-ib" id="btnRead" type="button" data-t-title="map.btn.read"><svg class="ap-ic" viewBox="0 0 16 16" aria-hidden="true"><use href="#ap-help"/></svg><span class="ap-sr" data-t="map.btn.read"></span></button>
@@ -883,12 +926,14 @@ table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
 <div id="nxkit" class="kit"></div>
 
 <div class="tip" id="tip" hidden></div>
+<div class="lv-note" id="lvNote" hidden><svg class="ap-ic" viewBox="0 0 16 16" aria-hidden="true"><use href="#ap-check"/></svg><div class="lv-body"><p id="lvText"></p><p class="lv-more" id="lvMore" hidden></p></div><button id="lvX" type="button" data-t-aria="map.live.hide"><svg class="ap-ic" viewBox="0 0 16 16" aria-hidden="true"><use href="#ap-x"/></svg></button></div>
+<div class="ap-sr" id="lvSay" role="status"></div>
 <div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mTitle"><button class="dclose" id="mClose" type="button" data-t-aria="map.modal.close"><svg class="ap-ic" viewBox="0 0 16 16" aria-hidden="true"><use href="#ap-x"/></svg></button><div id="mBody"></div></div></div>
 <div class="drop" id="drop" data-t="map.file.drop" hidden></div>
 
 <script src="labels-en.js"></script>
 <script>
-/* @kb-schema:3 */ /* draws KBs of schema 3 (and 2, the same data in YAML), with one or more core jobs, and still reads schema 1 */
+/* @kb-schema:3 */ /* @live:1 */ /* draws KBs of schema 3 (and 2, the same data in YAML), with one or more core jobs, and still reads schema 1 */
 /* @kb-data:start */
 const SAMPLE = {"meta":{"project":"Open a study file to begin"}};
 /* @kb-data:end */
@@ -1247,7 +1292,7 @@ function renderPeople(){
   const p = document.getElementById("pane-people");
   p.innerHTML = `<p class="hint">${esc(sentences(t("map.people.hint"), many() ? t("map.people.hint_jobs") : ""))}</p>` +
     M.ivs.map(i=>`<button class="person" type="button" data-iv="${esc(i.id)}" aria-pressed="false"><i class="ap-av" aria-hidden="true">${esc(initials(i.name))}</i>
-      <span class="nm">${esc(i.name)}<small>${th("map.count.quotes",{n:i.quoteCount})}</small></span>
+      <span class="nm">${esc(i.name)}${newTag("iv",i.id)}<small>${th("map.count.quotes",{n:i.quoteCount})}</small></span>
       <span class="role">${esc(i.who||"")}</span>${jobBadges(i)}</button>`).join("");
   p.querySelectorAll(".person").forEach(b=>b.addEventListener("click",()=>{
     const on = b.getAttribute("aria-pressed")!=="true";
@@ -1459,7 +1504,8 @@ function render(keepId){
     const isSol = n.type==="sol", gone = isSol && !n.ref.cur.length, kind = isSol ? (KINDS[n.ref.sol.kind] ? n.ref.sol.kind : "other") : "";
     const label = isSol ? t(gone?"map.node.sol_gone":"map.node.sol_used", {name:n.ref.sol.name, details:joinList([n.meta, n.meta2].filter(Boolean))})
       : n.type==="step" ? t("map.node.step", {key:n.ref.key, text:n.ref.text}) : n.type==="out" ? t("map.node.out", {text:n.ref.plain}) : (n.lines||[]).join(" ");
-    let g=`<g class="node ${n.type}${isSol?" mk-k-"+kind:""}${gone?" gone":""}${n.dim?" dim":""}${anyHL&&m===true?" hit":""}${selected===n.id?" sel":""}" data-id="${esc(n.id)}" transform="translate(${n.x},${n.y})" tabindex="0" role="button" aria-label="${esc(label)}">`;
+    const fresh = nodeNew(n), freshText = !fresh ? "" : fresh===true ? t("map.live.new") : t("map.live.new_inside", {n:fresh});
+    let g=`<g class="node ${n.type}${isSol?" mk-k-"+kind:""}${gone?" gone":""}${n.dim?" dim":""}${anyHL&&m===true?" hit":""}${selected===n.id?" sel":""}" data-id="${esc(n.id)}" transform="translate(${n.x},${n.y})" tabindex="0" role="button" aria-label="${esc(freshText?sentences(label, freshText):label)}">`;
     // a solution is a pill; steps and measures are boxes with small corners
     // a soft lower edge stands in for a shadow: a CSS filter on every box would slow down panning
     const rx = n.type==="root"?16:n.type==="stage"?12:isSol?Math.min(n.h/2,26):10;
@@ -1475,7 +1521,7 @@ function render(keepId){
     if(isSol){ const cy=n.h/2; g+=`<circle class="mk-disc" cx="23" cy="${cy}" r="11"/><use class="mk-glyph" href="#mk-i-${kind}" x="16" y="${cy-7}" width="14" height="14"/>`; }
     const tx = TX[n.type]||14;
     n.lines.forEach((l,i)=>{ g+=`<text class="t1" x="${tx}" y="${22+i*17}">${esc(l)}</text>`; });
-    g+=`<text class="t2" x="${tx}" y="${22+n.lines.length*17+4}">${esc(n.meta)}</text>`;
+    g+=`<text class="t2" x="${tx}" y="${22+n.lines.length*17+4}">${esc(n.meta)}${freshText?`<tspan class="lv-newt"> · ${esc(freshText)}</tspan>`:""}</text>`;
     if(n.meta2) g+=`<text class="t2" x="${tx}" y="${22+n.lines.length*17+18}">${esc(n.meta2)}</text>`;
     if(n.type==="step" && n.ref.allPeople.length<3){ g+=`<circle class="thinflag" cx="${n.w-12}" cy="12" r="5"><title>${th("map.node.thin")}</title></circle>`; }
     if(n.type==="step" && n.ref.outs.length){ const open=expanded.has(n.id);
@@ -1690,7 +1736,7 @@ function setView(want, keepMap){
   if(overMode) renderOverView();
   if(nextMode) renderNxView();
   if(panel){ panel.scrollTop=0; }
-  else if(!keepMap) requestAnimationFrame(()=>fit(true));
+  else if(!keepMap) requestAnimationFrame(()=>{ if(Date.now()>LV.keep) fit(true); }); // not while a reload restores the place
   try{ history.replaceState(null, "", "#"+v); }catch(e){} // a reload after a rebuild keeps this view
 }
 /* discovery-map.html#next opens that view, when the study has it; anything else keeps the view load() chose */
@@ -1712,18 +1758,18 @@ function renderSolView(){
   const stepsIn = list => `<span>${list.map(a=>`<span class="sline">${esc(a.step.text)}</span>`).join("")}</span>`;
   const col = key => esc(t(key));
   const row = x => `<tr data-row="${esc(x.sol.id)}"${solOn(x.sol)?' class="on"':""}>
-      <th scope="row" data-l="${col("map.sol.col.solution")}"><button type="button" class="solname" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button></th>
+      <th scope="row" data-l="${col("map.sol.col.solution")}"><button type="button" class="solname" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button>${newTag("sol",x.sol.id)}</th>
       <td data-l="${col("map.sol.col.type")}">${ktag(x.sol.kind)}</td>
       <td data-l="${col("map.sol.col.mentions")}"><span class="mcell"><span class="mbar" aria-hidden="true"><i style="width:${Math.round(100*x.ment/maxM)}%"></i></span>${x.ment}</span></td>
       <td data-l="${col("map.sol.col.people")}">${esc(names(x.cur))}</td>
       <td data-l="${col("map.sol.col.steps")}">${stepsIn(x.at.filter(a=>a.cur.length))}</td></tr>`;
   const group = g => `<tbody><tr class="ghead"><th colspan="5" scope="colgroup"><button type="button" class="gbtn" data-group="${esc(g.g.id)}" aria-pressed="${!!solHL && solHL.kind==="group" && solHL.id===g.g.id}">
-      <span class="gname">${esc(g.g.name)}</span><span class="gnum">${th("map.count.mentions",{n:g.ment})} · ${th("map.count.people",{n:g.people.length})}</span>
+      <span class="gname">${esc(g.g.name)}${newTag("group",g.g.id)}</span><span class="gnum">${th("map.count.mentions",{n:g.ment})} · ${th("map.count.people",{n:g.people.length})}</span>
       ${g.g.why?`<span class="gwhy"><b>${th("map.sol.why_grouped")}</b> ${esc(g.g.why)}</span>`:""}</button></th></tr>${g.items.map(row).join("")}</tbody>`;
   const why = x => { const e=x.stopEv.find(v=>x.stop.includes(v.interview))||x.stopEv[0];
     return e?`<span class="why">${esc(quoted(short(e.quote,140)))}<small>${esc(M.ivById[e.interview]?.name||"")}</small></span>`:`<span class="hint">${th("map.sol.no_reason")}</span>`; };
   const goneRow = x => `<tr data-row="${esc(x.sol.id)}"${solOn(x.sol)?' class="on"':""}>
-      <th scope="row" data-l="${col("map.sol.col.solution")}"><button type="button" class="solname" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button></th>
+      <th scope="row" data-l="${col("map.sol.col.solution")}"><button type="button" class="solname" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button>${newTag("sol",x.sol.id)}</th>
       <td data-l="${col("map.sol.col.type")}">${ktag(x.sol.kind)}</td>
       <td data-l="${col("map.sol.col.who_stopped")}">${esc(names(x.stop))}</td>
       <td data-l="${col("map.sol.col.step")}">${stepsIn(x.at.filter(a=>a.stop.length))}</td>
@@ -2057,7 +2103,7 @@ overview.addEventListener("click",e=>{
 
 /* ---------- details drawer ---------- */
 const drawer=document.getElementById("drawer");
-function closeDrawer(){ drawer.classList.remove("open"); document.getElementById("stage").classList.remove("has-drawer"); selected=null; document.querySelectorAll(".node.sel").forEach(n=>n.classList.remove("sel")); }
+function closeDrawer(){ LV.open=null; drawer.classList.remove("open"); document.getElementById("stage").classList.remove("has-drawer"); selected=null; document.querySelectorAll(".node.sel").forEach(n=>n.classList.remove("sel")); }
 document.getElementById("dClose").onclick=closeDrawer;
 function setDrawer(kind,title,body,mark){ document.getElementById("dKind").innerHTML=(mark||"")+esc(kind); document.getElementById("dTitle").textContent=title; document.getElementById("dBody").innerHTML=body; drawer.classList.add("open"); document.getElementById("stage").classList.add("has-drawer");
   // links that point at the map leave the Solutions view first
@@ -2078,6 +2124,7 @@ function quotesHTML(ev){
 const methodHTML = inner => `<details class="mdet"><summary>${th("map.drawer.method")}</summary><div class="formal">${inner}</div></details>`;
 function dots(n){ let h=""; for(let i=0;i<5;i++) h+=`<i class="${i<Math.min(5,n)?"on":""}"></i>`; return `<span class="dots" aria-label="${esc(t("map.count.people",{n}))}">${h}</span>`; }
 function openDetails(n){
+  LV.open={k:"node", id:n.id};
   if(n.type==="root"){
     const job=M.jobById[M.job];
     const linked = job ? M.ivs.filter(i=>i.main===job.id || i.also.includes(job.id)) : M.ivs;
@@ -2100,7 +2147,7 @@ function openDetails(n){
       ${meter(s.allPeople.length)}
       ${s.allPeople.length<3?`<div class="flag">${th("map.drawer.step.thin",{n:s.allPeople.length})}</div>`:""}
       ${s.covers?`<div class="explain">${esc(s.covers)}</div>`:""}
-      <div><div class="sect">${th("map.drawer.step.outs",{count:s.outs.length})}</div><div class="olist">${s.outs.slice().sort((a,b)=>b.people.length-a.people.length).map(o=>`<button class="oitem" type="button" data-go="${o.id}"><span>${esc(o.plain)}</span>${dots(o.people.length)}</button>`).join("")||`<p class="hint">${th("map.common.none_yet")}</p>`}</div></div>
+      <div><div class="sect">${th("map.drawer.step.outs",{count:s.outs.length})}</div><div class="olist">${s.outs.slice().sort((a,b)=>b.people.length-a.people.length).map(o=>`<button class="oitem" type="button" data-go="${o.id}"><span>${esc(o.plain)}${newTag("out",o.oid)}</span>${dots(o.people.length)}</button>`).join("")||`<p class="hint">${th("map.common.none_yet")}</p>`}</div></div>
       ${M.hasSols?stepSolsHTML(s):""}
       <div><div class="sect">${th("map.drawer.step.quotes")}</div>${quotesHTML(s.ev)}</div>`, mkStep(s.key));
     return;
@@ -2116,6 +2163,7 @@ function openDetails(n){
 }
 function openPerson(id){
   const i=M.ivById[id]; if(!i) return;
+  LV.open={k:"person", id};
   const solN=i.solsUsed.length+i.solsStopped.length;
   const jobList=(arr,label)=>arr.length?`<div><div class="sect">${label}</div><div class="feel">${arr.map(j=>`<div>${esc(j.statement)}</div>`).join("")}</div></div>`:"";
   const bold = (key, n) => `<b>${th(key,{n})}</b>`;
@@ -2134,17 +2182,18 @@ function openPerson(id){
     ${i.solsStopped.length?`<div><div class="sect">${th("map.drawer.person.stopped")}</div><div class="olist">${i.solsStopped.map(solItem).join("")}</div></div>`:""}
     <div class="callout">${added}</div>`);
 }
-const solItem = s => `<button class="oitem" type="button" data-sol="${esc(s.id)}"><span>${esc(s.name)}</span><span class="meta">${ktag(s.kind)}</span></button>`;
+const solItem = s => `<button class="oitem" type="button" data-sol="${esc(s.id)}"><span>${esc(s.name)}${newTag("sol",s.id)}</span><span class="meta">${ktag(s.kind)}</span></button>`;
 const scopeTotal = () => many() && M.jobById[M.job] ? M.jobById[M.job].people.length : M.ivs.length;
 /* step drawer: what people use for this step today, and what they dropped */
 function stepSolsHTML(s){
   const now=s.sols.filter(x=>x.cur.length), gone=s.sols.filter(x=>x.stop.length);
   return `<div><div class="sect">${th("map.drawer.step.uses",{count:now.length})}</div>
-    <div class="olist">${now.map(x=>`<button class="oitem" type="button" data-sol="${esc(x.sol.id)}"><span>${esc(x.sol.name)}</span><span class="meta">${ktag(x.sol.kind)}<span>${th("map.count.people",{n:x.cur.length})}</span></span></button>`).join("")||`<p class="hint">${th("map.drawer.step.uses_none")}</p>`}</div>
+    <div class="olist">${now.map(x=>`<button class="oitem" type="button" data-sol="${esc(x.sol.id)}"><span>${esc(x.sol.name)}${newTag("sol",x.sol.id)}</span><span class="meta">${ktag(x.sol.kind)}<span>${th("map.count.people",{n:x.cur.length})}</span></span></button>`).join("")||`<p class="hint">${th("map.drawer.step.uses_none")}</p>`}</div>
     ${gone.length?`<p class="hint" style="margin:6px 0 0">${th("map.drawer.step.stopped",{items:gone.map(x=>`<button type="button" class="linkbtn" data-sol="${esc(x.sol.id)}">${esc(x.sol.name)}</button> (${esc(names(x.stop))})`).join(esc(t("map.text.list_sep")))})}</p>`:""}</div>`;
 }
 function openSolution(id){
   const s=M.solById[id]; if(!s) return;
+  LV.open={k:"sol", id};
   const inJob=M.sols.items.find(x=>x.sol===s), sc=inJob||M.solAll.items.find(x=>x.sol===s); if(!sc) return;
   const g=s.group?M.groupById[s.group]:null, other=many()?s.jobs.filter(j=>j!==M.job):[];
   const where=a=>joinList([a.cur.length?t("map.count.people",{n:a.cur.length}):t("map.common.no_one_now"), a.stop.length?t("map.common.stopped",{n:a.stop.length}):""].filter(Boolean));
@@ -2159,6 +2208,7 @@ function openSolution(id){
 }
 function openGroup(id){
   const g=M.groupById[id]; if(!g) return;
+  LV.open={k:"group", id};
   const its=M.sols.items.filter(x=>x.sol.group===id).sort((a,b)=>b.cur.length-a.cur.length||b.ment-a.ment);
   const ppl=[...new Set(its.flatMap(x=>x.cur))];
   setDrawer(t("map.drawer.group.kind"), g.name, `
@@ -2227,7 +2277,7 @@ document.getElementById("btnOpen").onclick=()=>fileIn.click();
 fileIn.onchange=()=>{ if(fileIn.files[0]) readFile(fileIn.files[0]); fileIn.value=""; };
 function readFile(f){ const r=new FileReader(); r.onload=()=>{ try{
     if(/\.ya?ml$/i.test(f.name)) throw new Error(t("map.file.yaml_old"));
-    load(JSON.parse(String(r.result))); }
+    load(JSON.parse(String(r.result)), true); }
   catch(err){ openModal(`<h2 id="mTitle">${th("map.file.error_title")}</h2><div class="err">${esc(err.message)}</div><p>${th("map.file.open_help",{path:"<b>.pw-kb/pw-kb.json</b>"})}</p>`); } }; r.readAsText(f); }
 let dragDepth=0; const dropEl=document.getElementById("drop");
 addEventListener("dragenter",e=>{ e.preventDefault(); dragDepth++; dropEl.hidden=false; });
@@ -2443,22 +2493,314 @@ function nxKitDone(){
 addEventListener("beforeprint",()=>{ if(viewNow()==="next" && !document.body.classList.contains("nx-print")) nxKitPrep(); });
 addEventListener("afterprint", nxKitDone);
 
+/* ---------- the live map ---------- */
+/* A map that kb_tool wrote into the study's pw-output folder follows the study. kb_tool also writes
+   .map-live/status.js beside it: the map's build, when it was made, and what the assistant is doing. The map loads that
+   file again every few seconds: a page opened from disk may load a script beside it, but not fetch a file, and the
+   query makes Safari read it again. When it names a newer build, the map reloads itself and keeps the reader's place;
+   it waits while a window is open, the kit is printing, text is selected or the map is being moved. The title bar says
+   when the map last changed, that the study is being updated, or that this copy does not update by itself. A notice
+   says what changed, and New badges mark what this browser has not seen yet. */
+const LV = {own:"", at:"", user:false, state:"wait", everOk:false, errs:0, seq:0, busy:false, timer:0, workRaw:null,
+  ready:null, open:null, newest:0, base:0, from:null, pending:false, asked:false, noteTimer:0, seenTimer:0, titleMark:null, ss:null, ls:null, keep:0, st:null,
+  test:!!window.PW_LIVE_TEST, fresh:{iv:new Set(), out:new Set(), sol:new Set(), group:new Set()},
+  reload:()=>location.reload()};
+const lvKey = k => "pw-map:"+location.pathname+":"+k;
+function lvStore(kind){ try{ const s=window[kind], k=lvKey("probe"); s.setItem(k,"1"); s.removeItem(k); return s; }catch(_){ return null; } }
+function lvGet(s, k){ try{ const v=s && s.getItem(lvKey(k)); return v ? JSON.parse(v) : null; }catch(_){ return null; } }
+function lvSet(s, k, v){ try{ if(s){ if(v==null) s.removeItem(lvKey(k)); else s.setItem(lvKey(k), JSON.stringify(v)); } }catch(_){} }
+const lvList = v => Array.isArray(v) ? v : [];
+const lvTime = c => Date.parse(c && (c.ts || c.date)) || 0;
+const lvNewest = log => Math.max(0, ...lvList(log).map(lvTime));
+const lvFile = () => { try{ return decodeURIComponent(location.pathname.split("/").pop() || ""); }catch(_){ return ""; } };
+const lvPanel = () => ["overview","solview","themeview","nextview"].map(id=>document.getElementById(id)).find(p=>!p.hidden) || null;
+/* what is new: the people, measures of success, solutions and groups that merges added after the reader's baseline */
+function lvFresh(log, base){
+  const f={iv:new Set(), out:new Set(), sol:new Set(), group:new Set()};
+  lvList(log).forEach(c=>{ if(!c || c.action!=="merge" || lvTime(c)<=base) return;
+    lvList(c.added_interviews).forEach(x=>f.iv.add(String(x))); lvList(c.new_outcomes).forEach(x=>f.out.add(String(x)));
+    lvList(c.new_solutions).forEach(x=>f.sol.add(String(x))); lvList(c.new_solution_groups).forEach(x=>f.group.add(String(x))); });
+  return f;
+}
+const newTag = (kind, id) => LV.fresh[kind].has(String(id)) ? `<span class="lv-new" title="${esc(t("map.live.new_tip"))}">${th("map.live.new")}</span>` : "";
+/* on the map: true for a new box, or how many new measures of success a closed step holds */
+function nodeNew(n){
+  if(n.type==="out") return LV.fresh.out.has(String(n.ref.oid));
+  if(n.type==="sol") return LV.fresh.sol.has(String(n.ref.sol.id));
+  if(n.type==="step" && !expanded.has(n.id)) return n.ref.outs.filter(o=>LV.fresh.out.has(String(o.oid))).length;
+  return false;
+}
+function lvAgo(at){
+  const d=Date.parse(at); if(isNaN(d)) return "";
+  const m=Math.floor((Date.now()-d)/60000);
+  if(m<1) return t("map.live.now");
+  if(m<60) return t("map.live.min", {n:m});
+  const h=Math.floor(m/60); if(h<24) return t("map.live.hour", {n:h});
+  const days=Math.floor(h/24); if(days<7) return t("map.live.day", {n:days});
+  return t("map.live.on", {date:new Date(d).toLocaleDateString(locale(), {month:"short", day:"numeric", year:"numeric"})});
+}
+const lvWhen = at => { const d=new Date(at); return isNaN(d) ? "" : d.toLocaleString(locale(), {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"}); };
+/* what the assistant is doing; a run past twice its estimate plus 5 minutes has stopped, and the map stops saying so */
+function lvWork(w){
+  if(!w || typeof w!=="object") return null;
+  const since=Date.parse(w.since), expect=(+w.expect_s||0)*1000;
+  if(isNaN(since) || !(expect>0) || Date.now()>since+2*expect+300000) return null;
+  return {phase:w.phase, n:+w.n||0, since, expect};
+}
+/* the title bar says the time left; what the assistant is doing goes in its tip and in the notice a click shows */
+function lvWorkText(w){
+  const left = Math.ceil((w.since+w.expect-Date.now())/60000);
+  return t("map.live.busy", {left:left>0 ? t("map.live.left", {n:left}) : t("map.live.late")});
+}
+const lvDoing = w => w.phase==="summary" ? t("map.live.writing") : t("map.live.reading", {n:w.n});
+const lvWorkTip = w => sentences(lvDoing(w), t("map.live.busy_tip"));
+const lvWorkSay = w => sentences(lvWorkText(w)+t("map.text.full_stop"), lvWorkTip(w));
+function lvStamp(){
+  const el=document.getElementById("lvStamp");
+  if(!M || !M.made || LV.user || !LV.own || /(^|\.)productweaver\.com$/.test(location.hostname)){
+    el.hidden=true; document.getElementById("lvNote").hidden=true; el.setAttribute("aria-expanded", "false"); return; }
+  const w = LV.state==="ok" ? lvWork(LV.workRaw) : null;
+  let cls="lv-wait", text=lvAgo(M.made.at), tip=t("map.live.tip");
+  if(LV.ready){ cls="lv-ready"; text=t("map.live.ready"); tip=t("map.live.ready_tip"); }
+  else if(w){ cls="lv-busy"; text=lvWorkText(w); tip=lvWorkTip(w); }
+  else if(LV.state==="dead"){ cls="lv-dead"; text=t("map.live.static", {when:lvWhen(M.made.at)}); tip=t("map.live.static_tip"); }
+  else if(LV.state==="ok") cls="lv-ok";
+  el.className = "lv-stamp "+cls+(el.classList.contains("lv-fresh") ? " lv-fresh" : "");
+  const box=document.getElementById("lvNote");
+  document.getElementById("lvStampText").textContent=text; el.title = box.hidden ? tip : ""; el.hidden=false;
+  if(!box.hidden){ if(LV.asked && !LV.ready) lvFill(...lvCard()); lvPlace(); }
+}
+/* the card under the stamp: what changed (a green check), or what the stamp means (blue). It opens where the reader is
+   looking: at the stamp they clicked, which then keeps it open until they close it, or at the stamp that has just
+   flashed after an update, which closes it 8 seconds after the reader is back in this window. */
+function lvSay(text){ const say=document.getElementById("lvSay"); say.textContent=""; setTimeout(()=>{ say.textContent=text; }, 400); }
+function lvFill(text, more, update){
+  const box=document.getElementById("lvNote"), m=document.getElementById("lvMore");
+  document.getElementById("lvText").textContent=text; m.textContent=more||""; m.hidden=!more;
+  box.classList.toggle("lv-info", !update);
+  box.querySelector("use").setAttribute("href", update ? "#ap-check" : "#ap-info");
+}
+/* what a click on the stamp shows: its state in full, as [text, more, update] */
+function lvCard(){
+  const w = LV.state==="ok" ? lvWork(LV.workRaw) : null;
+  if(w) return [sentences(lvWorkText(w)+t("map.text.full_stop"), lvDoing(w)), t("map.live.busy_tip"), false];
+  if(LV.state==="dead") return [t("map.live.static_tip"), "", false];
+  return [LV.from!==null ? lvChanges(LV.from) : t("map.live.notice_plain", {when:lvAgo(M.made.at)}), t("map.live.tip"), true];
+}
+function lvNotice(text, update, more, asked){
+  const box=document.getElementById("lvNote"), st=document.getElementById("lvStamp");
+  if(st.hidden) return;
+  lvFill(text, more, update); LV.asked=!!asked; box.hidden=false;
+  st.setAttribute("aria-expanded", "true"); st.title=""; lvPlace(); lvSay(sentences(text, more));
+  clearTimeout(LV.noteTimer); if(!asked) lvNoteLater();
+}
+function lvNoteLater(){
+  clearTimeout(LV.noteTimer);
+  LV.noteTimer=setTimeout(()=>{ const box=document.getElementById("lvNote");
+    // it stays while pointed at, and until the reader is back in this window (they may be reading the chat)
+    if(box.matches(":hover") || box.contains(document.activeElement) || !document.hasFocus()) lvNoteLater(); else lvHide(); }, 8000);
+}
+function lvHide(){
+  const box=document.getElementById("lvNote"), st=document.getElementById("lvStamp");
+  clearTimeout(LV.noteTimer); LV.asked=false;
+  if(box.hidden) return;
+  const inside=box.contains(document.activeElement);
+  box.hidden=true; st.setAttribute("aria-expanded", "false"); lvStamp();
+  if(inside) st.focus({preventScroll:true});
+}
+/* under the stamp, its caret on the stamp's middle. It ends where the stamp ends, so it leaves the help buttons and
+   the drawer's close button to its right in view, and it stays inside the window. In page coordinates, so on a narrow
+   screen it scrolls with the title bar. */
+function lvPlace(){
+  const box=document.getElementById("lvNote"), st=document.getElementById("lvStamp");
+  if(box.hidden || st.hidden) return;
+  const r=st.getBoundingClientRect(), w=box.offsetWidth, vw=document.documentElement.clientWidth, mid=r.left+r.width/2;
+  const left=Math.max(12, Math.min(vw-12-w, r.right-w));
+  box.style.left=Math.round(left+window.scrollX)+"px"; box.style.top=Math.round(r.bottom+10+window.scrollY)+"px";
+  box.style.setProperty("--lv-caret", Math.round(Math.max(18, Math.min(w-18, mid-left)))+"px");
+}
+function lvChanges(from){
+  const iv=new Set(), out=new Set(), sol=new Set(), grp=new Set(); let asked=0, decided=0, over=false, themes=false;
+  lvList(M.changelog).forEach(c=>{ if(!c || lvTime(c)<=from) return;
+    if(c.action==="merge"){ lvList(c.added_interviews).forEach(x=>iv.add(String(x))); lvList(c.new_outcomes).forEach(x=>out.add(String(x)));
+      lvList(c.new_solutions).forEach(x=>sol.add(String(x))); lvList(c.new_solution_groups).forEach(x=>grp.add(String(x)));
+      asked+=lvList(c.proposals).length; }
+    else if(c.action==="decide") decided++;
+    else if(c.action==="rebuild"){ if(c.layer==="overview") over=true; if(c.layer==="value_themes") themes=true; } });
+  const parts=[];
+  if(iv.size) parts.push(t("map.live.convs", {n:iv.size}));
+  if(out.size) parts.push(t("map.count.new_outcomes", {n:out.size}));
+  if(sol.size) parts.push(t("map.live.sols", {n:sol.size}));
+  if(grp.size) parts.push(t("map.live.groups", {n:grp.size}));
+  if(asked) parts.push(t("map.live.asked", {n:asked}));
+  if(decided) parts.push(t("map.live.decided", {n:decided}));
+  if(over) parts.push(t("map.live.overview"));
+  if(themes) parts.push(t("map.live.themes"));
+  const when=lvAgo(M.made.at);
+  return parts.length ? t("map.live.notice", {when, changes:joinList(parts)}) : t("map.live.notice_plain", {when});
+}
+/* polling: only for a map opened from disk (or a local preview); never on productweaver.com or for a KB the reader opened */
+function lvOn(){
+  if(LV.user || LV.copy || !LV.own || LV.test) return false;
+  const p=location.protocol, h=location.hostname;
+  if(/(^|\.)productweaver\.com$/.test(h)) return false;
+  if(p==="file:") return true;
+  return /^https?:$/.test(p) ? /^(localhost|127\.0\.0\.1|\[::1\])$/.test(h) : !/^(blob|data|about|javascript):$/.test(p);
+}
+function lvProbe(){
+  clearTimeout(LV.timer);
+  if(!lvOn() || LV.busy) return;
+  LV.busy=true;
+  const s=document.createElement("script");
+  s.src=".map-live/status.js?r="+(++LV.seq)+"-"+Date.now();
+  const done=ok=>{ s.remove(); LV.busy=false;
+    if(!ok && ++LV.errs>=2 && LV.state!=="dead"){ LV.state="dead"; LV.ready=null; lvStamp(); }
+    lvNext(); };
+  s.onload=()=>done(true); s.onerror=()=>done(false);
+  document.head.appendChild(s);
+}
+function lvNext(){
+  clearTimeout(LV.timer);
+  if(!lvOn() || (LV.state==="dead" && !LV.everOk)) return; // a copy with no status: ask again when the tab comes back
+  LV.timer=setTimeout(lvProbe, document.hidden || LV.state==="dead" ? 15000 : 3000);
+}
+window.pwMapStatus = s => {
+  if(!s || typeof s!=="object" || LV.user || LV.copy || !LV.own) return;
+  // the status speaks for discovery-map.html: a copy saved beside it (another name) does not follow it
+  if(typeof s.file==="string" && s.file!==lvFile()){ LV.copy=true; LV.state="dead"; LV.ready=null; clearTimeout(LV.timer); lvStamp(); return; }
+  const busy=!!lvWork(LV.workRaw);
+  LV.state="ok"; LV.everOk=true; LV.errs=0; LV.workRaw=s.work||null;
+  const build=typeof s.build==="string" ? s.build : "";
+  if(build && build!==LV.own && !(Date.parse(s.at)<Date.parse(LV.at))) lvUpdate(build); // an older status is behind the map
+  else LV.ready=null;
+  const w=lvWork(LV.workRaw);
+  if(w && !busy) lvSay(lvWorkSay(w));
+  lvStamp();
+};
+/* a newer map: reload now, or wait while the reader is in the middle of something. Without sessionStorage the map
+   cannot keep the reader's place nor count its tries, so it asks. After 3 tries for one build the file on disk is not
+   that build (a sync or a git pull put another one there): it stops, as a button would only reload the same file. */
+function lvBlocked(){
+  const sel=window.getSelection ? getSelection() : null;
+  return !modal.hidden || document.body.classList.contains("nx-print") || !!(drag||pinch||gesture)
+    || !document.getElementById("drop").hidden || !!(sel && !sel.isCollapsed && String(sel).trim());
+}
+function lvUpdate(build){
+  const now=Date.now(), rec=lvGet(LV.ss, "try"), r = rec && rec.build===build ? rec : {build, n:0, last:0};
+  if(LV.ss && r.n>=3){ LV.ready=null; return; }
+  if(!LV.ss || now-r.last<20000 || (!document.hidden && lvBlocked())){ LV.ready=build; return; }
+  r.n++; r.last=now; lvSet(LV.ss, "try", r);
+  lvGo();
+}
+function lvGo(){ lvSave(); LV.reload(); }
+function lvSave(){
+  const panel=lvPanel(), tab=document.querySelector(".tab[aria-selected='true']"), seen=lvGet(LV.ls, "seen");
+  // badges start from what the reader has seen: what this page showed, if they looked at it
+  lvSet(LV.ss, "base", seen && seen.ts>=LV.newest ? LV.newest : LV.base);
+  lvSet(LV.ss, "state", {at:Date.now(), from:LV.newest, job:M.job, x:view.x, y:view.y, k:view.k, exp:[...expanded],
+    sols:showSols, person:personHL, q:document.getElementById("q").value, sol:solHL, tab:tab ? tab.dataset.tab : "",
+    next:nextOpen, open:LV.open, focus:(document.activeElement && document.activeElement.id) || "",
+    scroll:{panel:panel ? panel.scrollTop : 0, people:document.getElementById("pane-people").scrollTop,
+      progress:document.getElementById("pane-progress").scrollTop, drawer:document.getElementById("dBody").scrollTop, page:window.scrollY}});
+}
+function lvRestore(st){
+  if(st.job && st.job!==M.job && M.jobById[st.job]) setJob(st.job, true);
+  (Array.isArray(st.exp) ? st.exp : []).forEach(id=>{ if(M.steps.some(s=>s.id===id)) expanded.add(id); });
+  if(st.sols && M.hasSols){ showSols=true; syncSolControls(); }
+  if(st.person && M.ivById[st.person]){ personHL=st.person;
+    document.querySelectorAll(".person").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.iv===personHL))); }
+  const q=String(st.q||""); if(q.trim()){ document.getElementById("q").value=q; const v=q.trim().toLowerCase(); searchHL=v.length>=2 ? v : null; }
+  if(st.sol && st.sol.id && (st.sol.kind==="group" ? M.groupById : M.solById)[st.sol.id]) solHL={kind:st.sol.kind, id:st.sol.id};
+  updatePill(); render();
+  if(solMode) renderSolView();
+  if(st.tab) showTab(st.tab);
+  if(overMode && typeof st.next==="boolean") setNextOpen(st.next);
+  const o=st.open;
+  if(o && o.k==="node"){ const n=flat.find(f=>f.id===o.id); if(n) openDetails(n); }
+  else if(o && o.k==="person") openPerson(o.id);
+  else if(o && o.k==="sol") openSolution(o.id);
+  else if(o && o.k==="group") openGroup(o.id);
+  // all at once, before the first paint: the automatic fits skip their turn (LV.keep), so nothing jumps
+  if(viewNow()==="map" && +st.k>0){ view.x=+st.x||0; view.y=+st.y||0; view.k=+st.k; applyView(); }
+  const sc=st.scroll||{}, panel=lvPanel();
+  if(panel) panel.scrollTop=+sc.panel||0;
+  document.getElementById("pane-people").scrollTop=+sc.people||0;
+  document.getElementById("pane-progress").scrollTop=+sc.progress||0;
+  document.getElementById("dBody").scrollTop=+sc.drawer||0;
+  if(+sc.page) window.scrollTo(0, +sc.page);
+  const f=st.focus && document.getElementById(st.focus); if(f) f.focus({preventScroll:true});
+}
+/* the reader can see the page: show what changed, and after a moment count it as seen */
+function lvShown(){
+  if(document.hidden) return;
+  if(LV.titleMark!==null){ document.title=LV.titleMark; LV.titleMark=null; }
+  if(LV.pending){ LV.pending=false; lvNotice(lvChanges(LV.from), true); }
+  clearTimeout(LV.seenTimer);
+  LV.seenTimer=setTimeout(()=>{ if(!document.hidden && LV.own && !LV.user) lvSet(LV.ls, "seen", {ts:LV.newest}); }, 1500);
+}
+function liveStop(){
+  LV.user=true; LV.ready=null; LV.pending=false; LV.from=null; clearTimeout(LV.timer);
+  LV.fresh={iv:new Set(), out:new Set(), sol:new Set(), group:new Set()};
+  lvHide(); lvStamp();
+}
+function liveInit(){
+  const g = SAMPLE && SAMPLE.generated && typeof SAMPLE.generated==="object" ? SAMPLE.generated : {};
+  LV.own = typeof g.build==="string" ? g.build : ""; LV.at = typeof g.at==="string" ? g.at : "";
+  LV.ss=lvStore("sessionStorage"); LV.ls=lvStore("localStorage");
+  LV.newest=lvNewest(SAMPLE.changelog);
+  const tried=lvGet(LV.ss, "try"); if(tried && tried.build===LV.own) lvSet(LV.ss, "try", null); // the reload worked
+  const st=lvGet(LV.ss, "state"); lvSet(LV.ss, "state", null);
+  if(st && LV.own && Date.now()-(+st.at||0)<120000){ LV.st=st; LV.keep=Date.now()+1500; }
+  const seen=lvGet(LV.ls, "seen"), base=lvGet(LV.ss, "base");
+  LV.base = typeof base==="number" ? base : seen && typeof seen.ts==="number" ? seen.ts : LV.newest; // first visit: nothing is new
+  lvSet(LV.ss, "base", LV.base);
+  if(LV.own) LV.fresh=lvFresh(SAMPLE.changelog, LV.base);
+}
+function liveBoot(){
+  const st=LV.st, again=!!st;
+  if(again) lvRestore(st);
+  const seen=lvGet(LV.ls, "seen");
+  const from = again ? +st.from||0 : seen && typeof seen.ts==="number" && seen.ts<LV.newest ? seen.ts : null;
+  if(from!==null && LV.own && M.made){ LV.from=from; LV.pending=true; } // the words are made when shown: "just now" ages
+  const stamp=document.getElementById("lvStamp");
+  if(again){ stamp.classList.add("lv-fresh"); setTimeout(()=>stamp.classList.remove("lv-fresh"), 2700); }
+  if(LV.pending && document.hidden){ LV.titleMark=document.title; document.title="● "+document.title; }
+  const note=document.getElementById("lvNote");
+  stamp.addEventListener("click", ()=>{
+    if(LV.ready){ lvGo(); return; }
+    if(!note.hidden){ lvHide(); return; } // the stamp opens and closes its card
+    const [text, more, update]=lvCard(); lvNotice(text, update, more, true);
+  });
+  document.getElementById("lvX").addEventListener("click", lvHide);
+  // Escape and a click anywhere else close the card; Escape closes only the card, not the drawer under it
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape" && !note.hidden && modal.hidden){ e.stopPropagation(); lvHide(); } }, true);
+  document.addEventListener("pointerdown", e=>{ if(!note.hidden && !note.contains(e.target) && !stamp.contains(e.target)) lvHide(); }, true);
+  addEventListener("resize", lvPlace);
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){ lvShown(); lvProbe(); } });
+  addEventListener("focus", ()=>lvProbe());
+  addEventListener("pageshow", e=>{ if(e.persisted) lvProbe(); });
+  if(!LV.test){ setInterval(lvStamp, 30000); if(!lvOn()) LV.state="dead"; }
+  lvStamp(); lvShown(); lvProbe();
+}
+
 /* A KB dropped onto the map brings its own language; a file that does not load leaves the map as it was. */
-function load(raw){
+function load(raw, own){
   if(!raw || typeof raw!=="object") throw new Error(t("map.file.not_kb"));
   const was={...UI}, wasCache=labelCache;
   setLanguage(raw);
   try{ M=build(raw); }catch(err){ Object.assign(UI, was); labelCache=wasCache; applyLabels(); throw err; }
+  if(own) liveStop();
   chooseJob(null); expanded=new Set(); selected=null; personHL=null; searchHL=null; solHL=null; showSols=false; closeDrawer();
   nextOpen=true; syncSolControls(); setView(M.hasOver?"over":"map", true); if(overMode) renderOverView();
   renderHeader(); renderJobs(); renderPeople(); renderProgress(); updatePill();
-  render(); requestAnimationFrame(()=>fit(true));
+  render(); requestAnimationFrame(()=>{ if(Date.now()>LV.keep) fit(true); });
 }
 addEventListener("resize",()=>{ clearTimeout(window._rt); window._rt=setTimeout(()=>fit(true),150); });
 addEventListener("hashchange",()=>viewFromHash(location.hash.slice(1)));
 const START_VIEW = location.hash.slice(1);
+try{ liveInit(); }catch(_){ LV.own=""; LV.fresh={iv:new Set(), out:new Set(), sol:new Set(), group:new Set()}; } // never breaks the map
 load(SAMPLE);
 viewFromHash(START_VIEW);
-</script>
+try{ liveBoot(); }catch(_){ LV.own=""; clearTimeout(LV.timer); lvStamp(); }</script>
 </body>
 </html>

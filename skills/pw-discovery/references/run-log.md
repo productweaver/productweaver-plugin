@@ -43,6 +43,8 @@ Commands add their own fields:
 | `job` | themes, overview | The core job whose value themes or overview the run was about |
 | `proposal`, `proposal_type`, `decision` | apply | What was decided on and how. Logged even when the apply is refused |
 | `out`, `since` | review, map, labels | The file written; for review, the date new items are counted from |
+| `live`, `tab` | map | `live`: `ok` when it wrote `pw-output/.map-live/status.js`, so an open map updates itself; `failed` when it could not; `off` with `--out`, which writes no status. `tab`: the map that was there before: `none`, `old` (one that does not update itself, made by plugin 0.14 or earlier) or `live` |
+| `live`, `batch` | context | With `--batch N`: `batch` is in `args`; `live` is `ok` when an open map was told the study is being updated, `none` when there is no map yet, `failed` when its status could not be written |
 | `browser` | map | Only with `--open`: `opened`, `failed` (no browser could be started), `no_display` (a remote session or no display, so it did not try) or `off` (`KB_TOOL_OPEN=0`) |
 | `structure_problems`, `outcome_quotes`, `drifted`, `rehash` | validate | Structure problems found, outcome quotes in the KB, transcripts whose content changed, whether `--rehash` was given |
 | `schema_from` | migrate | The schema version the KB had before |
@@ -145,6 +147,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `theme_names_solution` | A theme's label or need contains the name of a current solution |
 | `theme_quotes` | A theme shows no highlight quotes, or more than 6 |
 | `overview_count` | An overview lists more than 5 gaps |
+| `map_status_failed` | `map` wrote the map but not `pw-output/.map-live/status.js`, so a map that is already open will not update itself |
 | `labels_missing` | `review` or `map` used English for labels the study has no text for yet; run `labels` |
 | `labels_same` | `labels --add`: a label's text is the same as the English one |
 | `labels_plural_form` | `labels --add`: a plural label lacks a form the study's language uses |
@@ -158,6 +161,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 
 | Code | Meaning |
 |---|---|
+| `batch_invalid` | `context --batch` was given a number below 1 |
 | `output_blocked` | `pw-output/` or its `.gitignore` could not be written: `pw-output` is a file, or a program holds the file |
 | `file_missing` | The KB, the patch or another file given to the tool does not exist |
 | `json_invalid` | The KB, the patch or another file given to the tool is not valid JSON, is not UTF-8, or writes a key twice in one object or NaN. The message gives the line and column |

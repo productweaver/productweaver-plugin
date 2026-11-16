@@ -12,6 +12,7 @@ Most people who use this plugin are founders and product managers, not developer
 - Name `review.md` and `interview-guide.md` only when the user asks for text, or wants to edit, paste or print the guide in another app. They are text copies of what the map shows.
 - Never paste a file's content into the chat.
 - The map holds every interviewee's name and quote. Say so before anyone shares it.
+- The map updates itself only when it is opened from the user's folder: a double-click, a `file://` link or `map --open`. A copy handed over in the chat, or a host's preview, may not. Do not promise it there; its title bar says "does not update" when it cannot.
 
 ## By host
 

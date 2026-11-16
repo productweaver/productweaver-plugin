@@ -70,7 +70,7 @@ try:  # optional: richer schema messages. jsonschema before 4.0 (3.2 on Ubuntu 2
 except ImportError:  # pragma: no cover - depends on the machine
     _LibraryValidator = None
 
-__version__ = "0.14.0"
+__version__ = "0.15.0"
 SCHEMA_VERSION = 3
 
 BRAND = "Product Weaver"
@@ -2829,6 +2829,8 @@ def _merge_verdict(out: MergeOutput, entry: Json, candidate: Json, copies: list[
     out.result["backup"] = backup(out.args.kb)
     save_kb(candidate, out.args.kb)
     out.result["written"] = True
+    with contextlib.suppress(Exception):  # an open map hears that the batch is in; never fails the merge
+        _sibling("kb_map").batch_merged(out.args.kb, len(entry.get("added_interviews") or []), sys.modules[__name__])
     out.verdict += [f"merged: {entry['summary']}", f"backup: {out.result['backup']}"]
     if copies:
         out.verdict.append(f"copied {copied}")
@@ -4119,10 +4121,23 @@ def _print_solutions(data: Json) -> None:
                   f"  (people {len(solution['interviews'])}{stopped}){mark}")
 
 
+def _print_overview(data: Json) -> None:
+    if not data["overview"]:
+        return
+    old = "overview" in data["stale"] or any(not entry["executor"] for entry in data["overview"])
+    print("\nOVERVIEW" + (" [out of date]" if old else ""))
+    for entry in data["overview"]:
+        about = f" (about: {entry['executor']})" if entry["executor"] else \
+            " (written before the map showed who the study is about: write it again)"
+        print(f"{entry['job']} written {entry['written']}: {entry['bottom_line']}{about}")
+
+
 def cmd_context(args: argparse.Namespace) -> int:
     kb = load_kb(args.kb)
     data = context_data(kb)
     data["labels_missing"] = study_labels(kb, args.kb)[1]
+    if args.batch is not None:  # a batch starts: how long it takes; an open map says the study is being updated
+        data["batch"] = _sibling("kb_map").start_batch(args, sys.modules[__name__])
     if args.json:
         print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
         return 0
@@ -4139,13 +4154,7 @@ def cmd_context(args: argparse.Namespace) -> int:
             print(f"  {g['ref']} [{g['kind']}{', main' * g['main']}] {g['text']}  ({who})")
     _print_solutions(data["current_solutions"])
     _print_themes(data["value_themes"], "value_themes" in data["stale"])
-    if data["overview"]:
-        old = "overview" in data["stale"] or any(not entry["executor"] for entry in data["overview"])
-        print("\nOVERVIEW" + (" [out of date]" if old else ""))
-        for entry in data["overview"]:
-            about = f" (about: {entry['executor']})" if entry["executor"] else \
-                " (written before the map showed who the study is about: write it again)"
-            print(f"{entry['job']} written {entry['written']}: {entry['bottom_line']}{about}")
+    _print_overview(data)
     if data["segments"]:
         print("\nSEGMENTS: " + "; ".join(f"{k}={v}" for k, v in data["segments"].items()))
     if data["people"]:
@@ -4886,6 +4895,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--json", action="store_true", help="with --add, print the result as one JSON object")
     sp = command("context", cmd_context, "compact view of the KB")
     sp.add_argument("--json", action="store_true", help="print the same information as JSON")
+    sp.add_argument("--batch", type=int, metavar="N", help="N new transcripts are about to be read: say how long "
+                    "that takes, and an open map shows that the study is being updated")
     sp = command("merge", cmd_merge, "check a patch and fold it into the KB")
     sp.add_argument("patch", help="the patch, a JSON file")
     sp.add_argument("--transcripts", action="append",

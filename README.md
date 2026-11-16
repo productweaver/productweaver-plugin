@@ -29,6 +29,10 @@ words. You get back a discovery map you can open in any browser. It shows
 - **your next interviews**: who to talk to and what to ask, to back up what
   still rests on too few people.
 
+Leave the map open while you work: it updates itself a few seconds after
+each run, keeps your place, says what changed, and marks what is new. While
+your assistant reads a batch, the map says so and about how long is left.
+
 The study grows with every batch of interviews you add. The method is
 Outcome-Driven Innovation (ODI), a way to do jobs-to-be-done research. You
 do not need to know it to start.
@@ -173,7 +177,8 @@ with them.
   network calls. `pw_usage.py` keeps your answer about usage statistics
   and, only after a yes, sends the events.
 - **It has no hooks, no MCP servers and no background processes**, and it
-  downloads nothing.
+  downloads nothing. An open map stays current by reading one small file
+  beside it on your disk every few seconds; it holds no names or quotes.
 - **It sends nothing unless you turn on usage statistics** for a study, and
   even then never your interviews, names, quotes, prompts or file names.
   The full list is under [What it sends and where](#what-it-sends-and-where).
@@ -203,6 +208,10 @@ Your assistant itself works as it always does with the files it reads.
   in `pw-output/`.
 - **You closed the map.** Open `pw-output/discovery-map.html` with a
   double-click. It works offline.
+- **The map does not update by itself.** Reload it once: a map made by
+  plugin 0.14 or earlier does not know how. A copy saved somewhere else, or
+  one shown inside a chat, never updates, and says so at the top right:
+  open the one in `pw-output/` instead.
 
 Still stuck? Ask in this repository's
 [Issues](https://github.com/productweaver/productweaver-plugin/issues).
@@ -265,7 +274,10 @@ holds one study.
 - `interview-guide.md`, the plan for your next interviews, as text, ready to
   take into the calls: who to find, what to ask and what to listen for. The
   map's Next interviews tab shows it too, to copy, or to print as an interview
-  kit with one sheet per call.
+  kit with one sheet per call;
+- `.map-live/`, a hidden folder that git ignores. Its `status.js` tells an
+  open map that a newer one is ready, or that your assistant is working on a
+  batch. It holds no names or quotes.
 
 `.pw-kb/` holds the study itself. Finder and most file dialogs hide it,
 because its name starts with a dot

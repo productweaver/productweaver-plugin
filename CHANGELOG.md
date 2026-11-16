@@ -4,6 +4,46 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.15.0 — 2026-11-16
+
+### What's new
+
+- **The discovery map updates itself.** Leave it open while you work. A few
+  seconds after each run it reloads in place: the same view, zoom, chosen
+  goal and open panel. It waits while a window is open, you are printing or
+  you have text selected, and shows "New version ready · Show it" meanwhile.
+  A map in a background tab is already up to date when you come back to it.
+- **It says when it changed.** The title bar shows "Updated 5 minutes ago".
+  While your assistant reads a batch, it says "Updating" and about how long
+  is left (about 1.5 minutes per interview, plus 2). A copy of the map that
+  cannot update by itself, such as one shown inside a chat, says so.
+- **It says what changed.** After each update a short card opens right
+  under the time in the title bar and lists it, such as "Updated just now: 3
+  new conversations, 12 new measures of success, a new overview". If you
+  were away, it waits for you, and the tab's title starts with a dot. Click
+  the time whenever you like to see it again, right where you clicked; it
+  stays until you close it.
+- **New tags.** Each new conversation, measure of success, solution and
+  group of solutions has a blue New tag until you have seen it. A closed
+  step says how many new measures it holds.
+
+### What's improved
+
+- `kb_tool context --batch N` says how long a batch of N interviews takes,
+  so the assistant can tell you, and an open map shows it too.
+- `kb_tool map` writes the map in one step (a temporary file, then a swap),
+  so an open map never reads half a file. It also writes
+  `pw-output/.map-live/status.js`, a small file git ignores, with no names
+  or quotes.
+
+### Good to know
+
+- A map made by plugin 0.14 or earlier does not update by itself. Reload it
+  once after this update; from then on it does. The assistant tells you
+  when.
+- A study in another language than English gets about 30 new labels to
+  translate at the next run.
+
 ## 0.14.2 — 2026-11-16
 
 ### What's fixed

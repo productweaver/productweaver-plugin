@@ -35,5 +35,12 @@ This helps you judge the impact of a problem:
   interviews, names, quotes, prompts or file names. The full list of fields is
   in `skills/pw-discovery/references/usage.md`. The plugin downloads
   nothing. Both scripts use only Python's standard library.
+- The discovery map is one HTML file with no network code. Opened from the
+  study's `pw-output/` folder, it loads `pw-output/.map-live/status.js`
+  (written by `kb_tool.py`: a build id, a time and what the assistant is
+  doing, no names or quotes) every few seconds as a local script, to reload
+  itself when a newer map is written. It reads no other file, and keeps only
+  which updates the reader has seen, and their place in the map, in the
+  browser's own storage.
 - The plugin has no hooks, no MCP servers and no commands that run on their
   own.
