@@ -4,6 +4,24 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.14.2 — 2026-11-16
+
+### What's fixed
+
+- **Solutions and Value themes sit in the middle of the window.** On a wide
+  window they stuck to the left edge and left an empty band on the right.
+  All four views (Overview, Solutions, Value themes, Next interviews) now
+  share one centered column with the same edges. On a wide window Value
+  themes shows two themes side by side, not three, so the customers' words
+  have more room.
+
+### What's improved
+
+- **Solutions and Value themes read like the other views.** The text under
+  each title is larger, "Stopped using" and "In no theme yet" have the same
+  heading size as the headings in Next interviews, and a study with no
+  solutions or no themes yet says so in the same box the Overview uses.
+
 ## 0.14.1 — 2026-11-16
 
 ### What's new

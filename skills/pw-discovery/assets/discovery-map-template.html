@@ -40,6 +40,7 @@
   --font-read:ui-serif,"New York","Iowan Old Style","Source Serif 4",Georgia,serif;
   --ease:cubic-bezier(.32,.72,0,1);
   --soltop:24px;
+  --pagew:1080px;
   --dw:min(400px,calc(100% - 16px));
   color-scheme:light;
 }
@@ -273,12 +274,19 @@ svg.mk-ic{width:14px;height:14px;display:inline-block;flex:none;cursor:inherit;v
 .solview{position:absolute;inset:0;overflow:auto;z-index:5;background:var(--bg);padding:var(--soltop) 24px 40px}
 .stage.solmode{background:var(--bg)}
 @media (min-width:861px){.stage.has-drawer .solview{padding-right:calc(var(--dw) + 32px)}}
-.solin{max-width:1180px;display:grid;gap:14px}
+.solin{max-width:var(--pagew);margin:0 auto;display:grid;gap:16px}
 .solin h2{margin:0;font-size:28px;line-height:1.15;font-weight:600;letter-spacing:-.015em;text-wrap:balance}
-.solin h3{margin:14px 0 0;font-size:15px;font-weight:600}
-.solin > p{margin:0;color:var(--muted);max-width:80ch}
+.solin h3{margin:14px 0 0;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.solin > p{margin:0}
+.solin > .olist{max-width:720px}
 .twrap{background:var(--surface);border-radius:14px;overflow:hidden}
 .soltable{width:100%;border-collapse:collapse;font-size:14px}
+.soltable thead th:nth-child(1){width:24%}
+.soltable thead th:nth-child(2){width:14%}
+.soltable.now thead th:nth-child(3){width:12%}
+.soltable.now thead th:nth-child(4){width:20%}
+.soltable.gone thead th:nth-child(3){width:16%}
+.soltable.gone thead th:nth-child(4){width:22%}
 .soltable thead th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:10px 14px;white-space:nowrap}
 .soltable td,.soltable tbody th{padding:9px 14px;border-top:1px solid var(--line);vertical-align:top;text-align:left;font-weight:400}
 .soltable tr[data-row]{cursor:pointer}
@@ -334,7 +342,7 @@ svg.mk-ic{width:14px;height:14px;display:inline-block;flex:none;cursor:inherit;v
 /* Overview view: the study as a short story, for someone new to the method, laid out like an apple.com page:
    one tile per step, a big answer per step, a rail that shows how the findings build on each other.
    Sans is our words; serif is the customers' words only. */
-.ov-page{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:200px minmax(0,1fr);gap:0 32px;align-items:start}
+.ov-page{max-width:var(--pagew);margin:0 auto;display:grid;grid-template-columns:200px minmax(0,1fr);gap:0 32px;align-items:start}
 .ov-rail{position:sticky;top:0;padding-top:8px;font-size:13px}
 .ov-rail p{margin:0 0 8px;padding:0 8px;color:var(--muted);font-size:12px;font-weight:600}
 .ov-rail ol{list-style:none;margin:0;padding:0;display:grid;gap:2px}
@@ -1722,11 +1730,11 @@ function renderSolView(){
       <td data-l="${col("map.sol.col.why_stopped")}">${why(x)}</td></tr>`;
   solview.innerHTML = `<div class="solin">
     <h2>${many()?th("map.sol.title_job",{job:esc(jobName(M.job))}):th("map.sol.title")}</h2>
-    <p class="hint" style="margin:0">${th("map.sol.intro")}</p>
-    ${sc.groups.length?`<div class="twrap"><table class="soltable"><thead><tr><th scope="col" style="width:24%">${th("map.sol.col.solution")}</th><th scope="col" style="width:14%">${th("map.sol.col.type")}</th><th scope="col" style="width:12%">${th("map.sol.col.mentions")}</th><th scope="col" style="width:20%">${th("map.sol.col.people")}</th><th scope="col">${th("map.sol.col.steps")}</th></tr></thead>
-      ${sc.groups.map(group).join("")}</table></div>`:`<p class="hint">${esc(sentences(sc.items.length?t("map.sol.none_now"):t("map.sol.none_yet"), many()?t("map.common.pick_job"):""))}</p>`}
-    ${sc.gone.length?`<h3>${th("map.sol.stopped_title")}</h3><p class="hint" style="margin:0">${th("map.sol.stopped_intro")}</p>
-      <div class="twrap"><table class="soltable"><thead><tr><th scope="col" style="width:24%">${th("map.sol.col.solution")}</th><th scope="col" style="width:14%">${th("map.sol.col.type")}</th><th scope="col" style="width:16%">${th("map.sol.col.who_stopped")}</th><th scope="col" style="width:22%">${th("map.sol.col.step")}</th><th scope="col">${th("map.sol.col.why_stopped")}</th></tr></thead>
+    <p class="ov-note">${th("map.sol.intro")}</p>
+    ${sc.groups.length?`<div class="twrap"><table class="soltable now"><thead><tr><th scope="col">${th("map.sol.col.solution")}</th><th scope="col">${th("map.sol.col.type")}</th><th scope="col">${th("map.sol.col.mentions")}</th><th scope="col">${th("map.sol.col.people")}</th><th scope="col">${th("map.sol.col.steps")}</th></tr></thead>
+      ${sc.groups.map(group).join("")}</table></div>`:`<p class="ov-todo">${esc(sentences(sc.items.length?t("map.sol.none_now"):t("map.sol.none_yet"), many()?t("map.common.pick_job"):""))}</p>`}
+    ${sc.gone.length?`<h3>${th("map.sol.stopped_title")}</h3><p class="ov-note">${th("map.sol.stopped_intro")}</p>
+      <div class="twrap"><table class="soltable gone"><thead><tr><th scope="col">${th("map.sol.col.solution")}</th><th scope="col">${th("map.sol.col.type")}</th><th scope="col">${th("map.sol.col.who_stopped")}</th><th scope="col">${th("map.sol.col.step")}</th><th scope="col">${th("map.sol.col.why_stopped")}</th></tr></thead>
       <tbody>${sc.gone.map(goneRow).join("")}</tbody></table></div>`:""}
   </div>`;
 }
@@ -1762,11 +1770,11 @@ function themeCard(tm){
 function renderThemeView(){
   themeview.innerHTML = `<div class="solin">
     <h2>${many()?th("map.theme.title_job",{job:esc(jobName(M.job))}):th("map.theme.title")}</h2>
-    <p class="hint" style="margin:0">${th("map.theme.intro")}</p>
+    <p class="ov-note">${th("map.theme.intro")}</p>
     ${M.themesStale?`<div class="flag">${th("map.theme.stale")}</div>`:""}
-    ${M.themes.length?`<div class="tgrid">${M.themes.map(themeCard).join("")}</div>`:`<p class="hint">${esc(sentences(t("map.theme.none"), many()?t("map.common.pick_job"):""))}</p>`}
-    ${M.loose.length?`<h3>${th("map.theme.loose_title",{count:M.loose.length})}</h3><p class="hint" style="margin:0">${th("map.theme.loose_intro")}</p>
-      <div class="olist" style="max-width:720px">${M.loose.map(o=>`<button class="oitem" type="button" data-go="${esc(o.id)}"><span>${esc(o.text)}</span>${dots(o.people.length)}</button>`).join("")}</div>`:""}
+    ${M.themes.length?`<div class="tgrid">${M.themes.map(themeCard).join("")}</div>`:`<p class="ov-todo">${esc(sentences(t("map.theme.none"), many()?t("map.common.pick_job"):""))}</p>`}
+    ${M.loose.length?`<h3>${th("map.theme.loose_title",{count:M.loose.length})}</h3><p class="ov-note">${th("map.theme.loose_intro")}</p>
+      <div class="olist">${M.loose.map(o=>`<button class="oitem" type="button" data-go="${esc(o.id)}"><span>${esc(o.text)}</span>${dots(o.people.length)}</button>`).join("")}</div>`:""}
   </div>`;
 }
 themeview.addEventListener("click",e=>{
