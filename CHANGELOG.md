@@ -4,6 +4,37 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.14.0 — 2026-11-15
+
+### What's new
+
+- **A discovery map that looks like a Mac app.** The map now follows the look
+  of macOS and Safari. A short title bar holds the study's name, the views in
+  the middle and two round help buttons. The people list floats on the left,
+  search and zoom float over the map as glass bars, and the details of a box
+  slide in on the right. Text and cards stay solid and easy to read. The
+  glass turns solid when Reduce transparency is on, and dark mode follows your
+  Mac.
+- **Colors that show progress.** Blue is now the color of everything you click
+  and read. Green, orange and red only show where something stands. The bar on
+  each step and measure of success is red when no one talked about it yet,
+  orange when 1 or 2 people did, and green from 3 people. "How sure is this?"
+  goes from red to orange to green. In Next interviews, "Last round closed
+  ... gaps" turns green when your calls filled them.
+
+### What's improved
+
+- **The study's numbers moved into the Overview.** Conversations, quotes,
+  steps, measures of success and solutions now close the Overview's first
+  block, in big figures. Click the solutions to open them. The title bar
+  gets the room for the study's title.
+- **Two letters for each person**, such as AR for Amy Richardson, so a person
+  never looks like the letter of a core job.
+- Measures of success are now cards with a blue target, and "Other people"
+  among the solutions is indigo, not pink, so red only means "no one yet".
+- In a study in another language, 5 short texts about the colors are new. The
+  assistant translates them at the next run, as it does for any new label.
+
 ## 0.13.2 — 2026-11-15
 
 ### What's improved
