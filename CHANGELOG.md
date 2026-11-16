@@ -4,6 +4,29 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.14.1 — 2026-11-16
+
+### What's new
+
+- **An interview kit to print.** In Next interviews, "Print the interview kit"
+  gives a page that plans the round, then one sheet for each call. The plan
+  lists who to book, what to check before you book, the message to send and
+  how sure the study is now. Each call sheet has the words to start and end
+  the call, the questions in order, what to write down and why, lines for your
+  notes, and what to say if an answer is short. Choose "Save as PDF" in the
+  print window to keep it as a file: it is named after your study and the
+  date. When new conversations came in after the plan was written, the kit
+  says so at the top. When the planned calls back up no open gap, there is
+  nothing to print until your assistant writes a new plan.
+
+### What's fixed
+
+- **A title that promises what the round does.** "Talk to 3 more people to back
+  up 15 thin spots" now counts only the thin spots the planned conversations
+  back up (7 in that study), not every open one.
+- **No more ".," or ".." in "Still open".** The needs in the list lose their
+  own full stops.
+
 ## 0.14.0 — 2026-11-15
 
 ### What's new

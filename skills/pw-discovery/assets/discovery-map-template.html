@@ -679,12 +679,92 @@ button.nx-gap{cursor:pointer} button.nx-gap:hover{background:var(--fill)}
   .stage.has-drawer .toolbar,.stage.has-drawer .ap-zoom{right:12px}
   .nx-gap{grid-template-columns:1fr} .nx-gap em{grid-column:1;grid-row:auto} .nx-grid td{min-width:0}
 }
-@media print{ body.nx-print > :not(main), body.nx-print main > :not(.stage), body.nx-print .stage > :not(#nextview),
-  body.nx-print .ov-rail, body.nx-print .nx-btn, body.nx-print .nx-more{display:none!important}
-  body.nx-print, body.nx-print main, body.nx-print .stage, body.nx-print #nextview{display:block!important;position:static!important;
-    height:auto!important;max-height:none!important;overflow:visible!important;padding:0!important;background:none!important}
-  body.nx-print .nx-fold{display:grid!important} body.nx-print .ov-page{display:block} body.nx-print .nx-card{break-inside:avoid}
-  body.nx-print .ov-blk{padding:12px 0;border-radius:0} }
+/* The interview kit, which only Print in Next interviews shows: a plan for the round, then one sheet per call. Paper:
+   ink and lines, no fills or shadows, so it prints with "Background graphics" off and stays light in dark mode. Four
+   sizes (20, 13, 10.5, 8.5 pt); serif only for words said aloud. What can cross a page is a block or a float. */
+#nxkit{display:none}
+.kit{--k-ink:#1d1d1f;--k-muted:#55555b;--k-line:#c7c7cc;--k-rule:#d6d6db;--k-blue:#0066cc;--k-mark:#a85700;
+  color:var(--k-ink);background:#fff;font-family:var(--font);font-size:10.5pt;line-height:1.38;color-scheme:light}
+/* zero specificity, so the gaps the kit's own classes set (above the decisions line, the footer...) win */
+:where(.kit) :where(p,h2,h3,ul,ol){margin:0}
+.kit ul,.kit ol{padding-left:4.5mm}
+.kit b{font-weight:600}
+.kit h2{font-size:20pt;line-height:1.15;font-weight:600;letter-spacing:-.015em;text-wrap:balance;break-after:avoid}
+.kit-rh{display:flex;justify-content:space-between;gap:6mm;font-size:8.5pt;color:var(--k-muted);border-bottom:.5pt solid var(--k-line);padding-bottom:2mm;margin-bottom:6mm}
+.kit-rh b{color:var(--k-ink)}
+.kit-small{font-size:8.5pt;color:var(--k-muted)}
+.kit-kick{font-size:8.5pt;font-weight:600;color:var(--k-blue);margin-bottom:1.5mm}
+.kit-stale{border:1pt solid #ff9500;border-radius:2mm;padding:2.5mm 3.5mm;margin-bottom:5mm;font-weight:600}
+.kit-lead{margin-top:2mm}
+.kit-sec{margin-top:5mm}
+/* The plan page's last sections move to a new page as one block, never one line alone (owner, 2026-11-15).
+   One block that cannot break: Chrome let break-before:avoid between them go and left the decisions line alone. */
+.kit-plan-end{break-inside:avoid}
+.kit-sec > h3{font-size:10.5pt;font-weight:600;padding-bottom:1.5mm;border-bottom:.5pt solid var(--k-line);margin-bottom:2.5mm;display:flex;justify-content:space-between;gap:4mm;break-after:avoid}
+.kit-sec > h3 small{font-weight:400;font-size:8.5pt;color:var(--k-muted)}
+.kit-bar{display:flex;gap:1.2mm;margin:1.5mm 0 1mm}
+.kit-bar i{flex:1;border-top:1.6mm solid var(--k-rule)}
+.kit-bar.lv1 i.on{border-top-color:#ff3b30} .kit-bar.lv2 i.on{border-top-color:#ff9500} .kit-bar i.on{border-top-color:#34c759}
+.kit-levels{display:flex;justify-content:space-between;gap:2mm;font-size:8.5pt;color:var(--k-muted)}
+.kit-levels b{color:var(--k-ink)}
+/* how sure, and the main finding, side by side: a round of 5 calls still fits the plan on one Letter page */
+.kit-top{display:flex;gap:7mm;align-items:flex-start;margin-top:5mm}
+.kit-top > *{flex:1;min-width:0}
+.kit-top > .kit-sec,.kit-top > .kit-finding{margin-top:0}
+.kit-finding{border:.6pt solid var(--k-line);border-radius:2mm;padding:2.5mm 3.5mm;margin-top:4mm;break-inside:avoid}
+table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
+.kit-calls th{font-size:8.5pt;font-weight:600;color:var(--k-muted);text-align:left;padding:0 2mm 1.5mm 0;border-bottom:.5pt solid var(--k-line);vertical-align:bottom}
+.kit-calls td{padding:1.6mm 2mm 1.6mm 0;border-bottom:.5pt solid var(--k-rule);vertical-align:top}
+.kit-calls tr{break-inside:avoid}
+.kit-calls .c{text-align:center;padding-right:0;width:15mm}
+.kit-num{font-weight:600;color:var(--k-blue);font-variant-numeric:tabular-nums;width:6mm}
+.kit-box{display:inline-block;width:3.6mm;height:3.6mm;border:.8pt solid var(--k-ink);border-radius:.7mm;vertical-align:-.7mm}
+.kit-say{font-family:var(--font-read)}
+.kit-quote{border-left:.8pt solid var(--k-ink);padding-left:3mm}
+.kit-rules li + li{margin-top:1mm}
+.kit-decide{border:.6pt dashed var(--k-line);border-radius:2mm;padding:2.5mm 3.5mm;margin-top:4mm;font-size:8.5pt;break-inside:avoid}
+.kit-fields{display:flex;gap:6mm;align-items:flex-end;margin-top:4mm}
+.kit-field{display:flex;align-items:flex-end;gap:2mm;white-space:nowrap}
+.kit-field:first-child{flex:2} .kit-field:nth-child(2){flex:1}
+.kit-field i{flex:1;border-bottom:.6pt solid var(--k-ink);height:4.5mm;min-width:8mm}
+.kit-check{display:inline-flex;gap:2mm;align-items:center;white-space:nowrap}
+.kit-fit{margin-top:2.5mm;font-size:8.5pt;color:var(--k-muted)}
+.kit-fit b{color:var(--k-ink)}
+.kit-body{margin-top:2mm}
+.kit-body::after{content:"";display:block;clear:both}
+.kit-side{float:right;width:50mm;margin-top:4.5mm;border-left:.5pt solid var(--k-line);padding-left:5mm;font-size:8.5pt;line-height:1.4}
+.kit-side > div{break-inside:avoid}
+.kit-side > div + div{margin-top:5mm}
+.kit-side h3{font-size:8.5pt;font-weight:600;margin-bottom:1mm}
+.kit-side .kit-say{font-size:10.5pt;line-height:1.35}
+.kit-side li + li{margin-top:.8mm}
+.kit-mark{font-weight:600;color:var(--k-mark);white-space:nowrap}
+.kit-main{margin-right:57mm}
+.kit-step{margin-top:4.5mm;padding-left:7mm;position:relative}
+.kit-step > h3{font-size:8.5pt;font-weight:600;color:var(--k-muted);break-after:avoid}
+.kit-step > h3 b{position:absolute;left:0;color:var(--k-blue)}
+.kit-q{margin-top:3mm;break-inside:avoid}
+.kit-ask{font-family:var(--font-read);font-size:13pt;line-height:1.32}
+.kit-write{margin-top:1.2mm}
+.kit-why{font-size:8.5pt;color:var(--k-muted)}
+.kit-lines i{display:block;height:6.6mm;border-bottom:.5pt solid var(--k-rule)}
+.kit-step:last-child{break-inside:avoid;break-before:avoid}
+.kit-then{font-size:8.5pt;margin-top:1.5mm}
+.kit-foot{clear:both;break-before:avoid;border-top:.5pt solid var(--k-line);padding-top:2mm;margin-top:6mm;font-size:8.5pt;color:var(--k-muted);break-inside:avoid}
+.kit-foot b{color:var(--k-ink)}
+.kit-foot .kit-say{font-size:10.5pt;color:var(--k-ink)}
+.kit-call{break-before:page}
+/* The margins live in the kit, not in @page: the print window's "Margins: None" (which Chrome remembers) drops
+   @page margins. The kit's own pages (@page kit) have none, so the two never add up, and other views print as
+   before. clone repeats the margins on a call's second page. */
+.kit-plan,.kit-call{padding:12mm 14mm;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+/* Print in Next interviews (and Command-P there) prints the interview kit and nothing else. */
+@media print{
+  @page kit{margin:0}
+  html:has(body.nx-print), body.nx-print{height:auto!important;overflow:visible!important;background:#fff!important}
+  body.nx-print{display:block!important;position:static!important;padding:0!important;margin:0!important}
+  body.nx-print > :not(#nxkit){display:none!important}
+  body.nx-print #nxkit{display:block;page:kit} }
 </style>
 </head>
 <body>
@@ -792,6 +872,7 @@ button.nx-gap{cursor:pointer} button.nx-gap:hover{background:var(--fill)}
     </aside>
   </section>
 </main>
+<div id="nxkit" class="kit"></div>
 
 <div class="tip" id="tip" hidden></div>
 <div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mTitle"><button class="dclose" id="mClose" type="button" data-t-aria="map.modal.close"><svg class="ap-ic" viewBox="0 0 16 16" aria-hidden="true"><use href="#ap-x"/></svg></button><div id="mBody"></div></div></div>
@@ -1717,6 +1798,8 @@ const ovGapNote = (kind, names) => !names.length ? (hasKey(OV_GAP,kind) ? t(OV_G
 /* English only: a sentence put after a colon starts in lowercase. Other languages keep the statement as written. */
 const lowerFirst = s => { s=String(s||""); return UI.en && /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase()+s.slice(1) : s; };
 const fullStop = s => { s=String(s||"").trim(); return s && !/[.!?。！？।؟]$/.test(s) ? s+t("map.text.full_stop") : s; };
+/* An item in a list inside a sentence: its own full stop goes, or the list reads "pay., Book" and ends "sequence..". */
+const noStop = s => String(s||"").trim().replace(/[.。।]+$/,"");
 function overScope(){ const j=M.jobById[M.job]; return (many() && j ? j.people : M.ivs.map(i=>i.id)).map(id=>M.ivById[id]).filter(Boolean); }
 /* How sure: fewer than 3 conversations is a hunch; a clear pattern needs 8 or more, with the last 2 adding at most 2 new needs. */
 function overSure(scope){
@@ -2178,9 +2261,28 @@ function nxToNext(sure, n){
   const more=sure.level===1 ? 3-n : sure.level===2 ? Math.max(8-n,0) : 0;
   return more ? t("map.nx.to_next",{n:more, level:t(OV_SURE[sure.level])}) : sure.level===2 ? t("map.nx.keep_going") : "";
 }
+/* The open gaps the round's entries back up, in the order of the gaps. */
+function nxAimed(round, gaps){ const aimed=new Set((round||[]).flatMap(e=>(e && e.gaps)||[])); return gaps.filter(g=>aimed.has(g.ref)); }
+/* The interview kit exists only when the round backs up at least one open gap: else its sheets ask about settled things. */
+const nxKitOk = (round, gaps) => nxAimed(round, gaps).length > 0;
+/* One item per call: an entry for 2 people gives 2 calls, numbered across the round. */
+const nxCalls = round => (round||[]).flatMap(e=>Array.from({length:Math.max(1, +e.count||1)}, ()=>e)).map((entry,i)=>({entry, n:i+1}));
+/* pw-rules asks `listen` for "what to write down: what it shows"; a line with no colon is all "write down". */
+function nxSplitListen(s){
+  const text=String(s||"").trim(), at=text.search(/[:：]/);
+  return at<0 ? {write:text, why:""} : {write:text.slice(0,at).trim(), why:text.slice(at+1).trim()};
+}
+/* The day the plan was written, else today, as the guide writes it: 2026-11-15. */
+function nxKitDate(){
+  const w=M.over && M.over.written; if(typeof w==="string" && /^\d{4}-\d{2}-\d{2}$/.test(w)) return w;
+  const d=new Date(), two=x=>String(x).padStart(2,"0");
+  return `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
+}
+/* The title promises only the gaps the round's cards back up, not every open gap. */
 function nxTitle(round, gaps){
-  return !gaps.length ? t("map.nx.enough") : !round.length ? t("map.nx.title_none",{n:gaps.length})
-    : t("map.nx.title",{people:t("map.nx.people",{n:round.reduce((a,e)=>a+(+e.count||1),0)}), gaps:t("map.nx.gaps",{n:gaps.length})});
+  const n=nxAimed(round, gaps).length;
+  return !gaps.length ? t("map.nx.enough") : !round.length || !n ? t("map.nx.title_none",{n:gaps.length})
+    : t("map.nx.title",{people:t("map.nx.people",{n:round.reduce((a,e)=>a+(+e.count||1),0)}), gaps:t("map.nx.gaps",{n})});
 }
 const nxStep = (n,ask,answer,body) => `<section class="ov-blk ov-step" id="nx-s${n}"><p class="ov-ask"><b>${n}</b>${ask}</p><h2 class="ov-ans">${esc(fullStop(answer))}</h2>${body}</section>`;
 function renderNxView(){
@@ -2193,10 +2295,10 @@ function renderNxView(){
   const lead=`<section class="ov-blk ov-lead" id="nx-s0"><p class="ov-note">${esc(sentences(t("map.nx.kicker"), many()?t("map.next.shown_for",{job:jobName(M.job)}):""))}</p>
     <h2 class="ov-bl">${esc(nxTitle(round, gaps))}</h2>
     ${!gaps.length?`<button type="button" class="ov-lk" data-nx-view="over">${th("map.nx.see_next")}</button>`:!round.length?`<div class="ov-todo">${th("map.nx.ask_assistant")}</div>`:M.overStale?`<div class="flag">${th("map.ov.lead.stale")}</div>`:""}
-    <div class="nx-actions">${guide&&round.length?`<button type="button" class="nx-btn" data-nx-copy>${th("map.nx.copy")}</button>`:""}<button type="button" class="nx-btn nx-ghost" data-nx-print>${th("map.nx.print")}</button></div>${nxDecide()}</section>`;
+    <div class="nx-actions">${guide&&round.length?`<button type="button" class="nx-btn" data-nx-copy>${th("map.nx.copy")}</button>`:""}${nxKitOk(round, gaps)?`<button type="button" class="nx-btn nx-ghost" data-nx-print>${th("map.nx.print_kit")}</button>`:""}</div>${nxDecide()}</section>`;
   const s1=nxStep(1, th("map.nx.q.sure"), sentences(fullStop(t(OV_SURE[sure.level-1])), nxToNext(sure, n)),
     `<div class="ov-sure"><ol class="ov-gauge lv${sure.level}" aria-label="${esc(t("map.ov.sure.aria",{name:t(OV_SURE[sure.level-1]), level:sure.level}))}">${OV_SURE.map((l,i)=>`<li class="${i+1<sure.level?"done":i+1===sure.level?"now":""}">${th(l)}</li>`).join("")}</ol><p class="ov-note">${esc(sure.text)}</p></div>
-    ${last?`<div class="nx-last${last.closed?" nx-won":""}">${last.closed?'<svg class="ap-ic" viewBox="0 0 16 16" aria-hidden="true"><use href="#ap-check"/></svg>':""}<b>${th("map.nx.last",{closed:last.closed, targeted:last.targeted})}</b> ${last.open.length?th("map.nx.still_open",{list:esc(joinList(last.open.map(r=>byRef[r]||r)))}):""}</div>`:""}`);
+    ${last?`<div class="nx-last${last.closed?" nx-won":""}">${last.closed?'<svg class="ap-ic" viewBox="0 0 16 16" aria-hidden="true"><use href="#ap-check"/></svg>':""}<b>${th("map.nx.last",{closed:last.closed, targeted:last.targeted})}</b> ${last.open.length?th("map.nx.still_open",{list:esc(joinList(last.open.map(r=>noStop(byRef[r]||r))))}):""}</div>`:""}`);
   const chip=ref=>{ const g=gaps.find(x=>x.ref===ref), text=esc(g?g.text:byRef[ref]||ref), main=g&&g.main?`<i class="nx-main">${th("map.nx.main")}</i>`:"";
     return g&&g.node ? `<button type="button" class="nx-chip" data-nx-go="${esc(g.node)}">${text}${main}</button>` : `<span class="nx-chip${g?"":" nx-done"}">${text}${main}</span>`; };
   const card=(e,i)=>`<article class="nx-card" id="nx-c${i+1}"><div class="nx-head"><b class="nx-num">${i+1}</b><div><h3>${esc(e.who||"")}</h3><p class="ov-note">${esc([t("map.nx.count",{n:+e.count||1}), ...(e.traits||[]).map(id=>values.find(v=>v.id===String(id))).filter(Boolean).map(v=>`${v.name}: ${v.label}`)].join(" · "))}</p></div><button type="button" class="nx-btn nx-ghost" data-nx-copy="${i}">${th("map.nx.copy_one")}</button></div>
@@ -2231,6 +2333,70 @@ function renderNxView(){
   nextview.innerHTML=`<div class="ov-page"><nav class="ov-rail" aria-label="${esc(t("map.nx.rail.aria"))}"><ol>${rail.map(([k,l])=>`<li><button type="button" data-nx-to="nx-s${k}"><b>${k}</b><span>${th(l)}</span></button></li>`).join("")}</ol></nav>
     <article class="ov-sheet">${lead}${s1}${s2}${s3}${s4}</article></div>`;
 }
+/* The interview kit that Print gives in Next interviews: a plan for the round, then one sheet per call to run it from
+   and write on (spec: docs/superpowers/specs/2026-11-15-interview-kit-design.md). Empty when the round backs up no
+   open gap. Note lines per question, by how many questions the call has: a call with 1 or 2 questions fits one page
+   on A4 and Letter; one with 3 or 4 takes two pages, so it gets room to write, and its end stays with its questions. */
+const KIT_LINES = [0, 8, 3, 4, 4];
+function renderNxKit(){
+  const learn=nxLearn(), round=Array.isArray(learn.round)?learn.round:[], gaps=nxGaps();
+  if(!nxKitOk(round, gaps)) return "";
+  const values=nxValues(learn), calls=nxCalls(round), total=calls.length, aimed=nxAimed(round, gaps);
+  const scope=overScope(), sure=overSure(scope), date=nxKitDate(), job=M.jobById[M.job], toNext=nxToNext(sure, scope.length);
+  const quoted=key=>esc(t("map.text.quote",{q:t(key)}));
+  const head=`<div class="kit-rh"><span><b>${esc(M.project)}</b> · ${th("map.nx.kit.head")}</span><span>${esc(t("map.nx.kit.plan_date",{date}))}</span></div>`;
+  const lines=n=>`<div class="kit-lines">${"<i></i>".repeat(n)}</div>`, box='<span class="kit-box"></span>';
+  const fitOf=e=>joinList((e.traits||[]).map(id=>values.find(v=>v.id===String(id))).filter(Boolean).map(v=>`${v.name}: ${v.label||""}`));
+  const lead=sentences(t("map.nx.kit.lead",{aimed:aimed.length, all:gaps.length}),
+    aimed.some(g=>g.main) ? t("map.nx.kit.lead_main") : "", t("map.nx.kit.stop"));
+  const plan=`<section class="kit-plan">${head}
+    ${M.overStale?`<p class="kit-stale">${th("map.nx.kit.stale")}</p>`:""}
+    ${job?`<p class="kit-kick">${esc(job.statement)}</p>`:""}
+    <h2>${th("map.nx.kit.title",{n:total})}</h2>
+    <p class="kit-lead">${esc(lead)}</p>
+    <div class="kit-top"><div class="kit-sec"><h3><span>${th("map.nx.kit.sure")}</span><small>${th("map.nx.kit.so_far",{n:scope.length})}</small></h3>
+      <div class="kit-bar lv${sure.level}" aria-hidden="true">${OV_SURE.map((l,i)=>`<i class="${i<sure.level?"on":""}"></i>`).join("")}</div>
+      <div class="kit-levels">${OV_SURE.map((l,i)=>i+1===sure.level?`<b>${th(l)}</b>`:`<span>${th(l)}</span>`).join("")}</div>
+      ${toNext?`<p class="kit-small">${esc(toNext)}</p>`:""}</div>
+    ${M.over && M.over.bottom_line?`<div class="kit-finding"><p class="kit-small">${th("map.nx.kit.finding")}</p><p>${esc(fullStop(M.over.bottom_line))}</p></div>`:""}</div>
+    <div class="kit-sec"><h3><span>${th("map.nx.kit.calls")}</span><small>${th("map.nx.kit.tick")}</small></h3>
+      <table class="kit-calls"><thead><tr><th></th><th>${th("map.nx.kit.col.who")}</th><th>${th("map.nx.kit.col.fit")}</th>
+        <th class="c">${th("map.nx.kit.col.booked")}</th><th class="c">${th("map.nx.kit.col.done")}</th><th class="c">${th("map.nx.kit.col.sent")}</th></tr></thead>
+      <tbody>${calls.map(({entry, n})=>`<tr><td class="kit-num">${n}</td><td>${esc(entry.who||"")}</td><td>${esc(fitOf(entry))}</td>
+        <td class="c">${box}</td><td class="c">${box}</td><td class="c">${box}</td></tr>`).join("")}</tbody></table></div>
+    <div class="kit-plan-end"><div class="kit-sec"><h3><span>${th("map.nx.kit.ask_h")}</span><small>${th("map.nx.kit.write_to",{n:total, invites:3*total})}</small></h3>
+      <p class="kit-say kit-quote">${quoted("map.nx.kit.say.invite")}</p><p class="kit-small" style="margin-top:2mm">${th("map.nx.kit.where")}</p></div>
+    <div class="kit-sec"><h3><span>${th("map.nx.kit.rules")}</span></h3>
+      <ol class="kit-rules"><li>${learn.tip?esc(learn.tip):th("map.nx.kit.rule.last")}</li><li>${th("map.nx.kit.rule.show")}</li><li>${th("map.nx.kit.rule.write")}</li></ol></div>
+    ${M.proposals.length?`<p class="kit-decide">${th("map.nx.kit.decide",{n:M.proposals.length})}</p>`:""}</div></section>`;
+  const sheet=({entry:e, n})=>{
+    const qs=Array.isArray(e.questions)?e.questions:[], room=KIT_LINES[Math.min(qs.length,4)]||3, fit=fitOf(e);
+    const learns=(e.gaps||[]).map(ref=>gaps.find(g=>g.ref===ref)).filter(Boolean);
+    return `<section class="kit-call" data-call="${n}">${head}
+      <p class="kit-kick">${th("map.nx.kit.call",{i:n, total})}</p>
+      <h2>${esc(e.who||"")}</h2>
+      <div class="kit-fields"><span class="kit-field">${th("map.nx.kit.name")} <i></i></span><span class="kit-field">${th("map.nx.kit.date")} <i></i></span>
+        <span class="kit-check">${box} ${th("map.nx.kit.rec_on")}</span><span class="kit-check">${box} ${th("map.nx.kit.notes_only")}</span></div>
+      ${fit?`<p class="kit-fit"><b>${th("map.nx.kit.fit")}</b> ${esc(fit)}</p>`:""}
+      <div class="kit-body"><aside class="kit-side">
+        <div><h3>${th("map.nx.kit.short_h")}</h3><p class="kit-say">${esc(t("map.nx.kit.say.probes"))}</p><p>${th("map.nx.kit.short_wait")}</p></div>
+        <div><h3>${th("map.nx.kit.never_h")}</h3><p>${th("map.nx.kit.never")}</p></div>
+        <div><h3>${th("map.nx.kit.idea_h")}</h3><p class="kit-say">${quoted("map.nx.kit.say.idea")}</p></div>
+        <div><h3>${th("map.nx.kit.norec_h")}</h3><p>${th("map.nx.kit.norec")}</p></div>
+        ${learns.length?`<div><h3>${th("map.nx.kit.learns")}</h3><ul>${learns.map(g=>`<li>${esc(g.text)}${g.main?` <span class="kit-mark">${th("map.nx.main")}</span>`:""}</li>`).join("")}</ul></div>`:""}
+      </aside><div class="kit-main">
+        <div class="kit-step"><h3><b>1</b>${th("map.nx.kit.step.start")}</h3><p class="kit-say">${quoted("map.nx.kit.say.open")}</p></div>
+        <div class="kit-step"><h3><b>2</b>${th("map.nx.kit.step.warm")}</h3><p class="kit-say">${quoted("map.nx.kit.say.warm")}</p>${lines(2)}</div>
+        <div class="kit-step"><h3><b>3</b>${th("map.nx.kit.step.ask")}</h3>${qs.map((q,k)=>{ const l=nxSplitListen(q && q.listen);
+          return `<div class="kit-q"><p class="kit-ask">${k+1}. ${esc(t("map.text.quote",{q:(q && q.ask)||""}))}</p>
+            <p class="kit-write"><b>${th("map.nx.kit.write")}</b> ${esc(l.write)}</p>${l.why?`<p class="kit-why">${th("map.nx.kit.why")} ${esc(l.why)}</p>`:""}${lines(room)}</div>`; }).join("")}</div>
+        <div class="kit-step"><h3><b>4</b>${th("map.nx.kit.step.end")}</h3><p class="kit-say">${quoted("map.nx.kit.say.close_1")} ${quoted("map.nx.kit.say.close_2")}</p>${lines(2)}
+          <p class="kit-then">${th("map.nx.kit.end_then")}</p></div>
+      </div></div>
+      <p class="kit-foot"><b>${th("map.nx.kit.after")}</b> <span class="kit-say">${quoted("map.nx.kit.say.after")}</span></p></section>`;
+  };
+  return plan + calls.map(sheet).join("");
+}
 /* The decisions waiting, here too, next to the plan they change. */
 function nxDecide(){ return M.proposals.length ? `<div class="nx-decide">${decideHTML("h3")}</div>` : ""; }
 function nxQuestions(i){
@@ -2247,10 +2413,27 @@ nextview.addEventListener("click",e=>{
   else if((b=at("[data-nx-to]"))){ const el=document.getElementById(b.dataset.nxTo); if(el) el.scrollIntoView({block:"start"}); }
   else if((b=at("[data-nx-more]"))){ b.previousElementSibling.hidden=false; b.remove(); }
   else if((b=at("[data-nx-view]"))) setView(b.dataset.nxView);
-  else if((b=at("[data-nx-print]"))){ document.body.classList.add("nx-print"); window.print(); }
+  else if(at("[data-nx-print]")){ if(nxKitPrep()) window.print(); }
   else if((b=at("[data-nx-copy]"))) nxCopy(b.dataset.nxCopy==="" ? M.made.guides[M.job] : nxQuestions(+b.dataset.nxCopy), b);
 });
-addEventListener("afterprint",()=>document.body.classList.remove("nx-print"));
+/* Print fills the kit, and names the page so "Save as PDF" suggests "<study> interview kit <date>"; after printing,
+   or when the print window is closed, the page is as it was. Command-P in Next interviews does the same. */
+let kitTitle = null;
+function nxKitPrep(){
+  const learn=nxLearn(), round=Array.isArray(learn.round)?learn.round:[];
+  if(!nxKitOk(round, nxGaps())) return false;
+  document.getElementById("nxkit").innerHTML = renderNxKit();
+  document.body.classList.add("nx-print");
+  if(kitTitle===null) kitTitle = document.title;
+  document.title = t("map.nx.kit.file", {project:M.project, date:nxKitDate()});
+  return true;
+}
+function nxKitDone(){
+  document.body.classList.remove("nx-print"); document.getElementById("nxkit").innerHTML = "";
+  if(kitTitle!==null){ document.title = kitTitle; kitTitle = null; }
+}
+addEventListener("beforeprint",()=>{ if(viewNow()==="next" && !document.body.classList.contains("nx-print")) nxKitPrep(); });
+addEventListener("afterprint", nxKitDone);
 
 /* A KB dropped onto the map brings its own language; a file that does not load leaves the map as it was. */
 function load(raw){

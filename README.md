@@ -264,7 +264,8 @@ holds one study.
 - `review.md`, the review sheet, as text;
 - `interview-guide.md`, the plan for your next interviews, as text, ready to
   take into the calls: who to find, what to ask and what to listen for. The
-  map's Next interviews tab shows it too, ready to print or copy.
+  map's Next interviews tab shows it too, to copy, or to print as an interview
+  kit with one sheet per call.
 
 `.pw-kb/` holds the study itself. Finder and most file dialogs hide it,
 because its name starts with a dot
