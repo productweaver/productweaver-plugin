@@ -171,8 +171,9 @@ Interviews hold people's names and words, so here is what the plugin does
 with them.
 
 - **It runs on your computer.** The plugin is two local Python scripts
-  inside the skill. `kb_tool.py` (its `migrate` command also loads
-  `kb_migrate.py`, next to it) reads the files you point it to and writes
+  inside the skill. `kb_tool.py` (with `kb_map.py`, `kb_review.py` and
+  `kb_migrate.py`, next to it, which it loads for some of its commands)
+  reads the files you point it to and writes
   the files listed under [Files it writes](#files-it-writes); it makes no
   network calls. `pw_usage.py` keeps your answer about usage statistics
   and, only after a yes, sends the events.

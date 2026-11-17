@@ -12,7 +12,7 @@ A patch is plain JSON, written in UTF-8.
 - Write no comments. The format has a field for each thing worth saying: `provenance.notes`, `analyst_note`, `rationale`.
 - Write every ID as a text in quotes, even when it is all digits: `"07"`, `"A.6.3"`. A number is not an ID.
 
-When the file is not valid JSON, the merge stops with `json_invalid`. Its message gives the line and column, and shows the line with a `^` under the spot. Fix that spot and run the dry run again.
+When the file is not valid JSON, the merge stops with `json_invalid`. Its message gives the line and column, and shows the line with a `^` under the spot. Fix that spot and run the merge again: a refused merge writes nothing.
 
 ## Referring to interviews, core jobs, steps and outcomes
 
@@ -281,4 +281,4 @@ A `new_core_job` gets the next free letter when approved, and its steps are numb
 4. Builds the new KB in memory and checks it against `kb-schema.json`.
 5. On success: copies each new transcript into `.pw-kb/transcripts/` and the current KB to `.pw-kb/backups/`, adds interviews with new IDs, appends evidence without duplicates, numbers new outcomes (next free `<step>.<k>`) and new solutions (next free `S<n>`), files proposals as `P<n>` with status `pending` (after a bootstrap, first one `confirm_core_job` per core job), recounts coverage and who is linked to which core job, marks derived layers stale and writes a changelog entry with what was added, the time, the `run_id` and the provenance. Every run, successful or not, also gets one line in `.pw-kb/logs/kb_tool.jsonl`.
 
-`--dry-run` runs steps 1 to 4 and reports the same verdict the real merge would. `--json` prints the result as one JSON object. Running the same patch twice changes nothing.
+After a merge that wrote the KB, it rebuilds `review.md`, the interview guide and the map, as `review` and `map` do; `--no-publish` skips that. `--dry-run` runs steps 1 to 4 and reports the same verdict the real merge would, for scripts and tests. `--json` prints the result as one JSON object. Running the same patch twice changes nothing.

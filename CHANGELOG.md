@@ -4,6 +4,50 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.16.0 — 2026-11-16
+
+### What's new
+
+- **Fewer approval prompts, less waiting.** Your assistant needs fewer
+  commands for each batch of interviews. Each command checks everything
+  before it changes your study, so the assistant runs it once, with no test
+  run first. In Claude Code, that means fewer questions asking you to
+  approve a command.
+- **The map is up to date after every step.** When your assistant adds
+  interviews, writes the Overview, groups the measures of success into value
+  themes or acts on one of your decisions, the map and the review sheet are
+  updated in the same step. A map you have open updates itself after each
+  one.
+
+### What's improved
+
+- **The Overview is refused less often.** A sentence of the Overview that is
+  a little over its word limit, by a quarter at most, is now kept, and your
+  assistant gets a note to make it shorter. The statements about your
+  interviews keep their limits.
+- **Your assistant starts the Overview from a form.** `kb_tool overview
+  --skeleton A` gives the file to fill in, with the word limits of your
+  study, so the assistant gets its shape right the first time. A form saved
+  without filling it in is refused.
+- **You hear how far a batch is.** In a batch of 4 or more interviews, your
+  assistant tells you when half of them are read. When it starts a study, it
+  says how long the first batch takes: about 1.5 minutes per interview, plus
+  2, the same estimate an open map shows.
+- **The guide for your first interviews stays** until your study's first
+  Overview, so the kinds of people you planned to meet shape the first plan.
+
+### What's fixed
+
+- **Claude Code refused some commands.** The assistant sometimes kept the
+  script's path in a shell variable, or ran it in a loop. Claude Code cannot
+  check such a command, so it asked you to approve it, or refused it. The
+  skills now tell the assistant to write each command out in full.
+
+### Good to know
+
+- A map you keep open while your assistant works reloads twice for a batch:
+  after the new interviews, and after the Overview.
+
 ## 0.15.0 — 2026-11-16
 
 ### What's new

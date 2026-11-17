@@ -229,7 +229,7 @@ The overview is the first thing a person sees in the discovery map. Its reader i
 You write the sentences. The map counts everything else from the KB, so do not repeat its counts: how many people use a solution, how many raised a need, how many quotes there are. Saying how many people a claim rests on is different, and welcome: "one owner so far", "All 5 owners raised it".
 
 **How to write it:**
-1. Run `context`. Read the outcomes with how many people voiced each, the current solutions with who stopped using them, and the value themes when there are some.
+1. Start from the file `overview --skeleton` prints (see "The file" below). Read the outcomes with how many people voiced each, the current solutions with who stopped using them, and the value themes when there are some: use what `context` printed in this run, or run it when you have not.
 2. Write `executor` first: who the study is about. Every sentence after it is about these people.
 3. Write the six answers. Read them in order: they must make sense as one story, each building on the one before.
 4. Then write the bottom line: the one thing a busy person must remember, with what it costs the people. Then `why` (why the problem is still there) and `opening` (where a new solution fits, with no feature named).
@@ -312,6 +312,99 @@ You write the sentences. The map counts everything else from the KB, so do not r
 | Ask "Can you tell me how you figure out your order amounts and how you keep track of what's left over?" | Long, two topics, two idioms. "Walk me through last Sunday's order, from the first item to sending it." |
 | Listen "ordering habits" | What to write down? What does it show? "how they chose the amounts: a guess means they lack numbers" |
 | Listen "what they threw away: it means the problem is real" | Which problem? Say it. "what they threw away: wasted food means the count came too late" |
+
+### The file
+
+`kb_tool overview .pw-kb/pw-kb.json --skeleton <job>` prints this file with a `<…>` in every place to fill in, and the word limits of the study. A filled-in example, for a study of small-restaurant owners:
+
+```json
+{
+  "job": "A",
+  "executor": {
+    "label": "Small-restaurant owner",
+    "text": "An owner who runs one restaurant and places every supplier order themselves.",
+    "icon": "cook",
+    "others": ["their suppliers"]
+  },
+  "bottom_line": "Owners throw away food every week because they order from memory, without numbers.",
+  "why": "The stock apps they tried need a count nobody has time to do.",
+  "opening": "Tell the owner what the week will need before the order goes out.",
+  "people": {
+    "answer": "5 owners of small restaurants who place the orders themselves.",
+    "text": "They order 2 times a week, between services, and nobody checks the numbers.",
+    "quote": {"interview": "02", "quote": "I order on Sunday night, half asleep."}
+  },
+  "today": {
+    "answer": "Owners order from memory, with a paper stock sheet.",
+    "text": "Owners fill in the sheet when they have time, so the order depends on what they remember."
+  },
+  "gaps": {
+    "answer": "The stock sheet is out of date when owners place the second order.",
+    "items": [
+      {
+        "label": "The sheet is wrong by Wednesday",
+        "text": "Nobody updates the sheet during service, so owners guess the second order and throw food away.",
+        "kind": "struggle",
+        "solutions": ["S2"],
+        "quote": {"interview": "03", "quote": "We threw out two cases of fish that week."}
+      }
+    ]
+  },
+  "needs": {"answer": "Owners most want to throw away less food at the end of the week."},
+  "focus": {"answer": "Build first for ordering the right amount."},
+  "next": {
+    "learn": {
+      "status": "now",
+      "action": "Talk to 4 more owners, 2 of them with more than one site.",
+      "why": "All 5 owners run one site. These calls show if a second site changes how they order.",
+      "ask": ["Tell me about the last time you ran out of something. What did you do?"],
+      "tip": "Ask what they did last time, not what they would like.",
+      "traits": [
+        {"id": "T1", "name": "Sites", "values": [
+          {"id": "T1.1", "label": "One site", "interviews": ["01", "02", "03", "04", "05"]},
+          {"id": "T1.2", "label": "Two or more sites", "interviews": []}]},
+        {"id": "T2", "name": "Who counts stock", "values": [
+          {"id": "T2.1", "label": "The owner", "interviews": ["01", "02", "04"]},
+          {"id": "T2.2", "label": "A chef or manager", "interviews": ["03", "05"]}]}
+      ],
+      "rests_on": ["A.3.1", "A.3.2"],
+      "round": [
+        {"kind": "new", "count": 2, "who": "Owners who order for 2 or more sites",
+         "traits": ["T1.2"], "gaps": ["T1.2", "A.3.2"],
+         "questions": [{"ask": "Walk me through last Sunday's order, from the first item to sending it.",
+                        "listen": "how they chose the amounts: a guess means they lack numbers", "gaps": ["A.3.2"]}]},
+        {"kind": "new", "count": 1, "who": "An owner whose chef counts the stock",
+         "traits": ["T2.2"], "gaps": ["A.4"],
+         "questions": [{"ask": "Tell me about the last time the count and the shelf did not match.",
+                        "listen": "what they threw away: wasted food means the count came too late", "gaps": ["A.4"]}]}
+      ]
+    },
+    "prototype": {
+      "status": "ready",
+      "action": "Draw an order list built from last week's sales, on one page.",
+      "why": "All 5 owners raised it, and 2 paid for a stock app and stopped using it.",
+      "test": "Ask Ana and Luis to place one real order from the drawing. Build it if both finish without help.",
+      "later": "Do not plan staff rotas yet."
+    },
+    "market": {
+      "status": "early",
+      "action": "Write to Ana and Luis, who asked to see it, and offer to show the drawing.",
+      "who": "Owners who place the orders themselves.",
+      "words": ["half asleep"],
+      "unknown": "Nobody said what they would pay. Ask the first owner who wants it to pay for a trial."
+    }
+  }
+}
+```
+
+Notes on the example:
+
+- `executor` is who the study is about; the map shows it first, with the icon. Its `label` has at most 4 words, what they would call themselves. `icon` is one of the icons listed in `references/kb-schema.md`; use `person` when none fits. `others` is optional: people in the story who are not its focus.
+- `text` and `quote` under `people` are optional.
+- A gap's `kind` is `pain` (it hurts today) or `struggle` (a fix they tried did not work). Its `solutions` is optional: the solutions it concerns.
+- `status` is `now` or `enough` for `learn`, and `ready` or `early` for `prototype` and `market`.
+- `words` are the customers' own words, each part of a quote in the KB.
+- `traits`, `rests_on` and `round` are the plan for the next round, and come together. Read "Plan the next round" above first. Every ID is a step, an outcome or a trait value of this core job.
 
 ## Writing in another language
 

@@ -44,6 +44,8 @@ Then run, from the root of the workspace, the command below, with `--path transc
 python3 <plugin folder>/skills/pw-discovery/scripts/pw_usage.py start .pw-kb --skill pw-start --path <path> --assistant <name> --model <id>
 ```
 
+Write the script's full path in every command, as above: never put it in a shell variable (`S=<plugin folder>`) and never `cd` into the plugin folder. Claude Code cannot check such a command, so it asks the user or refuses it.
+
 `<name>` and `<id>` are as in `pw-discovery`'s "Usage statistics", which also says what its output line means and how to ask the question. When no `.pw-kb/` folder is made (path D, or a sandbox that keeps nothing), skip it and everything below that mentions `pw_usage.py`. Every run that ran `start` runs `end` once, when its work is done, with the same options: path B adds `--guide-written`, path C runs it right before you give the next step, and path A hands over to `pw-discovery`, which skips `start` and runs `end` itself.
 
 A first-round guide with no study: put it in front of the user as `<plugin folder>/skills/pw-discovery/references/open-files.md` says for your host. If transcripts are there now, take path A and do not ask the planning questions again. If not, ask how the interviews are going and say what to do when they have them: "When you have 3 or more, put the transcripts in one folder here and say: Add my interviews to the study." Never rewrite the guide unless they ask.
@@ -65,7 +67,7 @@ Tell the user, in 3 lines at most:
 
 - what will happen: you read every interview and build a study of what these people are trying to get done, where it goes wrong and what they use today;
 - where it goes: the study in a `.pw-kb/` folder in this workspace, and the map in a `pw-output/` folder next to it; their own files are not changed;
-- how long: roughly a minute or two per interview;
+- how long: about 1.5 minutes per interview, plus 2;
 - what they get: a discovery map that opens in their browser, and the one next step.
 
 Then:
@@ -105,7 +107,7 @@ Then go down this list. The first item that applies is the next step:
 3. **Missing text.** A `LABELS:` line: the map's own text in the study's language is not complete. Finish it with `pw-discovery`'s labels steps.
 4. **What the study is about is not confirmed.** A pending proposal of type `confirm_core_job`. Ask it as a click, as `pw-discovery`'s "Ask the decisions as a click" says: show the goal in plain words with three of its steps, then ask "These <N> people are all trying to: <the goal>. Is that right?", with the choices "Yes, that's it" and "Close, but change it". Act on the answer as that section says.
 5. **Decisions waiting.** Other proposals under `PENDING PROPOSALS:`. Ask up to 3 of them as a click, the same way. The map lists every one near the top of its Overview, under "Decisions for you".
-6. **An old summary.** No `OVERVIEW` block, or `OVERVIEW [out of date]`: update the overview and the map.
+6. **An old summary.** No `OVERVIEW` block, or `OVERVIEW [out of date]`: update the overview, which also rebuilds the map.
 7. **Not sure enough yet.** Under `OPEN GAPS for core job X`, the line `level N of 3 after M conversations` with N of 1 or 2. Run the next round: how many more conversations, with which kinds of people, from the plan in the map's Next interviews tab, where the guide can be printed or copied.
 8. **A clear pattern, no themes.** Level 3, and no `VALUE THEMES` block: group the needs into value themes, so a team can sort ideas into a few needs.
 9. **Otherwise:** the overview's prototype step, or, once that is done, its market step. Say it is advice.

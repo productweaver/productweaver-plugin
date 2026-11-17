@@ -19,9 +19,11 @@ python3 <skill folder>/scripts/kb_tool.py <command> ...
 
 Below, `kb_tool` stands for that line. Do not write plain `python`; many machines do not have it. On Windows, if `python3` is missing, use `py -3`.
 
+Write the script's full path in every command: never put it in a shell variable (`S=<skill folder>`), never `cd` into the skill folder, and never run it in a `for` loop: write each command out. Claude Code cannot check such a command, so it asks the user or refuses it. Several `kb_tool` commands may share one call.
+
 Transcripts can be `.md`, `.txt`, `.docx` or `.pdf`. The script reads `.docx` itself. It reads `.pdf` with pypdf when that package is installed. When it is not, the merge stops with `reader_missing`: read the PDF yourself, save its text word for word as `.pw-kb/transcripts/<name>.txt` (the PDF's name, ending in `.txt`), and name that file in the patch instead of the PDF. Say so in `provenance.notes`, and tell the user that the quotes were checked against your text copy of the PDF.
 
-Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool into `.pw-kb/tools/` only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_map.py`, `scripts/kb_migrate.py`, `references/kb-schema.json`, `references/patch-schema.json`, `assets/discovery-map-template.html` and `assets/labels-en.js` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
+Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool into `.pw-kb/tools/` only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_map.py`, `scripts/kb_review.py`, `scripts/kb_migrate.py`, `references/kb-schema.json`, `references/patch-schema.json`, `assets/discovery-map-template.html` and `assets/labels-en.js` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
 
 ## What a run changes, and what it leaves alone
 
@@ -55,9 +57,9 @@ pw-output/
   interview-guide.md   the plan for the next interviews, as text
 ```
 
-`.pw-kb/` is hidden in Finder and most file dialogs, because its name starts with a dot. `pw-output/` is not, so people find the map there by themselves. `review` and `map` write it; `map` also keeps a hidden `.map-live/` folder there, which tells an open map that a newer one is ready (git ignores it). They give it the same `.gitignore` as `.pw-kb/`, so git treats both folders alike. They also remove the copies that plugin 0.11 and earlier left in `.pw-kb/`, and say so in one line that starts `moved:`. Run every command from the workspace root, with the paths as shown. The tool refuses a KB anywhere else. Never write the skill's files outside `.pw-kb/` and `pw-output/`. The user's own transcripts stay where they are; the merge copies them in.
+`.pw-kb/` is hidden in Finder and most file dialogs, because its name starts with a dot. `pw-output/` is not, so people find the map there by themselves. Every write (`merge`, `apply`, `themes`, `overview`) and the `review` and `map` commands write it; the map also keeps a hidden `.map-live/` folder there, which tells an open map that a newer one is ready (git ignores it). They give it the same `.gitignore` as `.pw-kb/`, so git treats both folders alike. They also remove the copies that plugin 0.11 and earlier left in `.pw-kb/`, and say so in one line that starts `moved:`. Run every command from the workspace root, with the paths as shown. The tool refuses a KB anywhere else. Never write the skill's files outside `.pw-kb/` and `pw-output/`. The user's own transcripts stay where they are; the merge copies them in.
 
-**When the user gave you a folder, the study is files in that folder, never text in the chat.** If your shell can reach the folder, `cd` into it and run every command there. If it cannot, because the commands run on another machine and you reach the folder only with a file tool: first copy the folder's `.pw-kb/` (everything except `backups/`) to where the commands run; at the end, before your report, save every file the run created or changed into the user's `.pw-kb/` and `pw-output/`, with the same names and sub-folders. Name `pw-output/.gitignore` in that save too, because file tools may skip names that start with a dot. When `review` or `map` printed a `moved:` line, also delete the old `review.md`, `interview-guide.md` and `discovery-map.html` from the user's `.pw-kb/`, if your tools can delete. Never paste the map, `review.md` or the KB into the chat. Never offer them as downloads instead, and never put them in a folder of your host's own, such as an outputs folder.
+**When the user gave you a folder, the study is files in that folder, never text in the chat.** If your shell can reach the folder, `cd` into it and run every command there. If it cannot, because the commands run on another machine and you reach the folder only with a file tool: first copy the folder's `.pw-kb/` (everything except `backups/`) to where the commands run; at the end, before your report, save every file the run created or changed into the user's `.pw-kb/` and `pw-output/`, with the same names and sub-folders. Name `pw-output/.gitignore` in that save too, because file tools may skip names that start with a dot. When a write, `review` or `map` printed a `moved:` line, also delete the old `review.md`, `interview-guide.md` and `discovery-map.html` from the user's `.pw-kb/`, if your tools can delete. Never paste the map, `review.md` or the KB into the chat. Never offer them as downloads instead, and never put them in a folder of your host's own, such as an outputs folder.
 
 **When the link to the user's computer drops.** In Cowork, a task that runs in the cloud reaches the folder through the Claude desktop app, over a link that often drops for a few seconds and comes back by itself. So fetch every file the run needs in one request, when your tool takes several, and work on those copies; save them back in one request too. When a call that lists, fetches or saves files on the user's computer, or runs a command there, fails because the computer, the device or the app cannot be reached, is not connected or timed out, do not stop and do not tell the user yet. Wait about 15 seconds (`sleep 15` in your own shell) and make the same call again; if it fails again, wait 30 seconds, then 60. Only when all three retries fail, tell the user in one or two lines that the link to their computer dropped, that nothing is lost, to check that the Claude app is open and the computer awake, and to say "Try again". When they do, go on from the call that failed: keep the files you fetched and the answers you got, and do not start over or ask again. A missing file, or a folder you are not allowed to open, is not a dropped link: do not retry those.
 
@@ -85,7 +87,7 @@ Some users read English with difficulty. A study is written in one language, cho
 
 Write every statement in the study's language. `references/pw-rules.md`, "Writing in another language", has the rules. In a study that is not in English, the tool allows about a fifth more words, does not check the English openings "Minimize…" and "Help me…", and counts letters in Chinese, Japanese and Thai.
 
-**When `context` prints a `LABELS:` line**, the study lacks text for some labels, usually because an update of the skill added them. Run `kb_tool labels .pw-kb/pw-kb.json`, write the file it gives and `--add` it before `review` and `map`. Until then those labels show in English, and `review` and `map` say so.
+**When `context` prints a `LABELS:` line**, the study lacks text for some labels, usually because an update of the skill added them. Run `kb_tool labels .pw-kb/pw-kb.json`, write the file it gives and `--add` it before the next write. Until then those labels show in English, and the rebuild of the map says so.
 
 A study's language cannot change once it has interviews, because its statements are written in it. If the user asks, say so: translating a study is not supported.
 
@@ -104,9 +106,9 @@ Once an attached study is unpacked, run `pw_usage.py start` (see "Usage statisti
 No KB yet:
 
 1. Read the first lines of each new transcript, to see which language the interviews are in.
-2. If `pw-output/interview-guide.md` is already there (or `.pw-kb/interview-guide.md`, from plugin 0.11 or earlier), the user planned these interviews with the `pw-start` skill before the study existed. Read it. The kinds of people under "Who to find" may become trait values in the first plan, including kinds nobody has been heard from yet. The first `review` replaces the file with a guide built from the study.
+2. If `pw-output/interview-guide.md` is already there (or `.pw-kb/interview-guide.md`, from plugin 0.11 or earlier), the user planned these interviews with the `pw-start` skill before the study existed. Read it. The kinds of people under "Who to find" may become trait values in the first plan, including kinds nobody has been heard from yet. The study's first overview replaces the file with a guide built from the study; until then the rebuild after each write keeps it and says `kept`.
 3. `kb_tool init .pw-kb/pw-kb.json --project "<name>"`. Add `--interviewer "<name>"` only when the user or the transcripts say who ran the interviews; never fill it in from anywhere else.
-4. Ask what the start needs to know, in one question call of at most three questions: the study's language, unless every transcript is in English (see "Study language"); when `init` printed a `git:` line, whether to share the study through git; and, when `pw_usage.py start` printed `usage: no-study`, the usage question (see "Usage statistics"). `.pw-kb/` holds interviewees' names, their words and their transcripts, and the `git:` line means the workspace is a git repository. If the user does not want to share it, write `.pw-kb/.gitignore` containing the single line `*`. If they do, write it with the two lines `logs/` and `usage/`. `pw-output/` follows the same answer: `review` and `map` copy that file into it. Then run `pw_usage.py set` with the answer. Do not ask any of these questions again later.
+4. Ask what the start needs to know, in one question call of at most three questions: the study's language, unless every transcript is in English (see "Study language"); when `init` printed a `git:` line, whether to share the study through git; and, when `pw_usage.py start` printed `usage: no-study`, the usage question (see "Usage statistics"). `.pw-kb/` holds interviewees' names, their words and their transcripts, and the `git:` line means the workspace is a git repository. If the user does not want to share it, write `.pw-kb/.gitignore` containing the single line `*`. If they do, write it with the two lines `logs/` and `usage/`. `pw-output/` follows the same answer: every rebuild copies that file into it. Then run `pw_usage.py set` with the answer. Do not ask any of these questions again later.
 5. For a language other than English, run the `labels` steps in "Study language" before you extract.
 
 When nobody can answer, as in a scripted run, pass `--language <code>` to `init` instead: it writes the labels file to fill in the same call. Do not touch git then, and run `pw_usage.py set .pw-kb no`.
@@ -133,13 +135,13 @@ It copies the transcripts, moves the KB, patches, backups and logs into `.pw-kb/
 kb_tool context .pw-kb/pw-kb.json --batch 8  # 8: the transcripts in this batch; --json gives one JSON object
 ```
 
-With `--batch`, it first prints a `batch:` line. Tell the user its estimate in one plain sentence, such as "8 interviews: about 14 minutes. I'll tell you when your map is ready.", and when the line says an open map shows it, add "Your open map shows that it is being updated." Use `--batch` only at the start of a batch. Then it prints the study's language, then each core job with its steps, outcomes and IDs, then the current solutions by group, every person with their own core job and the core job it links to, the segments, the files already processed, pending proposals and stale layers. Write every statement in the study's language. Map new evidence against this. Skip any transcript whose file is in "processed files". The script also skips it, matching by file name and content hash, so re-running the same batch never double-counts.
+With `--batch`, it first prints a `batch:` line. Tell the user its estimate in one plain sentence, such as "8 interviews: about 14 minutes. I'll tell you when your map is ready.", and when the line says an open map shows it, add "Your open map shows that it is being updated." When `pw-start` already gave the time in this conversation, pass on only the part about an open map. Use `--batch` only at the start of a batch. Then it prints the study's language, then each core job with its steps, outcomes and IDs, then the current solutions by group, every person with their own core job and the core job it links to, the segments, the files already processed, pending proposals and stale layers. Write every statement in the study's language. Map new evidence against this. Skip any transcript whose file is in "processed files". The script also skips it, matching by file name and content hash, so re-running the same batch never double-counts.
 
 A KB with an older schema is refused with a message to run `kb_tool migrate .pw-kb/pw-kb.json`; moving an older study upgrades it in the same step. When either says it migrated from schema version 1, tell the user: the core job is now core job A, and every step and outcome ID gained the letter, so `6.3` is now `A.6.3`.
 
 ### 3. Read each new transcript in full, then extract
 
-Read the whole transcript before writing anything. The rules for each statement are in `references/pw-rules.md`; read that file once per session, starting with "Write for the reviewer first" and "Plain language for a second-language reader". Founders, product managers, domain experts and architects will review these statements, so each one should be short, plain and land on the first read. The merge blocks statements that are too long or carry asides. In short:
+Read the whole transcript before writing anything. In a batch of 4 or more, when half the transcripts are read, say one short line, such as "4 of 8 read." The open map cannot show it: `merge` moves the batch on only at the end. The rules for each statement are in `references/pw-rules.md`; read that file once per session, starting with "Write for the reviewer first" and "Plain language for a second-language reader". Founders, product managers, domain experts and architects will review these statements, so each one should be short, plain and land on the first read. The merge blocks statements that are too long or carry asides. In short:
 
 - **Per interview:** the job executor (who they are, in this market), their core functional job (verb + object + context, no solution, no success words), related jobs, emotional jobs ("feel…", "avoid feeling…") and social jobs ("be seen as…"). Each needs 1 to 3 supporting quotes. If there is no evidence for a job type, use an empty list. Do not infer.
 - **Which core job:** ask "why?" of the person's own core job until it meets one of the study's core jobs. Link it there with `job`. Link a related job too when it is another core job of the study. If none fits, leave `job` out and raise a `new_core_job` proposal that lists the interview, or, when the person carries out none of the study's jobs, say why in `unlinked_reason` on their `core_functional_job`. For example, a driver whose carrier picks the loads does not plan loads. Their quotes still count as evidence for the steps they do perform.
@@ -160,18 +162,17 @@ Tag the source honestly:
 - `quoted_in_notes` for the interviewee's words inside quotation marks in notes
 - `interviewer_notes` for the interviewer's own paraphrase, which is weaker evidence. A header or note line someone else wrote about the interview, such as "# Interview: Ana Lima, service writer", counts as this too. Quote it only when the person never says it in their own words
 
-### 5. Write the patch, dry-run, merge
+### 5. Write the patch, merge
 
 Write the patch to `.pw-kb/patches/<date>-<batch>.json`, a JSON file in the format of `references/patch-format.md`. Open it with `generated_with` and a `provenance` block: which assistant and model you are, when you started reading, which interviews you read (by ID or key, never by file name) and any note a later reader needs. The merge copies it into the KB's changelog, so every batch can be traced to who extracted it and how. Write every ID as a string, in double quotes: interviews `"01"`, core jobs `"B"`, steps `"B.2"`, outcomes `"B.2.3"`. A number is not an ID: the merge reads the number `7` as interview `"07"` and warns, but `2.10` reads as `2.1`, another outcome. Inside a text, write a straight quote mark as `\"`; a curly one needs nothing. Then:
 
 ```
-kb_tool merge .pw-kb/pw-kb.json .pw-kb/patches/<file>.json --transcripts <folder with the new transcripts> --dry-run
 kb_tool merge .pw-kb/pw-kb.json .pw-kb/patches/<file>.json --transcripts <folder with the new transcripts>
 ```
 
 In the patch, `file` is the transcript's file name. `--transcripts` says where the new ones are; pass it once per folder, or leave it out when the patch adds no interview. A file name that exists in two of those folders is refused. The KB's own copies in `.pw-kb/transcripts/` always come first, so the transcripts of earlier interviews are read from there. The real merge copies each new transcript into `.pw-kb/transcripts/` and records it as `transcripts/<file name>`; the user's originals are never changed. The script reads only the transcripts the KB and the patch cite.
 
-The dry run and the real merge run the same checks in the same order, so a clean dry run is never followed by a refused merge. Each check blocks the merge:
+The merge runs every check before it writes anything, so a refused merge writes nothing: fix the patch and run the same command again. There is no need for a `--dry-run` first. Each check blocks the merge:
 
 - **JSON:** a missing comma, a comma after the last item or a quote mark without its `\` gives `json_invalid`, with the line and column and the line itself. Fix that spot.
 - **Patch format**, against `references/patch-schema.json`: a missing field, a list where an object belongs, or an ID written as a number gives one message that names the place in the patch.
@@ -182,31 +183,29 @@ The dry run and the real merge run the same checks in the same order, so a clean
 
 Warnings do not block: an interview skipped because it is already in the KB (its evidence is dropped), an interview ID written as a number that was read as `"01"`, an unknown top-level key, or a transcript whose content changed since it was added.
 
-A real merge first copies the new transcripts into `.pw-kb/transcripts/` and the current KB to `.pw-kb/backups/` (the newest 20 copies are kept), then writes the new KB, recounts all coverage numbers, marks derived layers stale and appends a changelog entry that lists what was added, stamped with the time and the `run_id` of the run. Keep the patch file: it is the audit trail of what each batch added. Re-running a batch that was merged already is a no-op. Add `--json` to get one JSON object with `ok`, `errors`, `warnings`, `run_id` and the changes, instead of text.
+A merge first copies the new transcripts into `.pw-kb/transcripts/` and the current KB to `.pw-kb/backups/` (the newest 20 copies are kept), then writes the new KB, recounts all coverage numbers, marks derived layers stale and appends a changelog entry that lists what was added, stamped with the time and the `run_id` of the run. Then it rebuilds the review sheet and the map, as step 6 says. Keep the patch file: it is the audit trail of what each batch added. Re-running a batch that was merged already is a no-op. Add `--json` to get one JSON object with `ok`, `errors`, `warnings`, `run_id` and the changes, instead of text.
 
-### 6. Refresh the review sheet and the map
+### 6. The review sheet and the map
+
+`merge`, `apply`, `themes` and `overview` rebuild `review.md`, `interview-guide.md` and the map after each write, so reviewers never open a stale picture. Each prints the map's `link:` line and the line about a map that is already open. Do not run `review` and `map` after them.
+
+After a merge that added interviews, write the overview, as "Write the overview" describes. The map opens on it, `review.md` and `interview-guide.md` show its plan for the next interviews, and a merge marks the old one out of date. On a first batch, the overview is the last write before your report, so add `--open` to it:
 
 ```
-kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<YYYY-MM-DD>-overview-<job>.json
-kb_tool review .pw-kb/pw-kb.json
-kb_tool map .pw-kb/pw-kb.json
+kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<YYYY-MM-DD>-overview-<job>.json --open
 ```
 
-Run `review` and `map` after every merge or approved proposal, so reviewers never open a stale picture.
-
-After a merge that added interviews, write the overview first, as "Write the overview" describes. The map opens on it, `review.md` and `interview-guide.md` show its plan for the next interviews, and a merge marks the old one out of date.
-
-Add `--open` to `map` when it writes the study's first map, and whenever the user asks to see the map: the tool then shows it in the user's default browser. Do not ask first. Leave `--open` out on later rebuilds, so the user does not get a new tab after every merge.
+`--open` shows the map in the user's default browser. Do not ask first. Leave it out on every other write, so the user does not get a new tab each time. When a first batch's overview could not be written, run `kb_tool map .pw-kb/pw-kb.json --open` once, so the user still gets the map; run it too when the user asks to see the map. `review` and `map` stay for a rebuild on request, and `--no-publish` on a write skips its rebuild. An open map reloads after the merge and again after the overview: that is expected, so say nothing about it.
 
 - `pw-output/review.md` is a plain sheet listing decisions waiting, what is new since the last merge, the job map by stage with how many people back each step, and the next interviews: where the study stands, the plan and every thin spot.
-- `pw-output/interview-guide.md` is that plan as a guide to take into the calls: who to find, what to ask, what to listen for. `review` rewrites it.
+- `pw-output/interview-guide.md` is that plan as a guide to take into the calls: who to find, what to ask, what to listen for. Every rebuild rewrites it once the study has an overview.
 - `pw-output/discovery-map.html` is an interactive map for people who do not know the method. It shows the goal, stages, steps and measures of success with plain labels, the quotes behind every item, what each conversation added, and where more conversations would help. When the study has current solutions, it counts them, can show them next to their steps, and has a Solutions view grouped by the work they compete for. It opens on an Overview view, the study as a short story with what to do next; see "Write the overview". When decisions wait for the user, the Overview shows them right under the main finding, as "Decisions for you", each with two replies to copy, written out in full; Next interviews and the Progress tab list them too. Its Next interviews view shows the plan for the next round: who to talk to, what to ask, who has not been heard from yet, and what is still thin. When the study has value themes, it has a Value themes view: one card per theme with its outcomes, what people use today and the quotes. It is one file with the KB inside: it opens in any browser and works offline. The end of its Overview says which plugin version made it, when, and the folder it is saved in. An open map updates itself a few seconds after each rebuild and keeps the reader's place. Its title bar says when it last changed, or that the study is being updated, and New badges mark what the reader has not seen yet.
 
-**Put the map in front of the user.** Read `references/open-files.md` once per session and do what it says for your host: one link, or the host's file card, that opens `pw-output/discovery-map.html`. The interview guide is in the map's Next interviews tab. The decisions waiting are near the top of its Overview, under "Decisions for you". Name the tab or the heading in words. `map` prints a `link:` line with the map's `file://` address. When the commands ran on another machine (the address starts with a folder the user does not have, such as `/sessions/` or `/mnt/`), that address does not open for them, and `open-files.md` says what to give instead.
+**Put the map in front of the user.** Read `references/open-files.md` once per session and do what it says for your host: one link, or the host's file card, that opens `pw-output/discovery-map.html`. The interview guide is in the map's Next interviews tab. The decisions waiting are near the top of its Overview, under "Decisions for you". Name the tab or the heading in words. Every write and `map` print a `link:` line with the map's `file://` address. When the commands ran on another machine (the address starts with a folder the user does not have, such as `/sessions/` or `/mnt/`), that address does not open for them, and `open-files.md` says what to give instead.
 
-- When `review` or `map` printed a `moved:` line, the files left `.pw-kb/` in this run. Say so once, in one plain sentence, such as "Your map and review sheet now live in the pw-output folder, where Finder shows them", and give the new link. In that run, skip the tool's line about an open tab: a tab still open shows the old copy, which is gone.
-- When `review` or `map` printed a `git:` line (the study sits in a git repository and `.pw-kb/` has no `.gitignore`) and `pw-output/` has none either, run `git check-ignore -q .pw-kb/pw-kb.json` once. Only when it succeeds, the user keeps the study out of git some other way, such as the repository's own `.gitignore`: then write `pw-output/.gitignore` with the single line `*`, so the map stays out of git too.
-- After `map --open`, say what the tool said: the map is open in their browser, or it could not be opened here and what to do instead. Never say it is open when the tool did not.
+- When a write, `review` or `map` printed a `moved:` line, the files left `.pw-kb/` in this run. Say so once, in one plain sentence, such as "Your map and review sheet now live in the pw-output folder, where Finder shows them", and give the new link. In that run, skip the tool's line about an open tab: a tab still open shows the old copy, which is gone.
+- When a write, `review` or `map` printed a `git:` line (the study sits in a git repository and `.pw-kb/` has no `.gitignore`) and `pw-output/` has none either, run `git check-ignore -q .pw-kb/pw-kb.json` once. Only when it succeeds, the user keeps the study out of git some other way, such as the repository's own `.gitignore`: then write `pw-output/.gitignore` with the single line `*`, so the map stays out of git too.
+- After `--open`, say what the tool said: the map is open in their browser, or it could not be opened here and what to do instead. Never say it is open when the tool did not.
 - After a rebuild without `--open` that moved no files, say the map is updated, and pass on what the tool's `Open the link` line says about a map that is already open: it updates by itself, or, once after the plugin was updated, it needs one reload.
 - Do not run a command of your own to open the map (`open`, `xdg-open`, `start`). It would cost the user one more permission question.
 - Only when no folder is connected and the transcripts were uploaded to the chat, so the study sits in a sandbox that is gone after the chat: put the map in front of the user as `references/open-files.md` says for your host, then hand back the whole `.pw-kb/` folder the way your host shares files, as a zip when it needs one, and say: "Keep this folder. Next time, upload it with your new interviews." Hand back `review.md` and `interview-guide.md` only when the user asks. Do not say the map is open in their browser.
@@ -235,7 +234,7 @@ The reader may be a founder or a domain expert, not an ODI specialist, so write 
 - each person in one line: who they are and the core job they are linked to, or why none
 - the language the study is written in, in one line, and that it stays that way
 - the rest as counts, with the one or two findings that matter most: outcomes, current solutions and their groups, and what people stopped using
-- the next interviews, as above, and the map, as above. When `map --open` showed it in their browser, say so, and still give the link for later
+- the next interviews, as above, and the map, as above. When `--open` showed it in their browser, say so, and still give the link for later
 - last, after the map and right before the question that confirms it: each core job as a goal, in the words of its statement, how many people have it as their main goal, how many steps it has, and three of the steps in plain words. Then ask, as "Ask the decisions as a click" says
 
 **End every report**, the first one too, with one line that starts "Next:" and names one step, the first that applies: confirm what the study is about (after a first batch), decide the changes waiting, run the next round (how many people, of which kind), or, once the study shows a clear pattern, group the needs into value themes. Give it as words the user can say. When you ask a decision, the question takes the place of this line, and the "Next:" line ends your message after the answer. When the goal still waits because nobody answered: `Next: tell me if the goal is right. Reply "yes", or say what to change.` Once it is confirmed, for example: `Next: talk to 3 more restaurant owners who order for two sites. Say "show me the interview guide" for the questions.`
@@ -246,7 +245,7 @@ The reader may be a founder or a domain expert, not an ODI specialist, so write 
 2. Ask with your host's question tool, as in "Study language": `AskUserQuestion` in Claude Code and Cowork, `ask_user` in Gemini CLI and GitHub Copilot CLI, `request_user_input` in Codex's Plan mode. Use one call with at most 3 questions: one per goal to confirm (`confirm_core_job`), then other decisions, oldest first; the others stay in the map. Ask in the language the user writes to you in. Mark no choice as recommended, and add no "Other" choice: the host adds one for the user's own words.
    - A goal: "These 5 people are all trying to: Order what the kitchen needs for the week. Is that right?", with the choices "Yes, that's it" and "Close, but change it". With one person, start with "This person is trying to:".
    - Any other decision: the change in plain words, then "Should the study change like this?", with the choices "Yes, change it" and "No, keep it".
-3. Act on the answer right away. On "Yes, that's it" or "Yes, change it", run `kb_tool apply .pw-kb/pw-kb.json P1 --decision approve --note "confirmed in the chat"`, with that decision's code in place of `P1`, then `review` and `map` without `--open`, and say in one line that it is done, with what `map` said about a map that is already open. On "No, keep it", the same with `--decision reject`. On "Close, but change it", or words of their own, never reject the goal's decision: leave it waiting. If they did not say what to change, ask once, in plain text. Then propose the change in a small patch, as step 8 says (`reword_core_job`, or `move_step` and `relink_interview`; the format is in `references/patch-format.md`), and merge it without `--transcripts`. Show the change in plain words as one more question, with the choices "Yes, use it" and "Change it again". On yes, approve that proposal, then the goal's decision, then run `review` and `map`. On "Change it again", ask what to change and propose again.
+3. Act on the answer right away. On "Yes, that's it" or "Yes, change it", run `kb_tool apply .pw-kb/pw-kb.json P1 --decision approve --note "confirmed in the chat"`, with that decision's code in place of `P1`. It rebuilds the map: say in one line that it is done, with what it said about a map that is already open. On "No, keep it", the same with `--decision reject`. On "Close, but change it", or words of their own, never reject the goal's decision: leave it waiting. If they did not say what to change, ask once, in plain text. Then propose the change in a small patch, as step 8 says (`reword_core_job`, or `move_step` and `relink_interview`; the format is in `references/patch-format.md`), and merge it without `--transcripts`. Show the change in plain words as one more question, with the choices "Yes, use it" and "Change it again". On yes, approve that proposal, then the goal's decision. On "Change it again", ask what to change and propose again.
 4. With no question tool, as in Codex's default mode, ask the same question in plain text, one goal per line, and end with "Reply yes, or tell me what to change." This message ends your turn.
 5. When nobody can answer, as in a scripted run, or the user closes the question, leave the decision waiting. Say in one line that it is near the top of the map's Overview, under "Decisions for you".
 
@@ -274,108 +273,23 @@ Run `context` and read the CURRENT SOLUTIONS block, or point the user to the Sol
 
 The discovery map opens on its Overview view: who the study is about, then the study as a short story in six steps, with a "What to do next" block on top. It is made for a person who does not know the method, often a founder starting discovery. The map counts what it can from the KB. The sentences are yours, and without them the view says "No written findings yet".
 
-Write the overview for each core job that got new evidence, at the end of every run that merged interviews, right after the merge (and `themes`, when you rebuild them) and before `review` and `map`. Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules, with the first-read test and the "so what" test every sentence must pass. Write it in the study's language.
+Write the overview for each core job that got new evidence, at the end of every run that merged interviews, right after the merge (and `themes`, when you rebuild them). Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules, with the first-read test and the "so what" test every sentence must pass, and a worked example of the file. Write it in the study's language.
 
-1. Run `kb_tool context .pw-kb/pw-kb.json` for the outcomes, the solutions and who stopped using them, and the value themes. `context` prints no quotes and does not say who said what. For those, read `.pw-kb/pw-kb.json` itself: the `evidence` lists of the steps, the outcomes, the solution uses and each person's own statements. `context` also prints OPEN GAPS per core job, ranked, with who backs each one, and each person's tags: plan the next round from them.
-2. Write `.pw-kb/patches/<YYYY-MM-DD>-overview-<job>.json`:
-
-```json
-{
-  "job": "A",
-  "executor": {
-    "label": "Small-restaurant owner",
-    "text": "An owner who runs one restaurant and places every supplier order themselves.",
-    "icon": "cook",
-    "others": ["their suppliers"]
-  },
-  "bottom_line": "Owners throw away food every week because they order from memory, without numbers.",
-  "why": "The stock apps they tried need a count nobody has time to do.",
-  "opening": "Tell the owner what the week will need before the order goes out.",
-  "people": {
-    "answer": "5 owners of small restaurants who place the orders themselves.",
-    "text": "They order 2 times a week, between services, and nobody checks the numbers.",
-    "quote": {"interview": "02", "quote": "I order on Sunday night, half asleep."}
-  },
-  "today": {
-    "answer": "Owners order from memory, with a paper stock sheet.",
-    "text": "Owners fill in the sheet when they have time, so the order depends on what they remember."
-  },
-  "gaps": {
-    "answer": "The stock sheet is out of date when owners place the second order.",
-    "items": [
-      {
-        "label": "The sheet is wrong by Wednesday",
-        "text": "Nobody updates the sheet during service, so owners guess the second order and throw food away.",
-        "kind": "struggle",
-        "solutions": ["S2"],
-        "quote": {"interview": "03", "quote": "We threw out two cases of fish that week."}
-      }
-    ]
-  },
-  "needs": {"answer": "Owners most want to throw away less food at the end of the week."},
-  "focus": {"answer": "Build first for ordering the right amount."},
-  "next": {
-    "learn": {
-      "status": "now",
-      "action": "Talk to 4 more owners, 2 of them with more than one site.",
-      "why": "All 5 owners run one site. These calls show if a second site changes how they order.",
-      "ask": ["Tell me about the last time you ran out of something. What did you do?"],
-      "tip": "Ask what they did last time, not what they would like.",
-      "traits": [
-        {"id": "T1", "name": "Sites", "values": [
-          {"id": "T1.1", "label": "One site", "interviews": ["01", "02", "03", "04", "05"]},
-          {"id": "T1.2", "label": "Two or more sites", "interviews": []}]},
-        {"id": "T2", "name": "Who counts stock", "values": [
-          {"id": "T2.1", "label": "The owner", "interviews": ["01", "02", "04"]},
-          {"id": "T2.2", "label": "A chef or manager", "interviews": ["03", "05"]}]}
-      ],
-      "rests_on": ["A.3.1", "A.3.2"],
-      "round": [
-        {"kind": "new", "count": 2, "who": "Owners who order for 2 or more sites",
-         "traits": ["T1.2"], "gaps": ["T1.2", "A.3.2"],
-         "questions": [{"ask": "Walk me through last Sunday's order, from the first item to sending it.",
-                        "listen": "how they chose the amounts: a guess means they lack numbers", "gaps": ["A.3.2"]}]},
-        {"kind": "new", "count": 1, "who": "An owner whose chef counts the stock",
-         "traits": ["T2.2"], "gaps": ["A.4"],
-         "questions": [{"ask": "Tell me about the last time the count and the shelf did not match.",
-                        "listen": "what they threw away: wasted food means the count came too late", "gaps": ["A.4"]}]}
-      ]
-    },
-    "prototype": {
-      "status": "ready",
-      "action": "Draw an order list built from last week's sales, on one page.",
-      "why": "All 5 owners raised it, and 2 paid for a stock app and stopped using it.",
-      "test": "Ask Ana and Luis to place one real order from the drawing. Build it if both finish without help.",
-      "later": "Do not plan staff rotas yet."
-    },
-    "market": {
-      "status": "early",
-      "action": "Write to Ana and Luis, who asked to see it, and offer to show the drawing.",
-      "who": "Owners who place the orders themselves.",
-      "words": ["half asleep"],
-      "unknown": "Nobody said what they would pay. Ask the first owner who wants it to pay for a trial."
-    }
-  }
-}
-```
-
-Notes on the example:
-
-- `executor` is who the study is about; the map shows it first, with the icon. Its `label` has at most 4 words, what they would call themselves. `icon` is one of the icons listed in `references/kb-schema.md`; use `person` when none fits. `others` is optional: people in the story who are not its focus.
-- `text` and `quote` under `people` are optional.
-- A gap's `kind` is `pain` (it hurts today) or `struggle` (a fix they tried did not work). Its `solutions` is optional: the solutions it concerns.
-- `status` is `now` or `enough` for `learn`, and `ready` or `early` for `prototype` and `market`.
-- `words` are the customers' own words, each part of a quote in the KB.
-- `traits`, `rests_on` and `round` are the plan for the next round, and come together. Read "Plan the next round" in `references/pw-rules.md` first. Every ID is a step, an outcome or a trait value of this core job.
-
-3. Check it, then write it:
+1. Run, in place of a second `context`, with the core job's letter in place of `A`:
 
 ```
-kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<file>.json --dry-run
+kb_tool overview .pw-kb/pw-kb.json --skeleton A
+```
+
+It writes nothing. It prints the job, its OPEN GAPS ranked, with who backs each one and the level line, the people whose main goal it is, with their IDs, and then the file to fill in, with each sentence's word limit for this study. Plan the next round from the OPEN GAPS. For the outcomes, the solutions and who stopped using them, use what `context` printed in this run, or run it when you have not. For quotes and who said what, read `.pw-kb/pw-kb.json` itself: the `evidence` lists of the steps, the outcomes, the solution uses and each person's own statements.
+2. Save that file as `.pw-kb/patches/<YYYY-MM-DD>-overview-<job>.json` and fill it in, following `references/pw-rules.md`, "Overview". Replace every `<…>`; delete the ones that give a count rule, and those that say "or delete this" when you have nothing to put there. The tool refuses a file that still holds one. When the job already has an overview, its traits come filled in: sort the people listed as `<not sorted yet: …>` into their values.
+3. Write it, adding `--open` on a first batch (step 6):
+
+```
 kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<file>.json
 ```
 
-A clean dry run ends with "dry run OK". The tool refuses a quote or a solution the KB does not hold, a sentence over its word limit, a percentage or a score word, a word of the method ("core job", "desired outcome"), an unknown icon, a missing part, and a plan ID that is not a step, outcome or trait value of the core job. It warns on vague words such as "pain point" or "workflow": rewrite them in plain words unless they are the customers' own. It also warns when the round misses a thin spot the main finding rests on, or asks what people would do: fix those. It replaces that core job's overview and leaves other core jobs alone. Then run `review` and `map`.
+The tool refuses a quote or a solution the KB does not hold, a sentence more than a quarter over its word limit, a percentage or a score word, a word of the method ("core job", "desired outcome"), an unknown icon, a missing part, a `<…>` left from the skeleton, and a plan ID that is not a step, outcome or trait value of the core job. A refused overview writes nothing: fix the file and run the same command again. A sentence over its limit by a quarter at most is written with a warning: shorten it anyway when you next write the overview. It warns on vague words such as "pain point" or "workflow": rewrite them in plain words unless they are the customers' own. It also warns when the round misses a thin spot the main finding rests on, or asks what people would do: fix those. It replaces that core job's overview, leaves other core jobs alone, and rebuilds the review sheet and the map.
 
 4. In your report, say who the study is about, give the bottom line and the three next steps in one line each, every step starting with a verb, and point to the Overview view and the Next interviews view. The next steps are advice: say so. Never call a count a score.
 
@@ -408,14 +322,13 @@ Value themes turn a long list of outcomes into a few needs a team can sort ideas
 
 Give `id` only for a theme that already exists; leave it out for a new one.
 
-3. Check it, then write it:
+3. Write it:
 
 ```
-kb_tool themes .pw-kb/pw-kb.json .pw-kb/patches/<file>.json --dry-run
 kb_tool themes .pw-kb/pw-kb.json .pw-kb/patches/<file>.json
 ```
 
-The tool refuses a theme that cites an outcome or a quote the KB does not hold, and warns about a set that is too large, too small or overlapping. Fix what it refuses; weigh what it warns about. It replaces that core job's themes, keeps their IDs, leaves other core jobs alone and prints what changed. Then run `review` and `map`.
+The tool refuses a theme that cites an outcome or a quote the KB does not hold, and warns about a set that is too large, too small or overlapping. A refused file writes nothing: fix what it refuses and run the same command again; weigh what it warns about. It replaces that core job's themes, keeps their IDs, leaves other core jobs alone, prints what changed and rebuilds the review sheet and the map.
 
 4. Report each theme with its label, its need and its outcomes in words, how many people voiced them, and the outcomes left in no theme. Point to the Value themes view in the map, and say what to do with the themes: put every idea under one theme, and build first for the theme most people raised. The counts are a signal from interviews, not an opportunity score: say so, and never call them a score.
 
@@ -489,7 +402,7 @@ The KB's fields are explained one by one in `references/kb-schema.md`. Read it b
 ## Files in this skill
 
 - `scripts/kb_tool.py`: init, labels (the study's language and the map's and review sheet's text in it), context, merge (with format, quote, reference and clarity checks), apply, themes, review, map, validate and migrate (which also turns a study written in YAML into JSON, and moves a study made by an earlier version into `.pw-kb/`). Uses only Python's standard library. When they are installed, pypdf reads `.pdf` transcripts and PyYAML lets `migrate` read a study written in YAML.
-- `scripts/kb_map.py` and `scripts/kb_migrate.py`: the `map` command (it fills the template with the KB, opens it, and writes `pw-output/.map-live/status.js`, which an open map reads to update itself; `context --batch` and `merge` update that file too) and the `migrate` command. `kb_tool` loads each only for the commands that need it.
+- `scripts/kb_map.py`, `scripts/kb_review.py` and `scripts/kb_migrate.py`: the `map` command (it fills the template with the KB, opens it, and writes `pw-output/.map-live/status.js`, which an open map reads to update itself; `context --batch` and `merge` update that file too), the review sheet, the interview guide and the overview's skeleton (`overview --skeleton`), and the `migrate` command. `kb_tool` loads each only for the commands that need it.
 - `assets/discovery-map-template.html`: the interactive map viewer. `map` fills it with the KB. Opened on its own, it lets anyone load a KB file, `pw-kb.json`.
 - `assets/labels-en.js`: the English text of the map and the review sheet, the source of every study's own text. The template loads it from beside itself and `map` puts it inside each map, with the study's own labels. The template opened on its own shows English.
 - `references/pw-rules.md`: how to write each kind of statement, with examples and common mistakes. Read it before extracting.

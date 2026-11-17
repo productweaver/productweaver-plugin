@@ -12,7 +12,7 @@ Most people who use this plugin are founders and product managers, not developer
 - Name `review.md` and `interview-guide.md` only when the user asks for text, or wants to edit, paste or print the guide in another app. They are text copies of what the map shows.
 - Never paste a file's content into the chat.
 - The map holds every interviewee's name and quote. Say so before anyone shares it.
-- The map updates itself only when it is opened from the user's folder: a double-click, a `file://` link or `map --open`. A copy handed over in the chat, or a host's preview, may not. Do not promise it there; its title bar says "does not update" when it cannot.
+- The map updates itself only when it is opened from the user's folder: a double-click, a `file://` link or `--open` on a write or on `map`. A copy handed over in the chat, or a host's preview, may not. Do not promise it there; its title bar says "does not update" when it cannot.
 
 ## By host
 
@@ -22,7 +22,7 @@ Most people who use this plugin are founders and product managers, not developer
 | Cowork, a task that runs in the cloud | Send it with `SendUserFile` (fetch the file to your side first), or give `[Open your discovery map](computer:///Users/ana/Interviews/pw-output/discovery-map.html)` with the real path on the user's computer. Never a `/sessions/…` or `/mnt/…` path: those exist only on your side. (Unconfirmed: that a `computer://` click opens on a Mac, and how to write spaces in it.) | The same. It opens in Cowork's document view. |
 | claude.ai, or a Claude Desktop chat with uploaded files | Copy the map to `/mnt/user-data/outputs/`, then call `present_files`. | The same, only when asked. |
 | Claude Desktop, Code tab | `[Open your discovery map](pw-output/discovery-map.html)`, a path from the workspace. It opens in the Browser pane. (Unconfirmed.) | The same. It opens formatted. |
-| Claude Code in a terminal, Copilot CLI | `[Open your discovery map](file:///Users/ana/My%20Study/pw-output/discovery-map.html)`: the address `map` prints after `link:`, with each space as `%20`. A click opens the default browser. | A `file://` link. It opens as plain text. |
+| Claude Code in a terminal, Copilot CLI | `[Open your discovery map](file:///Users/ana/My%20Study/pw-output/discovery-map.html)`: the address that `map` and every write (`merge`, `apply`, `themes`, `overview`) print after `link:`, with each space as `%20`. A click opens the default browser. | A `file://` link. It opens as plain text. |
 | Claude Code in VS Code or JetBrains, Codex in an IDE | A link opens the page's source code, not the page. Say: "Say *show me the map* and I'll open it in your browser", then run `map --open`. Name the folder in words too. | A link opens it in the editor; Cmd+Shift+V (Ctrl+Shift+V) shows it formatted. |
 | Codex app, ChatGPT desktop app | `[Open your discovery map](/Users/ana/Interviews/pw-output/discovery-map.html)`: a plain full path, no `file://`. Put `<…>` around a path with spaces: `[Open your discovery map](</Users/ana/My Study/pw-output/discovery-map.html>)`. Or call `open_in_codex`. It opens a preview in the app. (Unconfirmed.) | The same. It opens a preview. |
 | Codex CLI, Gemini CLI | The `file:///…` address alone on its own line. The terminal decides whether it can be clicked. | The same. |

@@ -18,7 +18,7 @@ Every line has these fields. The order is stable, so lines are easy to compare.
 | `ts` | When the run started, ISO 8601 with timezone |
 | `duration_ms` | How long the run took |
 | `command` | `init`, `labels`, `context`, `merge`, `apply`, `themes`, `overview`, `review`, `map`, `validate` or `migrate` |
-| `args` | The options given, with paths relative to the KB folder. `--note`, `--project`, `--interviewer` and the KB path are left out. `transcripts` lists the roots; a root that is a file shows as `<file>` |
+| `args` | The options given, with paths relative to the KB folder. `--note`, `--project`, `--interviewer` and the KB path are left out. `transcripts` lists the roots; a root that is a file shows as `<file>`. On the `review` and `map` lines of a rebuild after a write, `via` names the write, such as `merge` |
 | `exit_code` | 0 success, 1 refused or failed with a message, 2 crashed |
 | `written` | True when the run changed the KB file |
 | `tool_version`, `schema_version` | Which `kb_tool.py` ran, and which KB schema it writes |
@@ -41,6 +41,7 @@ Commands add their own fields:
 | `provenance` | merge | The patch's provenance block without `notes`: `assistant`, `model`, `started`, `transcripts_read` as KB IDs |
 | `backup` | merge, apply, themes, overview, labels, validate, migrate | The backup made before the write, relative to the KB folder |
 | `job` | themes, overview | The core job whose value themes or overview the run was about |
+| `skeleton` | overview | True when `--skeleton` printed the file to fill in; it writes nothing |
 | `proposal`, `proposal_type`, `decision` | apply | What was decided on and how. Logged even when the apply is refused |
 | `out`, `since` | review, map, labels | The file written; for review, the date new items are counted from |
 | `live`, `tab` | map | `live`: `ok` when it wrote `pw-output/.map-live/status.js`, so an open map updates itself; `failed` when it could not; `off` with `--out`, which writes no status. `tab`: the map that was there before: `none`, `old` (one that does not update itself, made by plugin 0.14 or earlier) or `live` |
@@ -52,6 +53,7 @@ Commands add their own fields:
 | `git` | init, migrate | True when `.pw-kb/` sits in a git repository and has no `.gitignore` of its own |
 | `language` | init, labels | The study's language, a BCP 47 code such as `en`, `it` or `pt-BR` |
 | `labels` | init, labels, review, map, migrate | Counts only, never a label's text: `missing` (labels that still show in English), `added` (labels `labels --add` kept), `refused` (problems that stopped `labels --add`). `migrated` (migrate: 1 when it turned `labels.yaml` into `labels.json`, else 0) |
+| `published` | merge, apply, themes, overview | Only after a write: true when the rebuild of `review.md`, the interview guide and the map that follows the write worked, false when part of it failed (`publish_failed`). Missing with `--no-publish`, on a dry run, and when nothing was written. The rebuild logs its own `review` and `map` lines right after the write's line, with `args.via` |
 | `exception` | any | The exception class when the tool crashed |
 
 ## Codes
@@ -69,7 +71,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `evidence_shape` | An evidence item is not an object with interview, source and quote |
 | `source_invalid` | `source` is not transcript, quoted_in_notes or interviewer_notes |
 | `interview_unresolved` | Evidence names an interview that is unknown, skipped or has no transcript |
-| `clarity_length` | A statement is over the word limit for its kind |
+| `clarity_length` | A statement is over the word limit for its kind. An overview sentence is refused only past a quarter over (see `overview_long`) |
 | `clarity_banned` | A statement carries brackets, a semicolon, an example, an aside or a slash |
 | `clarity_etc` | A statement ends a list with etc. |
 | `rationale_length` | A proposal's rationale is over the word limit |
@@ -106,6 +108,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `overview_solution` | A gap names a solution that is not a solution in use in the KB |
 | `overview_count` | `ask`, `words` or the executor's `others` holds more items than allowed |
 | `overview_score` | A sentence holds a percentage or a score word, such as "opportunity score" |
+| `overview_placeholder` | The overview file still holds a `<…>` of `overview --skeleton`'s file; the message names its place, such as `next.learn.round[0].who` |
 | `overview_method_word` | A sentence holds a word of the method that readers do not know, such as "core job" or "desired outcome" |
 | `overview_ref` | The plan in `next.learn` names an ID that is not a step, outcome or trait value of the core job, or a trait names someone whose main goal is another core job |
 
@@ -148,9 +151,11 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `theme_quotes` | A theme shows no highlight quotes, or more than 6 |
 | `overview_count` | An overview lists more than 5 gaps |
 | `map_status_failed` | `map` wrote the map but not `pw-output/.map-live/status.js`, so a map that is already open will not update itself |
+| `publish_failed` | A write was kept, but the rebuild after it failed: `review` or `map` was not rebuilt. Its own line says why (an error code, or `crash` with `exception`); run that command again |
 | `labels_missing` | `review` or `map` used English for labels the study has no text for yet; run `labels` |
 | `labels_same` | `labels --add`: a label's text is the same as the English one |
 | `labels_plural_form` | `labels --add`: a plural label lacks a form the study's language uses |
+| `overview_long` | A sentence of the overview is over its word limit by a quarter of the limit at most (at least 1 word); it is written. Statements a merge writes get no such room |
 | `overview_jargon` | A sentence of the overview holds a vague word, such as "pain point" or "workflow"; keep it only when it is the customers' own word |
 | `plan_gap_closed` | A round entry of the plan aims at a gap that is no longer open |
 | `plan_main_uncovered` | The main finding rests on a thin gap that no round entry covers |

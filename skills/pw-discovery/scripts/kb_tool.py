@@ -26,6 +26,8 @@ Commands
                                                               few needs that group the outcomes, for ideation
   overview  <kb.json> <overview.json> [--dry-run] [--json]  check one core job's overview and write it: the
                                                               study as a short story, with what to do next
+  overview  <kb.json> --skeleton JOB                          print what it needs and the file to fill in
+After a write, merge, apply, themes and overview rebuild review.md and the map (--open shows it, --no-publish skips).
   validate  <kb.json> [--structure-only] [--schema FILE] [--rehash]
                                                               check the structure, then every quote and transcript hash
   migrate   <kb> [--to .pw-kb/pw-kb.json] [--transcripts DIR ...]
@@ -52,6 +54,7 @@ import difflib
 import glob
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import platform
@@ -70,14 +73,11 @@ try:  # optional: richer schema messages. jsonschema before 4.0 (3.2 on Ubuntu 2
 except ImportError:  # pragma: no cover - depends on the machine
     _LibraryValidator = None
 
-__version__ = "0.15.0"
+__version__ = "0.16.0"
 SCHEMA_VERSION = 3
 
 BRAND = "Product Weaver"
 SITE = "https://www.productweaver.com/"
-# Fixed tags on the review sheet's links, holding nothing from the study (the map's pwUrl does the same).
-REVIEW_LINK = (f"{SITE}?utm_source=productweaver-plugin&utm_medium=review-sheet&utm_campaign=pw-discovery"
-               "&utm_content=review-footer")
 MADE_WITH = f"Made with {BRAND} · productweaver.com"
 
 DERIVED = ["survey", "simulation", "value_themes", "overview", "use_cases"]
@@ -91,8 +91,6 @@ PATCH_SECTIONS = ("interviews", "bootstrap", "step_evidence", "outcome_evidence"
                   "solution_groups", "new_solutions", "solution_evidence", "proposed_changes")
 SOLUTION_KINDS = ["product", "everyday_tool", "people", "own_method"]
 SOLUTION_STATUS = ["current", "stopped"]
-KIND_LABELS = {"product": "review.kind.product", "everyday_tool": "review.kind.everyday_tool",
-               "people": "review.kind.people", "own_method": "review.kind.own_method"}  # the review sheet's names
 PATCH_KEYS = (*PATCH_SECTIONS, "provenance", "generated_with")  # every top-level key a patch may carry
 PROVENANCE_KEYS = ("assistant", "model", "started", "transcripts_read", "notes")
 LOG_FOLDER, LOG_FILE = "logs", "kb_tool.jsonl"
@@ -276,6 +274,7 @@ class Run:
         self.facts: Json = {"kb_sha256_before": file_sha256(self.kb_path) if self.kb_path else None}
         self.error_codes: dict[str, int] = {}
         self.warning_codes: dict[str, int] = {}
+        self.subruns: list[argparse.Namespace] = []  # a write's rebuild: review and map, each logged on its own line
 
     @property
     def ts(self) -> str:
@@ -313,7 +312,7 @@ class Run:
         for key, value in sorted(vars(args).items()):
             if key in hidden or value in (None, False):
                 continue
-            paths = ("patch", "themes", "out", "template", "schema", "to", "add")
+            paths = ("patch", "themes", "overview", "out", "template", "schema", "to", "add")
             public[key] = self.relative(value) if key in paths else value
         roots = getattr(args, "transcripts", None) or []
         if roots:  # a root that is a single file would name an interviewee; log folders only
@@ -1230,21 +1229,6 @@ def round_snapshot(kb: Json, learn: Json) -> Json:
             "targets": [{"ref": ref, "label": values.get(ref, "")} for ref in refs]}
 
 
-def last_round(kb: Json, job: str) -> Json | None:
-    """How many of the last round's targets closed; a renamed kind of person is not counted."""
-    learn = learn_of(kb, job)
-    if not isinstance(learn.get("previous"), dict):
-        return None
-    labels = {v.get("id"): v.get("label") for t in learn.get("traits") or [] for v in t.get("values") or []}
-    known = {step_key(s) for s in kb["job_map"]["steps"] if s.get("job") == job} | {
-        str(o["id"]) for o in kb["desired_outcomes"]["outcomes"] if job_of(str(o["step"])) == job}
-    targets = [ref for t in learn["previous"].get("targets") or []  # a moved outcome's old ID is gone, not closed
-               for ref in [str(t.get("ref")) if t.get("label") else live_outcome(kb, str(t.get("ref")))]
-               if (labels.get(ref) == t["label"] if t.get("label") else ref in known)]
-    still = [ref for ref in targets if ref in {g["ref"] for g in open_gaps(kb, job)}]
-    return {"closed": len(targets) - len(still), "targeted": len(targets), "open": still}
-
-
 def job_people(kb: Json, job: str) -> list[str]:
     """A core job's people as the map counts them: main, related, and anyone quoted on its parts."""
     job_entry = jobs_by_id(kb).get(job, {})
@@ -1756,14 +1740,18 @@ def style_of(kb: Json) -> Style:
     return style
 
 
-def clarity(text: str, kind: str, label: str, style: Style, report: Report) -> None:
-    """Reviewers read these statements cold. Keep each one short, single-idea and free of asides."""
+def clarity(text: str, kind: str, label: str, style: Style, report: Report, *, slack: int = 0) -> None:
+    """Reviewers read these statements cold. Keep each one short, single-idea and free of asides. Up to `slack` words
+    over the limit only warn (an overview's sentences)."""
     statement = (text or "").strip()
     words = count_words(statement, style.language)
     limit = style.limits.get(kind)
-    if limit and words > limit:
+    if limit and words > limit + slack:
         report.error(f"clarity: {label} has {words} words (max {limit} for this kind of statement): '{statement}'",
                      code="clarity_length")
+    elif limit and words > limit:
+        report.warn(f"clarity: {label} has {words} words, over the {limit} for this kind of statement; it is written, "
+                    f"but shorten it: '{statement}'", code="overview_long")
     for token in style.banned:
         if token in statement:
             what = BANNED_NAMES.get(token, f"'{token.strip()}'")
@@ -2796,8 +2784,11 @@ class MergeOutput:
 
     def finish(self, code: int) -> int:
         self.result.update({"warnings": self.report.warnings, "errors": self.report.errors})
-        self.log()
+        self.log()  # first: it tells the run whether the KB was written
         if self.args.json:
+            published = publish_after_write(self.args) if code == 0 else None
+            if published:
+                self.result["published"] = published
             print(json.dumps(self.result, ensure_ascii=False, indent=2, default=str))
             return code
         lines = self.header + [f"WARN {w}" for w in self.report.warnings] + self.verdict
@@ -2805,6 +2796,8 @@ class MergeOutput:
             lines.append(f"\n{len(self.report.errors)} problem(s); nothing written:")
             lines += [f"  - {e}" for e in self.report.errors]
         print("\n".join(lines))
+        if code == 0:
+            publish_after_write(self.args)
         return code
 
 
@@ -3141,6 +3134,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
     save_kb(candidate, args.kb)
     args.run.note(written=True, backup=args.run.relative(made))
     print(message)
+    publish_after_write(args)
     return 0
 
 
@@ -3423,6 +3417,9 @@ def _themes_finish(args: argparse.Namespace, report: Report, result: Json, lines
     result.update({"warnings": report.warnings, "errors": report.errors})
     args.run.add_report(report)
     if args.json:
+        published = publish_after_write(args) if result["ok"] else None
+        if published:
+            result["published"] = published
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
         return 0 if result["ok"] else 1
     lines = lines + [f"WARN {w}" for w in report.warnings]
@@ -3430,6 +3427,8 @@ def _themes_finish(args: argparse.Namespace, report: Report, result: Json, lines
         lines.append(f"\n{len(report.errors)} problem(s); nothing written:")
         lines += [f"  - {e}" for e in report.errors]
     print("\n".join(lines))
+    if result["ok"]:
+        publish_after_write(args)
     return 0 if result["ok"] else 1
 
 
@@ -3542,10 +3541,15 @@ def _ov_text(ctx: OverviewChecks, data: Any, key: str, kind: str, label: str, *,
         if required:
             ctx.report.error(f"{label}: {key} is missing", code="overview_shape")
         return ""
-    clarity(text, kind, f"{label} {key}", ctx.style, ctx.report)
+    _ov_clarity(ctx, text, kind, f"{label} {key}")
     _ov_no_score(ctx, text, f"{label} {key}")
     _ov_plain(ctx, text, f"{label} {key}")
     return text
+
+
+def _ov_clarity(ctx: OverviewChecks, text: str, kind: str, label: str) -> None:
+    """An overview sentence a quarter over its limit at most (at least 1 word) is written, with a warning."""
+    clarity(text, kind, label, ctx.style, ctx.report, slack=max(1, ctx.style.limits.get(kind, 0) // 4))
 
 
 def _ov_no_score(ctx: OverviewChecks, text: str, label: str) -> None:
@@ -3633,7 +3637,7 @@ def _ov_executor(ctx: OverviewChecks, data: Json) -> Json:
         ctx.report.error(f"executor: others holds {len(items)} people; keep at most {EXECUTOR_OTHERS}",
                          code="overview_count")
     for text in items:
-        clarity(text, "role", "executor others", ctx.style, ctx.report)
+        _ov_clarity(ctx, text, "role", "executor others")
         _ov_plain(ctx, text, "executor others")
     if items:
         out["others"] = items
@@ -3701,7 +3705,7 @@ def _ov_list(ctx: OverviewChecks, track: Json, key: str, label: str) -> list[str
         ctx.report.error(f"{label}: {key} holds {len(items)} items; keep at most {NEXT_LISTS[key]}",
                          code="overview_count")
     for text in items:
-        clarity(text, "rationale", f"{label} {key}", ctx.style, ctx.report)
+        _ov_clarity(ctx, text, "rationale", f"{label} {key}")
         _ov_no_score(ctx, text, f"{label} {key}")
         if key != "words":  # the customers' own words stay as they said them
             _ov_plain(ctx, text, f"{label} {key}")
@@ -3926,12 +3930,30 @@ def _overview_text(kb: Json, entry: Json, result: Json) -> list[str]:
     return lines
 
 
+def placeholders(data: Any, where: str = "") -> list[str]:
+    """Where a file still holds a skeleton's <…>, such as next.learn.round[0].who."""
+    if isinstance(data, dict):
+        return [p for k, v in data.items() for p in placeholders(v, f"{where}.{k}" if where else str(k))]
+    if isinstance(data, list):
+        return [p for i, v in enumerate(data) for p in placeholders(v, f"{where}[{i}]")]
+    text = data.strip() if isinstance(data, str) else ""
+    return [where] if text.startswith("<") and text.endswith(">") else []
+
+
 def cmd_overview(args: argparse.Namespace) -> int:
     """Check one core job's overview and write it. The dry run and the real run share every step up to the write."""
     kb = load_kb(args.kb)
+    if bool(args.overview) == bool(args.skeleton):
+        raise KbError("give overview the file to check and write, or --skeleton JOB for the file to fill in",
+                      code="overview_file")
+    if args.skeleton:
+        return _review().cmd_skeleton(args, kb, sys.modules[__name__])
     report = Report()
     job, data = read_overview_file(args.overview, kb)
     args.run.note(dry_run=bool(args.dry_run), job=job)
+    for where in placeholders(data):
+        report.error(f"{where} still holds a <…> of the skeleton: write it, or delete it where it says so",
+                     code="overview_placeholder")
     candidate = copy.deepcopy(kb)
     entry = build_overview(candidate, job, data, report)
     result: Json = {"ok": False, "dry_run": bool(args.dry_run), "job": job, "written": False, "run_id": args.run.id}
@@ -4132,6 +4154,22 @@ def _print_overview(data: Json) -> None:
         print(f"{entry['job']} written {entry['written']}: {entry['bottom_line']}{about}")
 
 
+def gap_lines(kb: Json, job: str) -> list[str]:
+    """One core job's OPEN GAPS, as `context` and `overview --skeleton` print them; none when nothing is open."""
+    gaps = open_gaps(kb, job)
+    if not gaps:
+        return []
+    sure = sure_level(kb, job)
+    after = f"{sure['to_next']} more reach the next" if sure["to_next"] else "next: new ones stop adding needs"
+    lines = ["", f"OPEN GAPS for core job {job} (main finding first; next.learn's round should cover the top ones)",
+             f"  level {sure['level']} of 3 after {sure['conversations']} conversations"
+             + f"; {after}" * (sure["level"] < 3)]
+    for g in gaps:
+        who = f"people {len(g['people'])}: {', '.join(g['people'])}" if g["people"] else "nobody yet"
+        lines.append(f"  {g['ref']} [{g['kind']}{', main' * g['main']}] {g['text']}  ({who})")
+    return lines
+
+
 def cmd_context(args: argparse.Namespace) -> int:
     kb = load_kb(args.kb)
     data = context_data(kb)
@@ -4142,16 +4180,10 @@ def cmd_context(args: argparse.Namespace) -> int:
         print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
         return 0
     _print_jobs(data)
-    for job, gaps in data["open_gaps"].items():
-        if gaps:
-            sure = sure_level(kb, job)
-            after = f"{sure['to_next']} more reach the next" if sure["to_next"] else "next: new ones stop adding needs"
-            print(f"\nOPEN GAPS for core job {job} (main finding first; next.learn's round should cover the top ones)"
-                  f"\n  level {sure['level']} of 3 after {sure['conversations']} conversations"
-                  + f"; {after}" * (sure["level"] < 3))
-        for g in gaps:
-            who = f"people {len(g['people'])}: {', '.join(g['people'])}" if g["people"] else "nobody yet"
-            print(f"  {g['ref']} [{g['kind']}{', main' * g['main']}] {g['text']}  ({who})")
+    for job in data["open_gaps"]:
+        lines = gap_lines(kb, job)
+        if lines:
+            print("\n".join(lines))
     _print_solutions(data["current_solutions"])
     _print_themes(data["value_themes"], "value_themes" in data["stale"])
     _print_overview(data)
@@ -4171,341 +4203,9 @@ def cmd_context(args: argparse.Namespace) -> int:
 
 
 # ---------- review ----------
-# Words come from labels; each table writes its keys in full so a test can check they exist.
-PROPOSAL_LABELS = {"new_step": "review.proposal.new_step", "reword_step": "review.proposal.reword_step",
-                   "reword_outcome": "review.proposal.reword_outcome",
-                   "reword_core_job": "review.proposal.reword_core_job",
-                   "merge_outcomes": "review.proposal.merge_outcomes", "move_outcome": "review.proposal.move_outcome",
-                   "new_segment": "review.proposal.new_segment", "new_core_job": "review.proposal.new_core_job",
-                   "confirm_core_job": "review.proposal.confirm_core_job", "move_step": "review.proposal.move_step",
-                   "relink_interview": "review.proposal.relink_interview",
-                   "merge_solutions": "review.proposal.merge_solutions",
-                   "move_solution": "review.proposal.move_solution",
-                   "reword_solution": "review.proposal.reword_solution",
-                   "reword_solution_group": "review.proposal.reword_solution_group"}
-STAGE_LABELS = {"define": "review.stage.define", "locate": "review.stage.locate", "prepare": "review.stage.prepare",
-                "confirm": "review.stage.confirm", "execute": "review.stage.execute",
-                "monitor": "review.stage.monitor", "modify": "review.stage.modify",
-                "conclude": "review.stage.conclude"}
-LAYER_LABELS = {"survey": "review.layer.survey", "simulation": "review.layer.simulation",
-                "value_themes": "review.layer.value_themes", "overview": "review.layer.overview",
-                "use_cases": "review.layer.use_cases"}
-
-
-def describe_proposal(proposal: Json, text: Text | None = None) -> str:
-    text = text or Text()
-    kind = str(proposal.get("type"))
-    if kind == "relink_interview" and not proposal.get("job"):
-        return text("review.proposal.unlink_interview", target=proposal.get("target"))
-    values = {key: proposal.get(key) for key in ("job", "target", "merge", "to_step", "to_job", "to_group")}
-    return text(PROPOSAL_LABELS.get(kind, "review.proposal.other"), **values)
-
-
-def kind_text(text: Text, kind: Any) -> str:
-    return text(KIND_LABELS[str(kind)]) if str(kind) in KIND_LABELS else str(kind)
-
-
-def _review_head(kb: Json, live_outcomes: list[Json], text: Text) -> list[str]:
-    in_use = [s for s in live_solutions(kb) if s.get("interviews")]
-    solutions = " · " + text("review.count.solutions_in_use", n=len(in_use)) if "current_solutions" in kb else ""
-    project = kb["meta"]["project"] if "project" in kb["meta"] else text("review.project_default")
-    counts = " · ".join([text("review.count.interviews", n=len(kb["interviews"])),
-                         text("review.count.core_jobs", n=len(kb["core_jobs"])),
-                         text("review.count.steps", n=len(kb["job_map"]["steps"])),
-                         text("review.count.outcomes", n=len(live_outcomes))])
-    updated = text("review.updated", date=today())
-    lines = ["# " + text("review.title", project=project), "", f"{counts}{solutions} · {updated}", ""]
-    if not kb["core_jobs"]:
-        return lines + [f"**{text('review.core_job')}:** {text('review.not_set')}", ""]
-    proposed = f" *({text('review.proposed')})*"
-    for job in kb["core_jobs"]:
-        name = text("review.core_job_id", id=job["id"])
-        lines.append(f"- **{name}:** {job['statement']}" + (proposed if job.get("status") == "proposed" else ""))
-    return lines + [""]
-
-
-def _review_decisions(kb: Json, text: Text) -> list[str]:
-    pending = [p for p in kb["proposed_changes"] if p.get("status") == "pending"]
-    lines = ["## " + text("review.h.decisions"), ""]
-    if not pending:
-        return lines + [text("review.none"), ""]
-    why = text("review.why")
-    for proposal in pending:
-        lines.append(f"- **{proposal['id']} · {describe_proposal(proposal, text)}:** {proposal['proposal']}. "
-                     f"*{why}:* {proposal['rationale']}")
-        lines += [f"  - \"{reply}\"" for reply in decision_replies(kb, proposal, text)]
-    return lines + ["", text("review.reply_confirm"), ""]
-
-
-def decision_replies(kb: Json, proposal: Json, text: Text) -> list[str]:
-    """The two replies the map shows under a decision, to paste in the chat: they name the study, not a code."""
-    change = str(proposal.get("proposal", ""))
-    if proposal.get("type") == "confirm_core_job":
-        goal = jobs_by_id(kb).get(str(proposal.get("target")), {}).get("statement") or change
-        return [text("map.decide.reply_yes_goal", brand=BRAND, goal=goal),
-                text("map.decide.reply_change_goal", brand=BRAND) + " …"]
-    return [text("map.decide.reply_yes", brand=BRAND, change=change),
-            text("map.decide.reply_no", brand=BRAND, change=change)]
-
-
-def _new_solution_lines(kb: Json, since: str, text: Text) -> list[str]:
-    groups = groups_of(kb)
-    lines = []
-    for group in groups.values():
-        if since and str(group.get("added", "")) >= since:
-            name = "**" + str(group.get("name", "")) + ":**"
-            lines.append(f"- {text('review.new_group', name=name)} {group.get('why', '')}")
-    for solution in live_solutions(kb):
-        if since and str(solution.get("added", "")) >= since:
-            group = groups.get(str(solution.get("group")), {}).get("name", solution.get("group"))
-            named = "**" + f"{solution['id']} {solution.get('name', '')}" + "**"
-            lines.append("- " + text("review.new_solution", solution=named, kind=kind_text(text, solution.get("kind")),
-                                     group=f"*{group}*"))
-    return lines
-
-
-def _review_new(kb: Json, since: str, new_outcomes: set[str], text: Text) -> list[str]:
-    new_interviews = [i for i in kb["interviews"] if since and str(i.get("added", "")) >= since]
-    solution_lines = _new_solution_lines(kb, since, text)
-    if not (new_interviews or new_outcomes or solution_lines):
-        return []
-    lines = ["## " + text("review.h.new", date=since), ""]
-    for record in new_interviews:
-        job = main_job(record)
-        link = text("review.core_job_ref", id=job) if job else text("review.no_core_job_yet")
-        own = text("review.new_interview_job", job=f"*{record['core_functional_job']['statement']}*", link=link)
-        lines.append(f"- **{record['id']} {record.get('name', '')}:** {record['job_executor']['statement']} {own}")
-    for outcome in kb["desired_outcomes"]["outcomes"]:
-        if outcome["id"] in new_outcomes:
-            label = text("review.new_outcome", id=f"**{outcome['id']}:**")
-            lines.append(f"- {label} {outcome['statement']}")
-    return lines + solution_lines + [""]
-
-
-def _review_map(kb: Json, live_outcomes: list[Json], new_outcomes: set[str], text: Text) -> list[str]:
-    by_step: dict[str, list[Json]] = {}
-    for outcome in live_outcomes:
-        by_step.setdefault(str(outcome["step"]), []).append(outcome)
-    lines: list[str] = []
-    for index, job in enumerate(kb["core_jobs"]):
-        lines += [f"## {text('review.core_job_id', id=job['id'])}: {job['statement']}", ""]
-        if index == 0:
-            lines += [text("review.map_hint"), ""]
-        ordered = sorted((s for s in kb["job_map"]["steps"] if s.get("job") == job["id"]), key=lambda s: int(s["n"]))
-        for stage in STAGES:
-            steps = [s for s in ordered if s.get("stage") == stage]
-            if not steps:
-                continue
-            lines.append("### " + text(STAGE_LABELS[stage]))
-            for step in steps:
-                lines.append(f"**{step_key(step)} {step['statement']}** [{step.get('voices', 0)}]")
-                for outcome in by_step.get(step_key(step), []):
-                    mark = "● " if outcome["id"] in new_outcomes else ""
-                    count = outcome.get("interview_count", 0)
-                    lines.append(f"- {mark}{outcome['id']} {outcome['statement']} [{count}]")
-                lines.append("")
-    return lines
-
-
-def _solution_line(solution: Json, steps: dict[str, Json], names: dict[str, str], text: Text) -> str:
-    sep = text("review.list_sep")
-    used = sep.join(f"{steps[s]['statement']} ({s})" if s in steps else s for s in solution_steps(solution))
-    people = sep.join(names.get(i, i) for i in solution.get("interviews", []))
-    stopped = sep.join(names.get(i, i) for i in solution.get("stopped_by", []))
-    mentions = text("review.count.mentions", n=solution.get("quote_count", 0))
-    return (f"- **{solution['id']} {solution.get('name', '')}** ({kind_text(text, solution.get('kind'))}) "
-            f"[{len(solution.get('interviews', []))}] {people or text('review.nobody_now')} · {mentions} · "
-            + text("review.used_for", steps=used)
-            + (" · " + text("review.stopped", people=stopped) if stopped else ""))
-
-
+# review.md and interview-guide.md are written by kb_review.py, loaded only when they are; kb_map copies the guides.
 def plural(count: int, word: str) -> str:
     return f"{count} {word}{'' if count == 1 else 's'}"
-
-
-def _review_solutions(kb: Json, text: Text) -> list[str]:
-    solutions = live_solutions(kb)
-    if not solutions:
-        return []
-    steps, names = steps_by_id(kb), {str(r["id"]): str(r.get("name", "")) for r in kb["interviews"]}
-    lines = ["## " + text("review.h.solutions"), "", text("review.solutions_intro"), ""]
-    why = text("review.why_grouped")
-    for key, group in groups_of(kb).items():
-        members = sorted((s for s in solutions if s.get("group") == key and s.get("interviews")),
-                         key=lambda s: (-len(s.get("interviews", [])), -s.get("quote_count", 0)))
-        if members:
-            lines += [f"### {group.get('name', key)}", "", f"*{why}:* {group.get('why', '')}", ""]
-            lines += [_solution_line(s, steps, names, text) for s in members] + [""]
-    gone = [s for s in solutions if not s.get("interviews")]
-    if gone:
-        lines += ["### " + text("review.h.stopped"), "", text("review.stopped_intro"), ""]
-        lines += [_solution_line(s, steps, names, text) for s in gone] + [""]
-    return lines
-
-
-def _review_themes(kb: Json, text: Text) -> list[str]:
-    themes = themes_of(kb)
-    if not themes:
-        return []
-    outcomes = outcomes_by_id(kb)
-
-    def rows(ids: list[str]) -> list[str]:
-        return [f"- {outcomes[o]['statement']} ({o}) [{outcomes[o].get('interview_count', 0)}]"
-                for o in ids if o in outcomes]
-
-    stale = " " + text("review.themes_stale") if "value_themes" in stale_layers(kb) else ""
-    lines = ["## " + text("review.h.themes"), "", text("review.themes_intro") + stale, ""]
-    many = len(kb["core_jobs"]) > 1
-    for theme in sorted(themes, key=lambda t: (job_index(str(t["job"])), -t.get("interview_count", 0))):
-        where = f" ({text('review.core_job_ref', id=theme['job'])})" if many else ""
-        lines += [f"### {theme.get('label', '')} [{theme.get('interview_count', 0)}]{where}", "",
-                  f"*{theme.get('need', '')}*", ""]
-        lines += ([theme["why"], ""] if theme.get("why") else []) + rows(theme_outcomes(theme)) + [""]
-    left = unassigned_outcomes(kb)
-    if left:
-        lines += ["### " + text("review.h.no_theme"), ""] + rows(left) + [""]
-    return lines
-
-
-def _review_people(kb: Json, text: Text) -> list[str]:
-    jobs = jobs_by_id(kb)
-    named = [r for r in kb["interviews"] if main_job(r) or related_links(r)] if len(jobs) > 1 else []
-    sep, also_word = text("review.list_sep"), text("review.also")
-    lines = []
-    if named:
-        lines += ["## " + text("review.h.people"), ""]
-        for record in named:
-            parts = [f"{jobs[j]['statement']} ({j})" for j in [main_job(record)] if j and j in jobs]
-            also = [f"{jobs[j]['statement']} ({j})" for j in dict.fromkeys(related_links(record))
-                    if j in jobs and j != main_job(record)]
-            joint = f"{sep}{also_word} " if parts and also else f"{also_word} " if also else ""
-            lines.append(f"- **{record['id']} {record.get('name', '')}:** {sep.join(parts)}{joint}{sep.join(also)}")
-        lines.append("")
-    unlinked = [r for r in kb["interviews"] if not main_job(r)]
-    if unlinked:
-        lines += ["## " + text("review.h.unlinked"), ""]
-        for record in unlinked:
-            note = unlinked_reason(record) or record.get("analyst_note") or record["core_functional_job"]["statement"]
-            lines.append(f"- **{record['id']} {record.get('name', '')}:** {note}")
-        lines.append("")
-    return lines
-
-
-NX_GROUP_MAX = 5
-NX_GROUPS = (("main", "review.nx.g.main"), ("step", "review.nx.g.step"), ("need", "review.nx.g.need"),
-             ("who", "review.nx.g.who"))
-NX_LEVELS = ("review.nx.level.1", "review.nx.level.2", "review.nx.level.3")
-GUIDE_STEPS = ("review.guide.step.1", "review.guide.step.2", "review.guide.step.3", "review.guide.step.4",
-               "review.guide.step.5")
-GUIDE_HELP = (("review.guide.invite.h", "review.guide.invite.1", "review.guide.invite.2"),
-              ("review.guide.before.h", "review.guide.before.1", "review.guide.before.2"),
-              ("review.guide.start.h", "review.guide.start.1", "review.guide.start.2"),
-              ("review.guide.short.h", "review.guide.short.1", "review.guide.short.2"),
-              ("review.guide.idea.h", "review.guide.idea.1"),
-              ("review.guide.end.h", "review.guide.end.1", "review.guide.end.2"))
-PLAIN = ((r"Minimize the time (it takes )?to ", "Less time to "), (r"Minimize the likelihood that ", "Less risk that "),
-         (r"Minimize the likelihood of ", "Less risk of "), (r"Minimize the number of ", "Fewer "),
-         (r"Minimize (the amount of |the )?", "Less "), (r"(Maximize|Increase) (the )?", "More "),
-         (r"Reduce (the )?", "Less "))
-
-
-def plain_outcome(statement: str) -> str:
-    """An English outcome as the map words it: "Less risk of", not "Minimize"."""
-    for pattern, new in PLAIN:
-        if re.match(pattern, statement, re.I):
-            return re.sub(pattern, new, statement, count=1, flags=re.I)
-    return statement
-
-
-def _nx_where(kb: Json, job: str, text: Text) -> list[str]:
-    sure, last = sure_level(kb, job), last_round(kb, job)
-    after = text("review.nx.to_next", n=sure["to_next"], level=text(NX_LEVELS[sure["level"]])) if sure["to_next"] \
-        else text("review.nx.keep_going") * (sure["level"] == 2)
-    lines = [text("review.nx.where", level=text(NX_LEVELS[sure["level"] - 1]), next=after).strip()]
-    if last:
-        lines.append(" ".join([text("review.nx.last", closed=last["closed"], targeted=last["targeted"])]
-                              + [text("review.nx.still_open", list=", ".join(last["open"]))] * bool(last["open"])))
-    return [*lines, ""]
-
-
-def _nx_round(kb: Json, learn: Json, text: Text, guide: bool) -> list[str]:
-    names = {step_key(s): s["statement"] for s in kb["job_map"]["steps"]}
-    names.update({str(o["id"]): plain_outcome(o["statement"]) if guide and text.language == ENGLISH else o["statement"]
-                  for o in kb["desired_outcomes"]["outcomes"]})
-    names.update({v["id"]: f"{t['name']}: {v['label']}" for t in learn["traits"] for v in t["values"]})
-    lines = []
-    for n, entry in enumerate(learn["round"], 1):
-        talk = text("review.nx.talk", n=entry["count"], who=entry["who"])
-        asks = [f"{i}. {q['ask']}  \n   *{text('review.nx.listen')}:* {q['listen']}"
-                for i, q in enumerate(entry["questions"], 1)]
-        if not guide:
-            lines += [f"{n}. **{talk}** ({', '.join(entry['gaps'])})",
-                      *("   " + a.replace("\n", "\n   ") for a in asks)]
-            continue
-        hints = [names[ref] for ref in entry.get("traits", [])]
-        lines += [f"### {n}. {talk}", ""]
-        lines += [f"**{text('review.guide.fit')}**", "", *(f"- {h}" for h in hints), ""] * bool(hints)
-        learns = [f"- {names[ref]}" for ref in entry["gaps"] if ref in names and ref not in entry.get("traits", [])]
-        lines += [f"**{text('review.guide.ask')}**", "", *asks, ""]
-        lines += [f"**{text('review.guide.learns')}**", "", *learns, ""] * bool(learns)
-    return lines
-
-
-def next_lines(kb: Json, text: Text) -> list[str]:
-    """review.md's Next interviews: where the study stands, the plan's round, and every open gap by group."""
-    lines = ["## " + text("review.h.next"), ""]
-    for job in kb["core_jobs"]:
-        jid, learn = str(job["id"]), learn_of(kb, str(job["id"]))
-        gaps = open_gaps(kb, jid)
-        lines += [f"**{job['statement']} ({jid})**", ""] * (len(kb["core_jobs"]) > 1) + _nx_where(kb, jid, text)
-        if learn and "overview" in stale_layers(kb):
-            lines += [f"*{text('review.nx.stale')}*", ""]
-        lines += [text("review.nx.enough")] if not gaps else _nx_round(kb, learn, text, False) if learn.get("round") \
-            else [text("review.nx.no_plan")]
-        for kind, key in NX_GROUPS:
-            group = [g for g in gaps if (g["main"] if kind == "main" else not g["main"] and g["kind"] == kind)]
-            lines += ["", f"**{text(key, thin=THIN_STEP)}**", ""] * bool(group)
-            lines += [f"- {g['ref']} {g['text']} [{len(g['people'])}]" for g in group[:NX_GROUP_MAX]]
-            lines += [f"- *{text('review.nx.more', n=len(group) - NX_GROUP_MAX)}*"] * (len(group) > NX_GROUP_MAX)
-        lines.append("")
-    return lines
-
-
-def guide_lines(kb: Json, text: Text, job: str | None = None) -> list[str]:
-    """interview-guide.md, or one core job's part of it (the map copies that): who to find and what to ask."""
-    lines = ["# " + text("review.guide.title", project=kb["meta"].get("project", "")), "",
-             text("review.guide.made", date=today(), n=len(kb["interviews"])), "",
-             f"**{text('review.guide.use')}**", "",
-             *(f"{i}. {text(key)}" for i, key in enumerate(GUIDE_STEPS, 1)), ""]
-    for entry in [j for j in kb["core_jobs"] if job in (None, str(j["id"]))]:
-        learn = learn_of(kb, str(entry["id"]))
-        lines += [f"## {entry['statement']}", ""]
-        lines += _nx_round(kb, learn, text, True) if learn.get("round") else [text("review.nx.no_plan"), ""]
-    lines += ["## " + text("review.guide.help"), ""]
-    for head, *rest in GUIDE_HELP:
-        lines += [f"**{text(head)}**", "", *(f"- {text(key)}" for key in rest), ""]
-    return lines
-
-
-def _review_tail(kb: Json, text: Text) -> list[str]:
-    lines = []
-    stale = [text(LAYER_LABELS[k]) if k in LAYER_LABELS else k.replace("_", " ") for k in stale_layers(kb)]
-    if stale:
-        lines += [f"*{text('review.out_of_date', layers=text('review.list_sep').join(stale))}*", ""]
-    footer = text("review.footer", brand_link=f"[{BRAND}]({REVIEW_LINK})", brand=BRAND,
-                  site_link=f"[productweaver.com]({REVIEW_LINK})")
-    lines += ["---", "", f"*{footer}*", ""]
-    return lines
-
-
-def review_lines(kb: Json, since: str, text: Text | None = None) -> list[str]:
-    text = text or Text()
-    live_outcomes = [o for o in kb["desired_outcomes"]["outcomes"] if not o.get("merged_into")]
-    new_outcomes = {o["id"] for o in kb["desired_outcomes"]["outcomes"] if since and str(o.get("added", "")) >= since}
-    return (_review_head(kb, live_outcomes, text) + _review_decisions(kb, text)
-            + _review_new(kb, since, new_outcomes, text) + _review_map(kb, live_outcomes, new_outcomes, text)
-            + _review_solutions(kb, text) + _review_themes(kb, text) + _review_people(kb, text)
-            + next_lines(kb, text) + _review_tail(kb, text))
 
 
 def labels_missing_note(args: argparse.Namespace, kb: Json, missing: int) -> None:
@@ -4520,21 +4220,21 @@ def labels_missing_note(args: argparse.Namespace, kb: Json, missing: int) -> Non
     print(report.warnings[0])
 
 
+def _review() -> Any:
+    """kb_review.py, which writes review.md and the interview guide, with this module handed to it."""
+    module = _sibling("kb_review")
+    module.kt = sys.modules[__name__]
+    return module
+
+
+def guide_lines(kb: Json, text: Text, job: str | None = None) -> list[str]:
+    """interview-guide.md, or one core job's part of it; the map copies that part."""
+    return _review().guide_lines(kb, text, job)
+
+
 def cmd_review(args: argparse.Namespace) -> int:
-    """Write a plain-language sheet for people who review the KB: what changed, what needs a decision, the map."""
-    kb = load_kb(args.kb)
-    text, missing = study_text(kb, args.kb)
-    last = next((c for c in reversed(kb["changelog"]) if c.get("action") in ("merge", "init")), {})
-    since = args.since or str(last.get("date", ""))
-    out = args.out or os.path.join(output_folder(args.kb), "review.md")
-    guide = os.path.join(os.path.dirname(os.path.abspath(out)), "interview-guide.md")
-    for path, lines in ((out, review_lines(kb, since, text)), (guide, guide_lines(kb, text))):
-        with open(path, "w", encoding="utf-8") as handle:
-            handle.write("\n".join(lines))
-        print(f"wrote {path}")
-    args.run.note(out=args.run.relative(out), since=since)
-    labels_missing_note(args, kb, missing)
-    return 0
+    """Write review.md and interview-guide.md. The code is in kb_review.py, loaded only for this."""
+    return _review().cmd_review(args, sys.modules[__name__])
 
 
 # ---------- labels ----------
@@ -4678,7 +4378,7 @@ def _add_labels(kb: Json, args: argparse.Namespace, language: str) -> int:
         lines.append(f"added {len(good)} labels in {language} to {labels_path(args.kb)}; "
                      + (f"{missing} still show in English: run kb_tool labels {args.kb} for the list"
                         if missing else "every label has its text"))
-        lines.append("Run review and map again to show them.")
+        lines.append("The next write shows them in the review sheet and the map.")
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
@@ -4710,6 +4410,58 @@ MAP_ASSETS = (LABELS_FILE,)
 def cmd_map(args: argparse.Namespace) -> int:
     """Rebuild the interactive map. The code is in kb_map.py, loaded only for this command."""
     return _sibling("kb_map").cmd_map(args, sys.modules[__name__])
+
+
+# ---------- the rebuild after a write ----------
+def _sub_run(args: argparse.Namespace, name: str,
+             func: Callable[[argparse.Namespace], int]) -> tuple[argparse.Namespace, int]:
+    """`review` or `map` inside a write, with its own run and log line; `via` names the write, so kb_map keeps a batch
+    on screen after merge or themes. It never raises: the write stands, and a failure says what to run."""
+    sub = argparse.Namespace(kb=args.kb, cmd=name, func=func, out=None, template=None, since=None, json=False,
+                             via=args.cmd)
+    if name == "map":
+        sub.open = args.open
+    else:
+        sub.keep_guide = True
+    sub.run = Run(sub)
+    args.run.subruns.append(sub)
+    try:
+        return sub, int(func(sub) or 0)
+    except Exception as exc:  # a KbError, or a bug: logged as main() logs it, and the write is kept
+        if isinstance(exc, KbError):
+            sub.run.fail(exc.code)
+        else:
+            sub.run.fail("crash")
+            sub.run.note(exception=type(exc).__name__)
+        reason = " ".join(str(exc).split()) if isinstance(exc, KbError) else type(exc).__name__
+        report = Report()
+        report.warn(f"{name} was not rebuilt: {reason}; run kb_tool {name} {args.kb}", code="publish_failed")
+        args.run.add_report(report)
+        print(report.warnings[0])
+        return sub, 1
+
+
+def publish_after_write(args: argparse.Namespace) -> Json | None:
+    """After a write that succeeded, rebuild review.md, the interview guide and the map, as `review` then `map` do.
+    None when nothing was written, on a dry run and with --no-publish. With --json the lines go into the result."""
+    if not args.run.facts.get("written") or getattr(args, "dry_run", False) or args.no_publish:
+        return None
+    module, buffer, problems = sys.modules[__name__], io.StringIO(), []
+    for name in ("review", "map"):  # looked up now, so a test can patch them
+        start = buffer.tell()
+        with contextlib.redirect_stdout(buffer):
+            failed = _sub_run(args, name, getattr(module, f"cmd_{name}"))[1]
+        if failed:  # its last line says what to run
+            problems.append(buffer.getvalue()[start:].rstrip("\n").rsplit("\n", 1)[-1])
+    seen: set[str] = set()  # review and map both give the git: and labels: notes
+    text = "".join(x for x in buffer.getvalue().splitlines(True)
+                   if not x.startswith(("git:", "labels:")) or not (x in seen or seen.add(x)))
+    if not getattr(args, "json", False):
+        print(text, end="")
+    lines = text.splitlines()
+    args.run.note(published=not problems)
+    return {"lines": lines, "link": next((x[6:] for x in lines if x.startswith("link: ")), None),
+            "moved": any(x.startswith("moved:") for x in lines), "problems": problems}
 
 
 # ---------- validate, migrate ----------
@@ -4885,6 +4637,11 @@ def build_parser() -> argparse.ArgumentParser:
         sp.set_defaults(func=func)
         return sp
 
+    def publishes(sp: argparse.ArgumentParser) -> None:
+        sp.add_argument("--no-publish", action="store_true",
+                        help="after the write, do not rebuild review.md, the interview guide and the map")
+        sp.add_argument("--open", action="store_true", help="after the rebuild, also show the map in the browser")
+
     sp = command("init", cmd_init, "start an empty KB")
     sp.add_argument("--project", required=True)
     sp.add_argument("--interviewer")
@@ -4904,10 +4661,12 @@ def build_parser() -> argparse.ArgumentParser:
                          f"{KB_FOLDER}/{COPIES}/ is always read first")
     sp.add_argument("--dry-run", action="store_true", help="run every check, write nothing")
     sp.add_argument("--json", action="store_true", help="print the result as one JSON object")
+    publishes(sp)
     sp = command("apply", cmd_apply, "decide on a proposed change")
     sp.add_argument("id", help="proposal ID, such as P3")
     sp.add_argument("--decision", choices=["approve", "reject"], required=True)
     sp.add_argument("--note")
+    publishes(sp)
     sp = command("review", cmd_review, "write review.md")
     sp.add_argument("--since", help="YYYY-MM-DD; default: date of the last merge")
     sp.add_argument("--out")
@@ -4920,10 +4679,14 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("themes", help="a JSON file with `job` and `themes`, the full set for that core job")
     sp.add_argument("--dry-run", action="store_true", help="run every check, write nothing")
     sp.add_argument("--json", action="store_true", help="print the result as one JSON object")
-    sp = command("overview", cmd_overview, "check one core job's overview and write it")
-    sp.add_argument("overview", help="a JSON file with `job` and the overview of that core job")
+    publishes(sp)
+    sp = command("overview", cmd_overview, "check one core job's overview and write it, or print the file to fill in")
+    sp.add_argument("overview", nargs="?", help="a JSON file with `job` and the overview of that core job")
+    sp.add_argument("--skeleton", metavar="JOB", help="print what core job JOB's overview needs and the file to fill "
+                    "in; write nothing")
     sp.add_argument("--dry-run", action="store_true", help="run every check, write nothing")
     sp.add_argument("--json", action="store_true", help="print the result as one JSON object")
+    publishes(sp)
     sp = command("validate", cmd_validate, f"check the KB's structure, then its quotes against {KB_FOLDER}/{COPIES}/")
     sp.add_argument("--structure-only", action="store_true", help="check the structure, not the quotes")
     sp.add_argument("--schema", help="path to kb-schema.json, if it is not next to the script")
@@ -4970,6 +4733,8 @@ def main(argv: list[str] | None = None) -> int:
         raise
     finally:
         run.write(args, code)
+        for sub in run.subruns:  # after the write's own line: merge, review, map, as when run one by one
+            sub.run.write(sub, 2 if "crash" in sub.run.error_codes else 1 if sub.run.error_codes else 0)
     return code
 
 
