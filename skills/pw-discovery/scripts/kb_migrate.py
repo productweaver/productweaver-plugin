@@ -299,8 +299,8 @@ def cmd_migrate(args: argparse.Namespace, tool: Any) -> int:
     kb = kt.ensure(kt.load_json(args.kb), args.kb)
     version = kt.check_version(kb, args.kb)
     args.run.note(schema_from=version)
-    if version == kt.SCHEMA_VERSION:
-        print(f"nothing to do: {args.kb} already uses schema version {kt.SCHEMA_VERSION}")
+    if version >= kt.SCHEMA_VERSION:  # 4 is schema 3 with later conversations: nothing to migrate
+        print(f"nothing to do: {args.kb} already uses schema version {version}")
         return 0
     start, notes = version, _upgrade(kb, version)
     summary = f"migrated from schema version {start} to {kt.SCHEMA_VERSION}: " + "; ".join(notes)

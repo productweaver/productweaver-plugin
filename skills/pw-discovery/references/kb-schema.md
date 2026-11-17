@@ -31,7 +31,7 @@ One JSON file, `.pw-kb/pw-kb.json` at the root of the workspace, holds a whole s
 - `meta`: about the study
 - `core_jobs`: the core jobs the study found: A, B, C…
 - `clusters`: segments of people, optional
-- `interviews`: one record per conversation, linked to the core jobs
+- `interviews`: one record per person, with each later conversation in `interactions`
 - `job_map.steps`: what people do, per core job, on the 8 ODI stages
 - `desired_outcomes.outcomes`: how people judge each step
 - `current_solutions`: what people use today for each step, optional
@@ -52,7 +52,7 @@ A study can hold more than one core job, so every step and outcome ID starts wit
 | Core job | a letter | `B` | The second core job. After `Z` come `AA`, `AB`… |
 | Step | job letter + number | `B.2` | Step 2 of core job B. Steps are numbered from 1 inside each core job |
 | Outcome | step ID + number | `B.2.3` | The third outcome of step B.2 |
-| Interview | digits | `"07"` | The seventh conversation |
+| Interview | digits | `"07"` | The seventh person interviewed |
 | Solution | `S` + number | `S3` | The third solution recorded. Study-wide: one solution can serve steps of several core jobs |
 | Solution group | short lowercase key | `send-orders` | Chosen by whoever adds the group |
 
@@ -68,8 +68,9 @@ The letter is there even when the study has one core job (`A.6.3`), so no ID cha
 | `source` | `transcript`, `quoted_in_notes` or `interviewer_notes` | yes | The interviewee's words in a transcript, their words quoted in notes, or the interviewer's paraphrase |
 | `quote` | string | yes | Exact words, copied character for character from the transcript |
 | `name` | string | no | *Computed.* The interviewee's name, filled in for readability |
+| `interaction` | integer | no | Which conversation with that person the quote comes from: `2` for the second, the `n` of one of their `interactions`. Missing means the first. The quote is checked against that conversation's file only |
 
-**Own statement.** A statement inside an interview record: `{statement, evidence}`, where each evidence item is `{source, quote}` because the interview is implied. An interview's core functional job and each related job may also carry `job`, the ID of the core job it rolls up to, and `history`. A core functional job with no `job` may carry `unlinked_reason`: why it rolls up to none of the study's core jobs.
+**Own statement.** A statement inside an interview record: `{statement, evidence}`, where each evidence item is `{source, quote}` because the interview is implied, plus `interaction` for a quote from a later conversation. An interview's core functional job and each related job may also carry `job`, the ID of the core job it rolls up to, and `history`. A core functional job with no `job` may carry `unlinked_reason`: why it rolls up to none of the study's core jobs.
 
 **Stage.** One of `define`, `locate`, `prepare`, `confirm`, `execute`, `monitor`, `modify` or `conclude`.
 
@@ -80,7 +81,7 @@ The letter is there even when the study has one core job (`A.6.3`), so no ID cha
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `project` | string | yes | Study or client name |
-| `schema_version` | integer | no | Version of this schema; currently 3. `kb_tool.py migrate` raises it, and every command refuses an older or a newer one |
+| `schema_version` | integer | no | 3, or 4 once the study holds a later conversation or plans one (`interactions`, or a `follow_up` round entry). Older plugins refuse 4 with a message to update; `migrate` is needed only below 3 |
 | `method` | string | no | Method used |
 | `interviewer` | string | no | Who ran the interviews |
 | `language` | string | no | The study's language, a BCP 47 code such as `en`, `it`, `pt-BR` or `zh-Hans`. Every statement is written in it, and the map and `review.md` show their own text in it from `.pw-kb/labels.json`. Missing means English. `init` writes it; `labels --language` changes it only while the study has no interviews. Quotes stay in the words people used |
@@ -136,7 +137,8 @@ An object from a short segment code (`seq`, `fleet`) to an object with `name`, `
 | `sha256` | 64 hex characters | no | *Computed.* Content hash; catches a renamed copy of the same transcript |
 | `date` | date | no | When the conversation happened |
 | `added` | date | no | *Computed.* When it entered the KB |
-| `format` | string | no | `Transcript`, `Notes` or `Transcript + notes` |
+| `format` | string | no | `Transcript`, `Notes`, `Transcript + notes`, `Email` or `Chat`. A first contact by email or chat is stored as `Email` or `Chat` |
+| `interactions` | list | no | Each later conversation with the same person, see below. The fields above (`file`, `sha256`, `date`, `added`, `format`) are the first conversation |
 | `cluster` | string | no | Segment code from `clusters` |
 | `tags` | list of strings | no | Details that don't belong in statements, such as city or years in business |
 | `job_executor` | own statement | yes | Who they are, at most 16 words |
@@ -147,6 +149,18 @@ An object from a short segment code (`seq`, `fleet`) to an object with `name`, `
 | `analyst_note` | string | no | Anything else a reader must know, such as "answered for two sites" |
 
 An empty list is a finding: the interview gave no evidence for that kind of job. So is a missing main link: `unlinked_reason` should say why.
+
+**`interactions[]`**: a follow-up call, an email or a chat with someone already in the study. The person keeps one record and one ID, so people are counted once.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `n` | integer, 2 or more | yes | *Computed.* Which conversation with this person it is: 2 for the second, in the order added. A quote from it carries `"interaction": n` |
+| `format` | string | no | `Transcript`, `Notes`, `Transcript + notes`, `Email` or `Chat` |
+| `date` | date | yes | When the conversation happened |
+| `file` | string | yes | *Computed.* The study's copy of its text, `transcripts/<file name>`, relative to `.pw-kb/` |
+| `sha256` | 64 hex characters | no | *Computed.* Content hash of that copy |
+| `added` | date | no | *Computed.* When it entered the KB |
+| `changed` | string | no | What differs from before, in one sentence of at most 30 words, written only when the person's situation or answer changed |
 
 ## `job_map`
 
@@ -263,6 +277,7 @@ A `merge` entry also carries structured fields, so tools do not have to parse th
 |---|---|---|
 | `patch` | string | File name of the patch |
 | `added_interviews` | list of IDs | Interviews this merge added |
+| `added_interactions` | list of `{interview, n}` | Later conversations this merge added, each as its person's ID and its number, such as `{"interview": "02", "n": 2}`. Present only when there are some |
 | `new_outcomes` | list of outcome IDs | Outcomes this merge added |
 | `step_quotes`, `outcome_quotes` | integer | Quotes added to steps and to outcomes |
 | `new_solutions`, `new_solution_groups` | lists | Solutions and solution groups this merge added. Present once the KB has a `current_solutions` section |
@@ -362,7 +377,7 @@ The layer holds only the sentences the assistant writes. The map counts the rest
 |---|---|---|
 | `traits` | list | 2 or 3 people traits that change how the job gets done: `{id: "T1", name, values}`, each value `{id: "T1.1", label, interviews}`. Names and labels are at most 4 words. A person sits in at most one value of a trait. A value with no interviews is a kind of person not heard from yet |
 | `rests_on` | list of outcome IDs | 1 to 8 outcomes the main finding rests on. Their gaps rank first |
-| `round` | list | 1 to 5 entries, in the order to do them: `kind` (`new`), `count` (1 to 3 people), `who` (at most 15 words), optional `traits` (value IDs), `gaps` (1 to 4 IDs it fills) and `questions` (1 to 4 `{ask, listen, gaps}`: a question of at most 25 words, easy to say aloud; what to write down and what it shows, in at most 15; and which of the entry's gaps it checks) |
+| `round` | list | 1 to 5 entries, in the order to do them. An entry that finds new people has `kind` (`new`), `count` (1 to 3 people), `who` (at most 15 words) and optional `traits` (value IDs). An entry that asks someone in the study again has `kind` (`follow_up`) and `interview` (their ID, one of the core job's people), and no `count`, `who` or `traits`. Both have `gaps` (1 to 4 IDs it fills) and `questions` (1 to 4 `{ask, listen, gaps}`: a question of at most 25 words, easy to say aloud; what to write down and what it shows, in at most 15; and which of the entry's gaps it checks). A `follow_up` aimed at a gap its person is already counted on, or at a kind of person not heard yet, gets the warning `follow_up_no_gain` |
 | `at_write` | object | *Computed.* When the plan was written: the round's targets and the people heard so far |
 | `previous` | object | *Computed.* The `at_write` of the plan before the last batch, so the next plan can say how that round went |
 

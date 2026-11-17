@@ -171,9 +171,9 @@ Interviews hold people's names and words, so here is what the plugin does
 with them.
 
 - **It runs on your computer.** The plugin is two local Python scripts
-  inside the skill. `kb_tool.py` (with `kb_map.py`, `kb_review.py` and
-  `kb_migrate.py`, next to it, which it loads for some of its commands)
-  reads the files you point it to and writes
+  inside the skill. `kb_tool.py` (with `kb_map.py`, `kb_review.py`,
+  `kb_people.py` and `kb_migrate.py`, next to it, which it loads for some of
+  its commands) reads the files you point it to and writes
   the files listed under [Files it writes](#files-it-writes); it makes no
   network calls. `pw_usage.py` keeps your answer about usage statistics
   and, only after a yes, sends the events.
@@ -285,7 +285,10 @@ because its name starts with a dot
 
 - `pw-kb.json`, the knowledge base;
 - `transcripts/`, a copy of each transcript the knowledge base quotes. Your own
-  files are never changed;
+  files are never changed. An email or a chat you paste, or send as a file, is
+  also saved here as text. Your assistant saves emails and chats without
+  headers, addresses, phone numbers or signatures, and the merge refuses a
+  copy that still holds an email address or a header line;
 - `labels.json`, only for a study in another language than English: the map's
   and the review sheet's own text in that language;
 - `patches/`, one file per batch, the audit trail of what each batch added;
@@ -328,6 +331,10 @@ first time you use it.
 - Version 0.11 and earlier kept the map and the sheets in `.pw-kb/`; the
   next run moves them to `pw-output/`.
 - Before version 0.5.0 the pw-discovery skill was called distill-kb.
+- From version 0.17.0 a person can have later conversations, and the plan can
+  hold a follow-up. Once a study holds a later conversation or a planned
+  follow-up, everyone who works on it needs 0.17.0: older versions refuse the
+  study and ask to update.
 
 What changed in each version is in the [changelog](CHANGELOG.md).
 

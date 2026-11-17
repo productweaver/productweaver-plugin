@@ -73,8 +73,9 @@ try:  # optional: richer schema messages. jsonschema before 4.0 (3.2 on Ubuntu 2
 except ImportError:  # pragma: no cover - depends on the machine
     _LibraryValidator = None
 
-__version__ = "0.16.0"
-SCHEMA_VERSION = 3
+__version__ = "0.17.0"
+SCHEMA_VERSION = 3  # what a study is written as, and below which it needs `migrate`
+SCHEMA_NEWEST = 4  # the newest a command reads: written once a study holds or plans a later conversation
 
 BRAND = "Product Weaver"
 SITE = "https://www.productweaver.com/"
@@ -87,7 +88,7 @@ PROPOSAL_TYPES = ["new_step", "reword_step", "reword_outcome", "reword_core_job"
                   "merge_outcomes", "move_outcome", "new_segment", "new_core_job", "confirm_core_job",
                   "move_step", "relink_interview", "merge_solutions", "move_solution", "reword_solution",
                   "reword_solution_group", "other"]
-PATCH_SECTIONS = ("interviews", "bootstrap", "step_evidence", "outcome_evidence", "new_outcomes",
+PATCH_SECTIONS = ("interviews", "interactions", "bootstrap", "step_evidence", "outcome_evidence", "new_outcomes",
                   "solution_groups", "new_solutions", "solution_evidence", "proposed_changes")
 SOLUTION_KINDS = ["product", "everyday_tool", "people", "own_method"]
 SOLUTION_STATUS = ["current", "stopped"]
@@ -432,7 +433,7 @@ KB_ORDER = ["meta", "core_jobs", "clusters", "interviews", "job_map", "desired_o
 
 def save_kb(kb: Json, path: str) -> None:
     """Stamp the versions, put the top-level keys in a stable order and write."""
-    kb["meta"]["schema_version"] = SCHEMA_VERSION
+    kb["meta"]["schema_version"] = SCHEMA_NEWEST if uses_newest(kb) else SCHEMA_VERSION
     kb["meta"]["tool_version"] = __version__
     ordered = {key: kb[key] for key in KB_ORDER if key in kb}
     ordered.update({key: value for key, value in kb.items() if key not in ordered})
@@ -957,9 +958,9 @@ def check_version(kb: Json, path: str) -> int:
     version = kb["meta"].get("schema_version", SCHEMA_VERSION)
     if not isinstance(version, int) or isinstance(version, bool):
         raise KbError(f"{path}: meta.schema_version must be a whole number, found {version!r}", code="schema_version")
-    if version > SCHEMA_VERSION:
+    if version > SCHEMA_NEWEST:
         raise KbError(f"{path} uses KB schema version {version}, but this tool (v{__version__}) knows version "
-                      f"{SCHEMA_VERSION}. Update the pw-discovery skill, then try again.", code="schema_version")
+                      f"{SCHEMA_NEWEST}. Update the pw-discovery skill, then try again.", code="schema_version")
     return version
 
 
@@ -1025,7 +1026,49 @@ def outcomes_by_id(kb: Json) -> dict[str, Json]:
 
 
 def interviews_by_file(kb: Json) -> dict[str, Json]:
-    return {os.path.basename(str(record.get("file", ""))): record for record in kb["interviews"]}
+    """Each file name the study holds, a later conversation's too, to its person's record."""
+    return {os.path.basename(str(x.get("file", ""))): r for r in kb["interviews"] for x in conversations(r)}
+
+
+def conversations(record: Json) -> list[Json]:
+    """A person's record (their first conversation) and each later one in `interactions`."""
+    return [record, *(record.get("interactions") or [])]
+
+
+def uses_newest(kb: Json) -> bool:
+    """True when the study holds a later conversation or plans one: it is then written as SCHEMA_NEWEST."""
+    rounds = [e for o in overviews_of(kb) for e in learn_of(kb, str(o["job"])).get("round") or []]
+    return any(isinstance(r, dict) and r.get("interactions") for r in kb.get("interviews") or []) \
+        or any(isinstance(e, dict) and e.get("kind") == "follow_up" for e in rounds)
+
+
+def ix_of(item: Json) -> Json:
+    """{"interaction": n} for a quote from a later conversation (n of 2 or more), {} for the first."""
+    n = item.get("interaction")
+    return {"interaction": n} if _is_int(n) and n >= 2 else {}
+
+
+def evidence_ref(item: Json) -> str:
+    """The text a quote is checked against: "02" for the person's first conversation, "02#2" for the second."""
+    n = ix_of(item).get("interaction")
+    return f"{item.get('interview')}#{n}" if n else str(item.get("interview"))
+
+
+def ref_words(ref: str) -> str:
+    """A reference as a reader sees it: "02#2" is "02, conversation 2"."""
+    return ref.replace("#", ", conversation ")
+
+
+def ix_dates(kb: Json) -> dict[str, str]:
+    """When each conversation happened, to find a person's latest: {"02": first, "02#2": second}. A person's dates
+    are all "" unless each of their conversations has a YYYY-MM-DD date: their numbers decide then."""
+    dates: dict[str, str] = {}
+    for r in [r for r in kb["interviews"] if isinstance(r, dict) and r.get("id")]:
+        said = {str(r["id"]) + (f"#{x['n']}" if x is not r else ""): str(x.get("date") or "")
+                for x in conversations(r) if isinstance(x, dict) and (x is r or x.get("n"))}
+        sorts = all(re.fullmatch(r"\d{4}-\d{2}-\d{2}", date) for date in said.values())
+        dates.update(said if sorts else dict.fromkeys(said, ""))
+    return dates
 
 
 def id_width(kb: Json) -> int:
@@ -1073,7 +1116,7 @@ def add_evidence(target: Json, items: list[Json]) -> int:
         key = evidence_key(item)
         if key not in have:
             target["evidence"].append({"interview": item["interview"], "source": item["source"],
-                                       "quote": item["quote"]})
+                                       "quote": item["quote"], **ix_of(item)})
             have.add(key)
             added += 1
     return added
@@ -1225,7 +1268,9 @@ def round_snapshot(kb: Json, learn: Json) -> Json:
     """What a plan aimed at, and who had been heard."""
     values = {v["id"]: v["label"] for t in learn.get("traits") or [] for v in t["values"]}
     refs = list(dict.fromkeys(ref for entry in learn.get("round") or [] for ref in entry["gaps"]))
+    later = sum(len(r.get("interactions") or []) for r in kb["interviews"])
     return {"written": today(), "interviews": sorted(str(r["id"]) for r in kb["interviews"]),
+            **({"interactions": later} if later else {}),
             "targets": [{"ref": ref, "label": values.get(ref, "")} for ref in refs]}
 
 
@@ -1353,16 +1398,21 @@ def _known_whys(group: Json) -> set[str]:
 def _recount_solutions(kb: Json, names: dict[str, str]) -> None:
     """Who uses each solution now, who stopped, how many different quotes mention it, and each group's members."""
     solutions = solutions_of(kb)
+    when = ix_dates(kb)
     for solution in solutions:
-        current: set[str] = set()
-        stopped: set[str] = set()
         quotes: set[tuple[str, str]] = set()
+        mark: dict[tuple[str, str], tuple[str, int, bool]] = {}  # (person, step) -> latest (date, n, current)
         for use in uses_of(solution):
             for item in [e for e in use.get("evidence") or [] if isinstance(e, dict)]:
                 item["name"] = names.get(str(item.get("interview")), item.get("name", ""))
                 quotes.add(evidence_key(item))
-                (current if use_status(use) == "current" else stopped).add(str(item.get("interview")))
-        solution["interviews"], solution["stopped_by"] = sorted(current), sorted(stopped - current)
+                key = (str(item.get("interview")), str(use.get("step")))
+                stamp = (when.get(evidence_ref(item), ""), ix_of(item).get("interaction") or 1,
+                         use_status(use) == "current")
+                mark[key] = max(mark.get(key, stamp), stamp)
+        current = {p for (p, _), m in mark.items() if m[2]}
+        stopped = {p for (p, _), m in mark.items() if not m[2]} - current
+        solution["interviews"], solution["stopped_by"] = sorted(current), sorted(stopped)
         solution["quote_count"] = len(quotes)
     for key, group in groups_of(kb).items():
         group["solutions"] = [str(s.get("id")) for s in solutions if s.get("group") == key and not s.get("merged_into")]
@@ -1792,7 +1842,7 @@ class QuoteChecker:
                 continue
             if item.get("source") not in SOURCES:
                 report.error(f"{label}: source must be one of {list(SOURCES)}", code="source_invalid")
-            reference = str(item.get("interview"))
+            reference = evidence_ref(item)
             quote = str(item.get("quote") or "")
             text, problem = self.lookup(reference)
             if text is None:
@@ -1801,7 +1851,8 @@ class QuoteChecker:
                 report.error(f"{label}: empty quote", code="quote_empty")
             elif norm(quote) not in text:
                 hint = closest_span(text, norm(quote))
-                report.error(f'{label}: quote not found word for word in interview {reference}: "{short(quote)}"'
+                report.error(f'{label}: quote not found word for word in interview {ref_words(reference)}: '
+                             f'"{short(quote)}"'
                              + (f'; closest span in the transcript: "{hint}"' if hint else ""), code="quote_not_found")
 
 
@@ -1964,10 +2015,13 @@ class MergePlan:
     new_interviews: list[Json] = field(default_factory=list)
     keymap: dict[str, str] = field(default_factory=dict)  # patch key or KB id -> KB id
     skipped: dict[str, str] = field(default_factory=dict)  # patch key -> why it was skipped
+    held_as: dict[str, str] = field(default_factory=dict)  # a skipped interview's key -> the KB id that holds its file
     texts: dict[str, str | None] = field(default_factory=dict)  # KB id -> normalized transcript
     copies: list[str] = field(default_factory=list)  # new transcripts to copy into .pw-kb/transcripts/
     bootstrap: Json | None = None
     dropped: int = 0
+    interactions: list[Json] = field(default_factory=list)  # later conversations to add (kb_people)
+    ix_keys: dict[str, tuple[str, int]] = field(default_factory=dict)  # their patch key -> (person ID, n)
 
 
 def _wordings(obj: Json) -> set[str]:
@@ -1997,19 +2051,25 @@ def resolve_bootstrap(kb: Json, patch: Json, plan: MergePlan, report: Report) ->
                      code="bootstrap_conflict")
 
 
+def _known_hashes(kb: Json, transcripts: Transcripts) -> dict[str, str]:
+    """Every content hash the KB holds, a later conversation's too, to its person's ID, so a renamed copy is caught.
+    A hash an older version did not write is filled in from the file."""
+    for record in kb["interviews"]:
+        transcript = None if record.get("sha256") else transcripts.get(str(record.get("file", "")))
+        if transcript:
+            record["sha256"] = transcript.sha256
+    return {x["sha256"]: str(r["id"]) for r in kb["interviews"] for x in conversations(r) if x.get("sha256")}
+
+
 def resolve_interviews(kb: Json, patch: Json, transcripts: Transcripts, report: Report) -> MergePlan:
     """Give every new interview an ID, skip the ones the KB already holds, and drop evidence that only
     came from skipped interviews."""
     plan = MergePlan()
+    if patch.get("interviews"):
+        _people().check_new_people(kb, patch, transcripts, report)
     resolve_bootstrap(kb, patch, plan, report)
     by_file = interviews_by_file(kb)
-    known_hashes = {record["sha256"] for record in kb["interviews"] if record.get("sha256")}
-    for record in kb["interviews"]:  # backfill hashes written by older versions, so renamed copies are caught
-        if not record.get("sha256"):
-            transcript = transcripts.get(str(record.get("file", "")))
-            if transcript:
-                record["sha256"] = transcript.sha256
-                known_hashes.add(transcript.sha256)
+    known_hashes = _known_hashes(kb, transcripts)
     plan.keymap = {str(record["id"]): str(record["id"]) for record in kb["interviews"]}
     seen_keys: set[str] = set()
     for interview in patch.get("interviews", []):
@@ -2027,10 +2087,12 @@ def resolve_interviews(kb: Json, patch: Json, transcripts: Transcripts, report: 
             continue
         transcript = transcripts.get(name)
         if name in by_file:
-            plan.skipped[key] = f"already in the KB as interview {by_file[name].get('id')}"
+            plan.held_as[key] = str(by_file[name].get("id"))
+            plan.skipped[key] = f"already in the KB as interview {plan.held_as[key]}"
         elif transcript and transcript.sha256 in known_hashes:
+            plan.held_as[key] = known_hashes[transcript.sha256]
             plan.skipped[key] = "already in the KB under another file name (same content)"
-        if key in plan.skipped:
+        if key in plan.skipped:  # a later conversation of theirs in this patch goes to plan.held_as[key]
             report.warn(f"skip {name}: {plan.skipped[key]}", code="interview_skipped")
             continue
         new_id = next_interview_id(kb["interviews"] + plan.new_interviews)
@@ -2044,6 +2106,8 @@ def resolve_interviews(kb: Json, patch: Json, transcripts: Transcripts, report: 
         plan.new_interviews.append(record)
         if transcript and not transcripts.is_copy(transcript):
             plan.copies.append(transcript.path)
+    if patch.get("interactions"):
+        _people().resolve_interactions(kb, patch, transcripts, plan, report)
     _drop_skipped_evidence(patch, plan, report)
     return plan
 
@@ -2143,6 +2207,8 @@ def make_lookup(kb: Json, plan: MergePlan, transcripts: Transcripts, report: Rep
     drift_warned: set[str] = set()
 
     def lookup(reference: str) -> tuple[str | None, str | None]:
+        if reference in plan.ix_keys or ("#" in reference and reference not in plan.keymap):  # "f1" or "02#2"
+            return _people().lookup_ref(kb, plan, transcripts, report, reference)
         if reference in plan.skipped:
             return None, f"interview {reference} was skipped ({plan.skipped[reference]})"
         kb_id = plan.keymap.get(reference)
@@ -2583,6 +2649,8 @@ def check_patch(kb: Json, patch: Json, plan: MergePlan, transcripts: Transcripts
     ctx = Checks(kb, jobs, steps, outcomes_by_id(kb), style_of(kb),
                  QuoteChecker(make_lookup(kb, plan, transcripts, report)), report, set(plan.keymap))
     check_new_interviews(plan, patch, ctx)
+    if plan.interactions:
+        _people().check_interactions(patch, plan, ctx)
     if plan.bootstrap:
         check_bootstrap(plan.bootstrap, ctx)
     check_step_evidence(patch, ctx)
@@ -2698,8 +2766,10 @@ def _bootstrap_into(kb: Json, bootstrap: Json) -> str:
 def apply_patch(kb: Json, patch: Json, plan: MergePlan, stamp: Json) -> Json | None:
     """Fold a checked patch into the KB. Returns the changelog entry, or None when nothing is new. `stamp`: patch
     name, ts, run_id and provenance."""
+    if plan.ix_keys:
+        _people().settle_refs(patch, plan)
     fresh = has_new_evidence(kb, patch, plan)
-    anything = (plan.new_interviews or plan.bootstrap or fresh or patch.get("new_outcomes")
+    anything = (plan.new_interviews or plan.interactions or plan.bootstrap or fresh or patch.get("new_outcomes")
                 or patch.get("new_solutions") or patch.get("proposed_changes"))
     if not anything:
         return None
@@ -2708,7 +2778,10 @@ def apply_patch(kb: Json, patch: Json, plan: MergePlan, stamp: Json) -> Json | N
         log.append(_bootstrap_into(kb, plan.bootstrap))
     kb["interviews"].extend(plan.new_interviews)
     added_ids = [record["id"] for record in plan.new_interviews]
+    added_ix = _people().apply_interactions(kb, patch, plan) if plan.interactions else []
+    later = ", ".join(f"{x['interview']}#{x['n']}" for x in added_ix)
     log.append(f"added interviews {', '.join(added_ids) or 'none'}")
+    log += [f"later conversations {later}"] if later else []
     steps, outcomes = steps_by_id(kb), outcomes_by_id(kb)
     step_quotes = sum(add_evidence(steps[str(i["step"])], remap(i["evidence"], plan.keymap))
                       for i in patch.get("step_evidence", []))
@@ -2736,12 +2809,14 @@ def apply_patch(kb: Json, patch: Json, plan: MergePlan, stamp: Json) -> Json | N
                 f"{solved['solution_quotes']} solution quotes"]
     log.append(f"proposals {', '.join(proposal_ids) or 'none'}")
     recount(kb)
-    if added_ids or new_outcome_ids or solved["new_solutions"]:
+    if added_ids or new_outcome_ids or solved["new_solutions"] or later:
         mark_stale(kb, f"interviews {', '.join(added_ids) or '-'} and outcomes "
                        f"{', '.join(new_outcome_ids) or '-'} added"
-                       + (f"; solutions {', '.join(solved['new_solutions'])}" if solved["new_solutions"] else ""))
+                       + (f"; solutions {', '.join(solved['new_solutions'])}" if solved["new_solutions"] else "")
+                       + (f"; later conversations {later}" if later else ""))
     entry: Json = {"date": today(), "action": "merge", **stamp, "summary": "; ".join(log),
-                   "added_interviews": added_ids, "new_outcomes": new_outcome_ids, "step_quotes": step_quotes,
+                   "added_interviews": added_ids, **({"added_interactions": added_ix} if added_ix else {}),
+                   "new_outcomes": new_outcome_ids, "step_quotes": step_quotes,
                    "outcome_quotes": outcome_quotes, "proposals": proposal_ids}
     if "current_solutions" in kb:
         entry.update(solved)
@@ -2760,6 +2835,7 @@ class MergeOutput:
                              "patch": args.patch, "run_id": args.run.id}
         self.header: list[str] = []
         self.verdict: list[str] = []
+        self.skips = 0  # interviews skipped as already in the KB; a later conversation skipped is not one
 
     def log(self) -> None:
         """Hand the run log what this merge did: codes and counts, never the messages or the notes."""
@@ -2767,11 +2843,12 @@ class MergeOutput:
         run.add_report(self.report)
         changes = self.result.get("changes") or {}
         provenance = {k: v for k, v in (changes.get("provenance") or {}).items() if k != "notes"}
+        later = len(changes.get("added_interactions") or [])
         run.note(dry_run=self.result["dry_run"], written=self.result["written"],
                  nothing_new=bool(self.result.get("nothing_new")), patch_sha256=file_sha256(self.args.patch),
                  bootstrap=bool(changes.get("bootstrap")), backup=run.relative(self.result.get("backup")),
                  counts={"interviews_added": len(changes.get("added_interviews") or []),
-                         "interviews_skipped": len(self.result.get("skipped") or {}),
+                         "interviews_skipped": self.skips, **({"follow_ups": later} if later else {}),
                          "outcomes_added": len(changes.get("new_outcomes") or []),
                          "step_quotes": changes.get("step_quotes", 0),
                          "outcome_quotes": changes.get("outcome_quotes", 0),
@@ -2822,9 +2899,14 @@ def _merge_verdict(out: MergeOutput, entry: Json, candidate: Json, copies: list[
     out.result["backup"] = backup(out.args.kb)
     save_kb(candidate, out.args.kb)
     out.result["written"] = True
+    batch_in = False
     with contextlib.suppress(Exception):  # an open map hears that the batch is in; never fails the merge
-        _sibling("kb_map").batch_merged(out.args.kb, len(entry.get("added_interviews") or []), sys.modules[__name__])
+        batch_in = _sibling("kb_map").batch_merged(out.args.kb, len(entry.get("added_interviews") or [])
+                                                   + len(entry.get("added_interactions") or []), sys.modules[__name__])
     out.verdict += [f"merged: {entry['summary']}", f"backup: {out.result['backup']}"]
+    if batch_in:  # only the overview ends a batch: until it is written, an open map says the study is being updated
+        out.verdict.append("batch: every transcript is in. Write the overview next: until then an open map "
+                           "says the study is being updated.")
     if copies:
         out.verdict.append(f"copied {copied}")
     if out.result["thin_steps"]:
@@ -2853,9 +2935,11 @@ def cmd_merge(args: argparse.Namespace) -> int:
     provenance = resolve_provenance(patch, plan, report)
     out.result["new_interviews"] = {key: kb_id for key, kb_id in plan.keymap.items() if key != kb_id}
     out.result["skipped"] = plan.skipped
+    out.skips = len(plan.skipped.keys() & {str(i.get("key")) for i in patch.get("interviews") or []})
     assigned = ", ".join(f"{k} -> {v}" for k, v in out.result["new_interviews"].items())
+    later = f"; {len(plan.interactions)} later conversation(s)" if plan.interactions else ""
     out.header.append(f"interviews: {len(plan.new_interviews)} new" + (f" ({assigned})" if assigned else "")
-                      + f", {len(plan.skipped)} skipped")
+                      + f", {out.skips} skipped{later}")
     if not report.errors:
         check_patch(kb, patch, plan, transcripts, report)
     if report.errors:
@@ -2883,7 +2967,7 @@ def _history(obj: Json, **entry: Any) -> None:
 
 
 def _clean_evidence(items: list[Json] | None) -> list[Json]:
-    return [{k: v for k, v in e.items() if k in ("interview", "source", "quote")} for e in items or []]
+    return [{**{k: v for k, v in e.items() if k in ("interview", "source", "quote")}, **ix_of(e)} for e in items or []]
 
 
 def _apply_new_step(kb: Json, proposal: Json) -> str:
@@ -3284,7 +3368,7 @@ def _check_highlights(ctx: ThemeChecks, theme: Json, label: str) -> None:
                              code="theme_highlight")
             continue
         kept.append({"kind": item["kind"], "interview": str(found["interview"]), "source": found["source"],
-                     "quote": found["quote"]})
+                     "quote": found["quote"], **ix_of(found)})
     theme["highlights"] = kept
     if not theme["highlights"] or len(kept) > THEME_HIGHLIGHTS:
         ctx.report.warn(f"{label} shows {len(kept)} quotes; pick 3 to {THEME_HIGHLIGHTS} that show the pain, the "
@@ -3597,7 +3681,7 @@ def _ov_quote(ctx: OverviewChecks, item: Any, label: str) -> Json | None:
                          f'"{short(key["quote"])}"', code="overview_quote")
         return None
     return {"interview": str(found["interview"]), "source": found.get("source", "transcript"),
-            "quote": found["quote"]}
+            "quote": found["quote"], **ix_of(found)}
 
 
 def _ov_section(ctx: OverviewChecks, data: Json, key: str, quote: bool = False) -> Json:
@@ -3810,11 +3894,14 @@ def _ov_round(ctx: OverviewChecks, given: Any, refs: set[str], values: set[str])
     entries = []
     for n, raw in enumerate(given if isinstance(given, list) else [], 1):
         where = f"next.learn round {n}"
+        if isinstance(raw, dict) and raw.get("kind") == "follow_up":  # asks someone in the study again
+            entries.append(_people().follow_up_entry(ctx, raw, where, refs))
+            continue
         entry = _ov_mapping(ctx, {"entry": raw}, "entry", ("kind", "count", "who", "traits", "gaps", "questions"),
                              where)
         count = entry.get("count")
         if entry.get("kind") != "new":
-            ctx.report.error(f"{where}: kind must be new", code="overview_shape")
+            ctx.report.error(f"{where}: kind must be new or follow_up", code="overview_shape")
         if not (isinstance(count, int) and not isinstance(count, bool) and ROUND_COUNT[0] <= count <= ROUND_COUNT[1]):
             ctx.report.error(f"{where}: count must be 1 to 3 people", code="overview_shape")
         gaps = _ov_refs(ctx, entry.get("gaps"), refs, ROUND_ITEMS, f"{where} gaps")
@@ -3842,6 +3929,8 @@ def _ov_plan(ctx: OverviewChecks, track: Json, out: Json) -> None:
     out["rests_on"] = _ov_refs(ctx, track.get("rests_on"), outs, RESTS_ON_MAX, "next.learn rests_on")
     out["round"] = _ov_round(ctx, track.get("round"), steps | outs | values, values)
     gaps = open_gaps(ctx.kb, ctx.job, out)
+    if any(entry["kind"] == "follow_up" for entry in out["round"]):
+        _people().warn_no_gain(ctx, out["round"], gaps)
     covered = {ref for entry in out["round"] for ref in entry["gaps"]}
     closed = sorted(covered - {g["ref"] for g in gaps})
     if closed:
@@ -3920,7 +4009,8 @@ def _overview_text(kb: Json, entry: Json, result: Json) -> list[str]:
     lines += [f"{key}: {entry[key]['answer']}" for key in ("people", "today", "gaps", "needs", "focus")]
     lines += [f"   gap ({g['kind']}): {g['label']}" for g in entry["gaps"]["items"]]
     lines += [f"next, {name} ({track['status']}): {track['action']}" for name, track in entry["next"].items()]
-    lines += [f"next, learn round: {e['count']} × {e['who']} (gaps {', '.join(e['gaps'])})"
+    lines += [f"next, learn round: {e['count']} × {e['who']} (gaps {', '.join(e['gaps'])})" if "who" in e else
+              f"next, learn round: ask interview {e['interview']} again (gaps {', '.join(e['gaps'])})"
               for e in entry["next"]["learn"].get("round", [])]
     if result["other_jobs"]:
         lines.append(f"the overview of core job {', '.join(result['other_jobs'])} was not touched; update it too if "
@@ -3963,8 +4053,8 @@ def cmd_overview(args: argparse.Namespace) -> int:
     if learn.get("round"):
         learn["at_write"] = round_snapshot(kb, learn)
         was = old.get("at_write") if isinstance(old.get("at_write"), dict) else {}
-        moved = bool(was) and was.get("interviews") != learn["at_write"]["interviews"]  # a batch came in since
-        if moved or isinstance(old.get("previous"), dict):
+        moved = bool(was) and any(was.get(k) != learn["at_write"].get(k) for k in ("interviews", "interactions"))
+        if moved or isinstance(old.get("previous"), dict):  # moved: a batch came in since
             learn["previous"] = was if moved else old["previous"]
     store_overview(candidate, entry)
     recount(candidate)
@@ -4038,7 +4128,9 @@ def people_data(kb: Json) -> list[Json]:
              "unlinked_reason": unlinked_reason(r),
              "related": [{"statement": j.get("statement", ""), "job": j.get("job")}
                          for j in r.get("related_jobs") or [] if isinstance(j, dict)],
-             "analyst_note": r.get("analyst_note", ""), "tags": r.get("tags") or []}
+             "analyst_note": r.get("analyst_note", ""), "tags": r.get("tags") or [],
+             **({"interactions": [{k: x[k] for k in ("n", "format", "date", "changed") if k in x}
+                                  for x in r["interactions"]]} if r.get("interactions") else {})}
             for r in kb["interviews"]]
 
 
@@ -4088,86 +4180,9 @@ def themes_data(kb: Json) -> Json:
     return {"themes": themes, "unassigned": texts(unassigned_outcomes(kb))}
 
 
-def _print_themes(data: Json, stale: bool) -> None:
-    if not data["themes"]:
-        return
-    print("\nVALUE THEMES" + (" [out of date]" if stale else "")
-          + " (when you update them, keep each ID, label and need unless there is a reason to change it)")
-    for theme in data["themes"]:
-        print(f"{theme['id']} {theme['label']}: {theme['need']}  (people {theme['interview_count']})")
-        for outcome in theme["outcomes"]:
-            print(f"   {outcome['id']:>7}  {outcome['statement']}")
-    if data["unassigned"]:
-        print("IN NO THEME YET")
-        for outcome in data["unassigned"]:
-            print(f"   {outcome['id']:>7}  {outcome['statement']}")
-
-
-def _person_line(person: Json) -> str:
-    links = person["job"] or "no core job" + (f" ({person['unlinked_reason']})" if person["unlinked_reason"] else "")
-    also = sorted({r["job"] for r in person["related"] if r["job"] and r["job"] != person["job"]})
-    return f"  {person['id']} {person['name']}: {person['core_functional_job']} -> {links}" + \
-        (f"; also {', '.join(also)}" if also else "") + (f" [{', '.join(person['tags'])}]" * bool(person["tags"]))
-
-
-def _print_jobs(data: Json) -> None:
-    print(f"PROJECT {data['project']}  language={data['language']}  interviews={data['interview_count']}  "
-          f"core jobs={len(data['core_jobs'])}")
-    if data.get("labels_missing"):
-        print(f"LABELS: {data['labels_missing']} labels of the map and the review sheet have no {data['language']} "
-              f"text yet; write them first: kb_tool labels {KB_HOME}")
-    if not data["core_jobs"]:
-        print("CORE JOB: (none yet: bootstrap)")
-    for job in data["core_jobs"]:
-        print(f"\nCORE JOB {job['id']}: {job['statement']}  [{job['status']}]")
-        if job["job_executor"]:
-            print(f"  EXECUTOR: {job['job_executor']}")
-        main, also = ", ".join(job["interviews"]) or "none", ", ".join(job["related_interviews"]) or "none"
-        print(f"  PEOPLE: main {main}; also {also}")
-        for step in job["steps"]:
-            print(f"STEP {step['id']} [{step['stage']}] {step['statement']}  (people {step['voices']})")
-            for outcome in step["outcomes"]:
-                print(f"   {outcome['id']:>7}  {outcome['statement']}  (iv {outcome['interview_count']})")
-
-
-def _print_solutions(data: Json) -> None:
-    if not (data["groups"] or data["solutions"]):
-        return
-    print("\nCURRENT SOLUTIONS (cite an ID in solution_evidence; add only what is not here to new_solutions)")
-    for group in data["groups"]:
-        print(f"GROUP {group['key']}: {group['name']}. Why: {group['why']}")
-        for solution in [s for s in data["solutions"] if s["group"] == group["key"]]:
-            stopped = f", stopped {len(solution['stopped_by'])}" if solution["stopped_by"] else ""
-            mark = "  [stopped]" if not solution["interviews"] else ""
-            print(f"  {solution['id']} [{solution['kind']}] {solution['name']}  steps {', '.join(solution['steps'])}"
-                  f"  (people {len(solution['interviews'])}{stopped}){mark}")
-
-
-def _print_overview(data: Json) -> None:
-    if not data["overview"]:
-        return
-    old = "overview" in data["stale"] or any(not entry["executor"] for entry in data["overview"])
-    print("\nOVERVIEW" + (" [out of date]" if old else ""))
-    for entry in data["overview"]:
-        about = f" (about: {entry['executor']})" if entry["executor"] else \
-            " (written before the map showed who the study is about: write it again)"
-        print(f"{entry['job']} written {entry['written']}: {entry['bottom_line']}{about}")
-
-
 def gap_lines(kb: Json, job: str) -> list[str]:
     """One core job's OPEN GAPS, as `context` and `overview --skeleton` print them; none when nothing is open."""
-    gaps = open_gaps(kb, job)
-    if not gaps:
-        return []
-    sure = sure_level(kb, job)
-    after = f"{sure['to_next']} more reach the next" if sure["to_next"] else "next: new ones stop adding needs"
-    lines = ["", f"OPEN GAPS for core job {job} (main finding first; next.learn's round should cover the top ones)",
-             f"  level {sure['level']} of 3 after {sure['conversations']} conversations"
-             + f"; {after}" * (sure["level"] < 3)]
-    for g in gaps:
-        who = f"people {len(g['people'])}: {', '.join(g['people'])}" if g["people"] else "nobody yet"
-        lines.append(f"  {g['ref']} [{g['kind']}{', main' * g['main']}] {g['text']}  ({who})")
-    return lines
+    return _review().gap_lines(kb, job)
 
 
 def cmd_context(args: argparse.Namespace) -> int:
@@ -4179,26 +4194,7 @@ def cmd_context(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
         return 0
-    _print_jobs(data)
-    for job in data["open_gaps"]:
-        lines = gap_lines(kb, job)
-        if lines:
-            print("\n".join(lines))
-    _print_solutions(data["current_solutions"])
-    _print_themes(data["value_themes"], "value_themes" in data["stale"])
-    _print_overview(data)
-    if data["segments"]:
-        print("\nSEGMENTS: " + "; ".join(f"{k}={v}" for k, v in data["segments"].items()))
-    if data["people"]:
-        print("\nPEOPLE AND THEIR JOBS (their own core job -> the core job it rolls up to)")
-        for person in data["people"]:
-            print(_person_line(person))
-    print("\nPROCESSED FILES: " + ", ".join(data["processed_files"]))
-    if data["pending_proposals"]:
-        pending = "; ".join(f"{p['id']} {p['type']} {p['target']}" for p in data["pending_proposals"])
-        print(f"\nPENDING PROPOSALS: {pending}")
-    if data["stale"]:
-        print("\nSTALE LAYERS: " + ", ".join(data["stale"]))
+    _review().print_context(kb, data)
     return 0
 
 
@@ -4223,6 +4219,14 @@ def labels_missing_note(args: argparse.Namespace, kb: Json, missing: int) -> Non
 def _review() -> Any:
     """kb_review.py, which writes review.md and the interview guide, with this module handed to it."""
     module = _sibling("kb_review")
+    module.kt = sys.modules[__name__]
+    return module
+
+
+def _people() -> Any:
+    """kb_people.py, with this module: later conversations with someone already in the study, and the same-person
+    and contact checks of a patch's new interviews."""
+    module = _sibling("kb_people")
     module.kt = sys.modules[__name__]
     return module
 
@@ -4402,7 +4406,7 @@ def cmd_labels(args: argparse.Namespace) -> int:
 
 
 # ---------- map ----------
-MAP_SCHEMA = f"/* @kb-schema:{SCHEMA_VERSION} */"  # the template can draw a KB of this schema version
+MAP_SCHEMA = f"/* @kb-schema:{SCHEMA_NEWEST} */"  # the template can draw a KB of this schema version
 # English labels ship beside the template (size limit); `map` inlines them so each map works offline.
 MAP_ASSETS = (LABELS_FILE,)
 
@@ -4479,6 +4483,10 @@ def _transcript_texts(kb: Json, transcripts: Transcripts,
                          code="transcript_missing")
         elif record.get("sha256") and transcript.sha256 != record["sha256"]:
             drifted[kb_id] = transcript.sha256
+    if any(r.get("interactions") for r in kb["interviews"]):  # later conversations: "02#2"
+        later, moved = _people().interaction_texts(kb, transcripts, report)
+        texts.update(later)
+        drifted.update(moved)
     return texts, drifted
 
 
@@ -4549,13 +4557,17 @@ def _accept_drift(kb: Json, drifted: dict[str, str], args: argparse.Namespace) -
     """Store the new content hashes of transcripts that changed, once every quote still matches."""
     by_id = {str(r["id"]): r for r in kb["interviews"]}
     for kb_id, digest in drifted.items():
-        by_id[kb_id]["sha256"] = digest
+        if "#" in kb_id:  # a later conversation, "02#2"
+            _people().rehash(kb, kb_id, digest)
+        else:
+            by_id[kb_id]["sha256"] = digest
     kb["changelog"].append(changelog_entry(args.run, "edit",
-                                           summary=f"accepted changed transcripts for interviews {', '.join(drifted)}"))
+                                           summary="accepted changed transcripts for interviews "
+                                           + ", ".join(map(ref_words, drifted))))
     made = backup(args.kb)
     save_kb(kb, args.kb)
     args.run.note(written=True, backup=args.run.relative(made))
-    print(f"rehashed interviews {', '.join(drifted)}")
+    print(f"rehashed interviews {', '.join(map(ref_words, drifted))}")
 
 
 def cmd_validate(args: argparse.Namespace) -> int:
@@ -4582,7 +4594,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
     for kb_id in drifted:
         if args.rehash and not report.errors:
             continue
-        report.error(f"transcript for interview {kb_id} changed since it was added"
+        report.error(f"transcript for interview {ref_words(kb_id)} changed since it was added"
                      + ("; fix the quotes above first" if report.errors else
                         "; if the change is intended, run validate --rehash to accept it"),
                      code="transcript_changed")
@@ -4628,7 +4640,7 @@ def cmd_migrate(args: argparse.Namespace) -> int:
 # ---------- cli ----------
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--version", action="version", version=f"kb_tool {__version__} (KB schema {SCHEMA_VERSION})")
+    parser.add_argument("--version", action="version", version=f"kb_tool {__version__} (KB schema {SCHEMA_NEWEST})")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     def command(name: str, func: Callable[[argparse.Namespace], int], help_text: str) -> argparse.ArgumentParser:

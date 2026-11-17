@@ -82,6 +82,16 @@ All are optional, but a patch needs at least one of them. Any other top-level ke
       "analyst_note": "Answered for her brother's truck as well."
     }
   ],
+  "interactions": [
+    {
+      "key": "f1",
+      "interview": "01",
+      "file": "dana-second-call.md",
+      "date": "2026-11-09",
+      "format": "Transcript",
+      "changed": "She now gets receipts through a client portal, not by email."
+    }
+  ],
   "step_evidence": [
     {
       "step": "A.6",
@@ -184,19 +194,70 @@ What each key is for:
 
 - `generated_with`: the Product Weaver credit. Keep it at the top.
 - `provenance`: optional. Who extracted this batch and how; the merge copies it into the KB's changelog. `transcripts_read` names interviews by key or KB ID, never by file name.
-- `interviews`: new interviews only. `file` is the file name, in `.pw-kb/transcripts/` or a `--transcripts` folder. `format` is `Transcript`, `Notes` or `Transcript + notes`. `cluster` is an existing segment key; leave it out when none fits.
+- `interviews`: new interviews only. `file` is the file name, in `.pw-kb/transcripts/` or a `--transcripts` folder. `date` is written `YYYY-MM-DD`, so it can be compared with the dates of the person's later conversations. `format` is `Transcript`, `Notes` or `Transcript + notes`. `Email` and `Chat` are allowed for a first contact too, with the contact-details rule below: its copy is named `<key>-1-<date>.txt`. A `name` already in the study (case and accents ignored), or used twice in the patch, is refused (`same_person`): send a later conversation under `interactions`. Add `"same_name_ok": true` only when the user said it is another person with the same name; it is not stored. `cluster` is an existing segment key; leave it out when none fits.
 - `core_functional_job.job`: the core job this rolls up to. If none fits, leave `job` out and write `"unlinked_reason": "Her carrier picks her loads."` instead, saying why none fits.
 - `related_jobs`, `emotional_jobs`, `social_jobs`: each statement needs at least one quote. A related job's `job` is optional: use it when the related job is another core job of the study. `analyst_note` is optional, for anything else a reader must know.
+- `interactions`: later conversations with someone already in the study, or with a new interview of this patch. See "A later conversation with someone already in the study" below.
 - `step_evidence`: quotes showing someone doing an existing step.
 - `outcome_evidence`: quotes supporting an existing outcome (ID from `context`).
 - `new_outcomes`: only when no existing outcome has the same object of control.
 - `solution_groups`: new groups only; see "Current solutions" below.
 - `new_solutions`: only when no solution in `context` is the same thing. `kind` is `product`, `everyday_tool`, `people` or `own_method`. `group` is a group key from `context`, or one from `solution_groups` above. A use's `status` is `current` (the default) or `stopped`.
-- `solution_evidence`: more quotes for a solution already in the KB (ID from `context`).
+- `solution_evidence`: more quotes for a solution already in the KB (ID from `context`). Add `"status": "stopped"` when the person gave it up for that step, as a later conversation may say.
 - `proposed_changes`: structural changes, stored as pending for the user to decide.
 - `bootstrap`: ONLY for a KB that has no core job yet. One entry per core job, with the IDs `"A"`, `"B"`, `"C"`… in order. `A` is the job most people have as their main job, and each job's steps are numbered in stage order.
 
 A bootstrap's core jobs and steps exist for the rest of the same patch: its new interviews may link to `"A"` and `"B"`, and its `step_evidence` and `new_outcomes` may cite `"A.2"` or `"B.1"`. Bootstrap steps carry no quotes of their own; put the quotes in `step_evidence`. Steps with no quote yet are allowed and show up as thin steps to ask about next.
+
+## A later conversation with someone already in the study
+
+A follow-up call, new notes, an email or a chat with someone the study already holds is a later conversation of that person. Send it under `interactions`, not under `interviews`: an entry in `interviews` is a new person. The person keeps one record, and the merge numbers their conversations: the first one is 1, the next one 2, and so on. What to take from it, and what to do when the merge refuses it, is in `pw-rules.md`, "The same person again". A patch for one follow-up is named `<date>-follow-up-<id>.json`, so no name reaches the changelog or the run log.
+
+```json
+{
+  "interactions": [
+    {
+      "key": "f1",
+      "interview": "01",
+      "file": "dana-second-call.md",
+      "date": "2026-11-09",
+      "format": "Transcript",
+      "changed": "She now gets receipts through a client portal, not by email.",
+      "tags": ["Client portal"],
+      "job_executor_evidence": [{"source": "transcript", "quote": "..."}],
+      "core_functional_job_evidence": [],
+      "related_jobs": [],
+      "emotional_jobs": [],
+      "social_jobs": []
+    }
+  ],
+  "step_evidence": [
+    {
+      "step": "A.4",
+      "evidence": [
+        {"interview": "f1", "source": "transcript", "quote": "..."}
+      ]
+    }
+  ]
+}
+```
+
+- Only `key`, `interview`, `file` and `date` are needed.
+- `key` is a short key you choose (`"f1"`, `"f2"`). Everywhere else in the patch, evidence from this conversation cites the key: `"interview": "f1"`. The merge stores such a quote as `"interview": "01", "interaction": 2`.
+- `interview` is the person: a KB interview ID, or the key of a new interview in the same patch. So a first batch can hold someone's first call and their follow-up.
+- `date` is written `YYYY-MM-DD`. Any other form is refused, because the latest conversation decides what a person does now.
+- `format` is `Transcript` (the default), `Notes`, `Transcript + notes`, `Email` or `Chat`.
+- `changed` is one sentence of at most 30 words. Write it only when the person's situation or answer differs from before.
+- `related_jobs`, `emotional_jobs` and `social_jobs` are added to the person's record, with the same rules as on a new interview. `job_executor_evidence` and `core_functional_job_evidence` add quotes to the person's own statements. `tags` are added to the person's tags.
+- A key names a conversation, not a person. Never put it where a person is meant: in a `new_core_job`'s `interviews`, or as a `relink_interview` target. Name the person there. In `provenance.transcripts_read`, a key is read as its person.
+
+What the merge refuses or skips:
+
+- **A file already in the study**, by name or content hash, is skipped, as for interviews, so a batch can be re-run. When the person's own interview is skipped because the study already holds it, their later conversation goes to the person in the study: it is skipped too when the study holds its file, and is added as their next conversation when the file is new.
+- **The same conversation twice.** A second conversation with the same person on the same date and in the same format is refused (`same_interaction`). Check the person's conversations in `context` first. If it really is another conversation, add `"another": true`.
+- **Contact details in an email or a chat.** The file of an `Email` or `Chat` conversation must hold no email address and no header line (`From:`, `To:`, `Cc:`, `Bcc:`, `Subject:` or `Sent:`). Never name the user's own email or chat file: save a cleaned text copy as `.pw-kb/transcripts/<id>-<n>-<date>.txt` and name that file. `<id>` is the person's ID (their key when they are new in this patch) and `<n>` the conversation's number, the next after the ones `context` lists (2 when it lists none). A first contact by email or chat is a new interview, and its copy is `.pw-kb/transcripts/<key>-1-<date>.txt`. Text the user pastes or types in the chat, such as notes, is saved the same way. Leave out the header lines, the signature and any legal footer. Inside a sentence, write `[address]` for an email address and `[phone]` for a phone number. Keep everything else word for word. A file that still holds an address or a header line is refused (`contact_details`).
+
+**A conversation already in the study.** A later patch has no key for a conversation the study already holds, for example the patch after an approved `new_core_job`. There, a quote from it cites the person's ID and the conversation's number: `{"interview": "01", "interaction": 2, "source": "transcript", "quote": "..."}`. Without `interaction`, the quote is checked against the person's first conversation.
 
 ## Current solutions
 
@@ -276,7 +337,7 @@ A `new_core_job` gets the next free letter when approved, and its steps are numb
 ## What the merge does with it
 
 1. Reads the file as JSON, checks the patch against `patch-schema.json`, reads interview IDs written as numbers the way they were meant, and gives IDs without a job letter the letter of the only core job (or refuses them when there are several).
-2. Skips interviews whose file name or content hash is already in the KB, and drops patch items whose evidence comes only from them.
+2. Skips interviews and later conversations whose file name or content hash is already in the KB, and drops patch items whose evidence comes only from them.
 3. Checks every quote against its transcript, every step, outcome, interview, core job link, solution, solution group and proposal target, every statement's clarity, outcome wording (it must start with a direction verb), exact duplicates of existing outcome statements under the same core job and solution names already in the KB.
 4. Builds the new KB in memory and checks it against `kb-schema.json`.
 5. On success: copies each new transcript into `.pw-kb/transcripts/` and the current KB to `.pw-kb/backups/`, adds interviews with new IDs, appends evidence without duplicates, numbers new outcomes (next free `<step>.<k>`) and new solutions (next free `S<n>`), files proposals as `P<n>` with status `pending` (after a bootstrap, first one `confirm_core_job` per core job), recounts coverage and who is linked to which core job, marks derived layers stale and writes a changelog entry with what was added, the time, the `run_id` and the provenance. Every run, successful or not, also gets one line in `.pw-kb/logs/kb_tool.jsonl`.

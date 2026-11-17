@@ -255,6 +255,7 @@ KB_KEYS = ("interviews", "core_jobs", "unlinked_interviews", "steps", "thin_step
            "solutions", "solution_groups", "themes", "overviews", "stale")
 COUNTS_KEYS = ("interviews_added", "interviews_skipped", "outcomes_added", "step_quotes", "outcome_quotes",
                "proposals_filed", "transcripts_copied", "solutions_added", "solution_groups_added", "solution_quotes",
+               "follow_ups",
                "themes", "theme_outcomes", "unassigned", "overview_gaps", "overviews")
 LABELS_KEYS = ("missing", "added", "refused", "migrated")
 MAX_CODES = 50  # the server accepts at most this many keys in an errors or warnings map

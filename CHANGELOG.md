@@ -4,6 +4,43 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.17.0 — 2026-11-17
+
+### What's new
+
+- **Talk to someone again.** When you hear again from someone you already
+  interviewed, a follow-up call, notes or an answer by email, your assistant
+  adds it to the same person, not to a new one. The map shows every
+  conversation with them ("Interactions with" their name) and what changed
+  between them. Emails and chats are kept as text in `.pw-kb/transcripts/`.
+- **The plan can suggest one person to ask again.** When a person is the best
+  way to settle an open question, the plan for your next interviews says
+  "Ask" and their name, and the interview kit gets a sheet for that
+  conversation.
+
+### What's improved
+
+- **Who uses a tool follows the latest conversation.** If someone told you
+  in March that they use a tool and in June that they stopped, the study now
+  shows that they stopped.
+
+### What's fixed
+
+- **An open map no longer stays on "Updating" after a follow-up.** A batch
+  that held only a follow-up conversation never counted as read, so the map
+  kept saying the study was being updated. The map now counts it, and while
+  your assistant is still writing the overview it says what is in so far
+  instead of "Updated just now".
+
+### Good to know
+
+- Once a study holds a follow-up conversation or a planned follow-up,
+  everyone who works on it needs version 0.17.0. Older versions refuse such
+  a study and ask you to update.
+- Your assistant saves emails and chats without headers, addresses, phone
+  numbers or signatures, and the merge refuses a copy that still holds an
+  email address or a header line.
+
 ## 0.16.0 — 2026-11-16
 
 ### What's new

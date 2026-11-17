@@ -218,6 +218,44 @@
           "format": {
             "type": "string"
           },
+          "interactions": {
+            "type": "array",
+            "description": "Each later conversation with the same person, numbered from 2 in the order added. The record's own file, sha256, date and format are the first conversation.",
+            "items": {
+              "type": "object",
+              "required": [
+                "n",
+                "file",
+                "date"
+              ],
+              "properties": {
+                "n": {
+                  "type": "integer",
+                  "minimum": 2
+                },
+                "format": {
+                  "type": "string"
+                },
+                "date": {
+                  "type": "string"
+                },
+                "file": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "added": {
+                  "type": "string"
+                },
+                "changed": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "cluster": {
             "type": "string"
           },
@@ -702,6 +740,26 @@
             },
             "description": "merge: IDs of the interviews added."
           },
+          "added_interactions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "interview",
+                "n"
+              ],
+              "properties": {
+                "interview": {
+                  "$ref": "#/$defs/interview_id"
+                },
+                "n": {
+                  "type": "integer",
+                  "minimum": 2
+                }
+              }
+            },
+            "description": "merge: the later conversations added, each as its person's interview ID and its number. Present only when there are some."
+          },
           "new_outcomes": {
             "type": "array",
             "items": {
@@ -887,6 +945,10 @@
         },
         "name": {
           "type": "string"
+        },
+        "interaction": {
+          "type": "integer",
+          "minimum": 1
         }
       }
     },
@@ -903,6 +965,10 @@
         "quote": {
           "type": "string",
           "minLength": 1
+        },
+        "interaction": {
+          "type": "integer",
+          "minimum": 1
         }
       }
     },
@@ -1567,8 +1633,14 @@
                       "kind": {
                         "type": "string",
                         "enum": [
-                          "new"
-                        ]
+                          "new",
+                          "follow_up"
+                        ],
+                        "description": "new: people still to find (count, who, traits). follow_up: ask someone in the study again (interview)."
+                      },
+                      "interview": {
+                        "$ref": "#/$defs/interview_id",
+                        "description": "follow_up only: the person to ask again."
                       },
                       "count": {
                         "type": "integer",

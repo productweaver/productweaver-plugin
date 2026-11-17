@@ -23,8 +23,8 @@ This helps you judge the impact of a problem:
 
 - The `pw-start` and `pw-discovery` skills run two local Python scripts. The
   first is `skills/pw-discovery/scripts/kb_tool.py` (with `kb_map.py`,
-  `kb_review.py` and `kb_migrate.py`, next to it, which it loads for some of
-  its commands), which reads the interview files you
+  `kb_review.py`, `kb_people.py` and `kb_migrate.py`, next to it, which it
+  loads for some of its commands), which reads the interview files you
   give it and writes the knowledge base, review sheet and discovery map next
   to them.
   The second is `skills/pw-discovery/scripts/pw_usage.py`, which keeps the

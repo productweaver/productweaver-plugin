@@ -1,6 +1,6 @@
 ---
 name: pw-discovery
-description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a knowledge base, one JSON file, that grows with every batch. Use whenever someone shares new interview transcripts or notes (md, txt, docx, pdf) and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, the outcomes grouped into a few value themes to guide ideation, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "update the job map with the new calls", "process this week's discovery interviews", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "JTBD". Also use for answers to its decisions, such as "In my Product Weaver study, the goal is right", and when the user asks to stop sharing usage statistics. From Product Weaver (productweaver.com).
+description: Turn raw customer interview transcripts into Outcome-Driven Innovation (ODI) knowledge and fold it into a knowledge base, one JSON file, that grows with every batch. Use whenever someone shares new interview transcripts, notes or emails (md, txt, docx, pdf), also from someone already interviewed, and wants jobs-to-be-done extracted, job executors and core jobs identified, job steps or desired outcomes updated, the tools and workarounds people use today collected and grouped, evidence quotes attached, the outcomes grouped into a few value themes to guide ideation, or an existing ODI/JTBD knowledge base updated or started. Also use for "add these interviews to the KB", "add my follow-up call with Dana", or starting an ODI study for a new client, even if the user doesn't say "ODI" or "JTBD". Also use for answers to its decisions, such as "In my Product Weaver study, the goal is right", and when the user asks to stop sharing usage statistics. From Product Weaver (productweaver.com).
 ---
 
 # pw-discovery: fold interviews into an ODI knowledge base
@@ -23,7 +23,7 @@ Write the script's full path in every command: never put it in a shell variable 
 
 Transcripts can be `.md`, `.txt`, `.docx` or `.pdf`. The script reads `.docx` itself. It reads `.pdf` with pypdf when that package is installed. When it is not, the merge stops with `reader_missing`: read the PDF yourself, save its text word for word as `.pw-kb/transcripts/<name>.txt` (the PDF's name, ending in `.txt`), and name that file in the patch instead of the PDF. Say so in `provenance.notes`, and tell the user that the quotes were checked against your text copy of the PDF.
 
-Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool into `.pw-kb/tools/` only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_map.py`, `scripts/kb_review.py`, `scripts/kb_migrate.py`, `references/kb-schema.json`, `references/patch-schema.json`, `assets/discovery-map-template.html` and `assets/labels-en.js` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
+Work where the files live: if the transcripts and the KB are on the user's computer, run the commands in a shell on that computer. Copy the tool into `.pw-kb/tools/` only when that machine cannot reach the skill folder. Then copy `scripts/kb_tool.py`, `scripts/kb_map.py`, `scripts/kb_review.py`, `scripts/kb_people.py`, `scripts/kb_migrate.py`, `references/kb-schema.json`, `references/patch-schema.json`, `assets/discovery-map-template.html` and `assets/labels-en.js` together and keep them together. `kb_tool --version` shows which version a copy is, and every KB records the version that last wrote it in `meta.tool_version`.
 
 ## What a run changes, and what it leaves alone
 
@@ -137,6 +137,8 @@ kb_tool context .pw-kb/pw-kb.json --batch 8  # 8: the transcripts in this batch;
 
 With `--batch`, it first prints a `batch:` line. Tell the user its estimate in one plain sentence, such as "8 interviews: about 14 minutes. I'll tell you when your map is ready.", and when the line says an open map shows it, add "Your open map shows that it is being updated." When `pw-start` already gave the time in this conversation, pass on only the part about an open map. Use `--batch` only at the start of a batch. Then it prints the study's language, then each core job with its steps, outcomes and IDs, then the current solutions by group, every person with their own core job and the core job it links to, the segments, the files already processed, pending proposals and stale layers. Write every statement in the study's language. Map new evidence against this. Skip any transcript whose file is in "processed files". The script also skips it, matching by file name and content hash, so re-running the same batch never double-counts.
 
+A file or a pasted text from someone listed under `PEOPLE AND THEIR JOBS` is a later conversation with them: send it under `interactions`, as "The same person again" in `references/pw-rules.md` says. Skip an email or a chat with the same date and format as a conversation that person already has: a later one their line lists, or their first conversation, the `date` and `format` of their record in `.pw-kb/pw-kb.json`. The study holds a cleaned copy of it under another name. Only when the user says it is another one, send it with `"another": true`. When you are not sure it is the same person, ask once with your question tool: "Is this the same Dana you talked to on 14 October?" (no question tool: one plain-text question).
+
 A KB with an older schema is refused with a message to run `kb_tool migrate .pw-kb/pw-kb.json`; moving an older study upgrades it in the same step. When either says it migrated from schema version 1, tell the user: the core job is now core job A, and every step and outcome ID gained the letter, so `6.3` is now `A.6.3`.
 
 ### 3. Read each new transcript in full, then extract
@@ -158,7 +160,7 @@ When a quote names someone who was not interviewed, such as a colleague or a fam
 
 Tag the source honestly:
 
-- `transcript` for the interviewee's words in a transcript
+- `transcript` for the interviewee's words in a transcript. An email or chat message the person wrote is their own words, so tag it `transcript` too
 - `quoted_in_notes` for the interviewee's words inside quotation marks in notes
 - `interviewer_notes` for the interviewer's own paraphrase, which is weaker evidence. A header or note line someone else wrote about the interview, such as "# Interview: Ana Lima, service writer", counts as this too. Quote it only when the person never says it in their own words
 
@@ -170,7 +172,9 @@ Write the patch to `.pw-kb/patches/<date>-<batch>.json`, a JSON file in the form
 kb_tool merge .pw-kb/pw-kb.json .pw-kb/patches/<file>.json --transcripts <folder with the new transcripts>
 ```
 
-In the patch, `file` is the transcript's file name. `--transcripts` says where the new ones are; pass it once per folder, or leave it out when the patch adds no interview. A file name that exists in two of those folders is refused. The KB's own copies in `.pw-kb/transcripts/` always come first, so the transcripts of earlier interviews are read from there. The real merge copies each new transcript into `.pw-kb/transcripts/` and records it as `transcripts/<file name>`; the user's originals are never changed. The script reads only the transcripts the KB and the patch cite.
+In the patch, `file` is the transcript's file name. `--transcripts` says where the new ones are; pass it once per folder, or leave it out when every file the patch names is already in `.pw-kb/transcripts/`. A file name that exists in two of those folders is refused. The KB's own copies in `.pw-kb/transcripts/` always come first, so the transcripts of earlier interviews are read from there. The real merge copies each new transcript into `.pw-kb/transcripts/` and records it as `transcripts/<file name>`; the user's originals are never changed. The script reads only the transcripts the KB and the patch cite.
+
+**Emails and chats.** Never name an email or chat export in the patch: the merge would copy it as it is. Save a text copy as `.pw-kb/transcripts/<id>-<n>-<date>.txt` and name that copy, where `<n>` is the next number after the person's conversations in `context` (2 for their first later one); a new person's first contact is `<key>-1-<date>.txt`. Text the user pastes or types in the chat, such as notes, is saved the same way. In the copy, remove header lines, signature blocks and legal footers, write `[address]` and `[phone]` for an email address or a phone number inside a sentence, and keep everything else word for word, with who wrote each part. The merge refuses a copy that still holds an address or a header line (`contact_details`). Tell the user the kinds and counts you removed, such as "4 header lines and a signature", never the removed text, and never in `provenance.notes`. The first time, say in one sentence that the study now holds the text of private messages, and that it travels with the study folder. Name a patch for one follow-up `<date>-follow-up-<id>.json`.
 
 The merge runs every check before it writes anything, so a refused merge writes nothing: fix the patch and run the same command again. There is no need for a `--dry-run` first. Each check blocks the merge:
 
@@ -189,7 +193,7 @@ A merge first copies the new transcripts into `.pw-kb/transcripts/` and the curr
 
 `merge`, `apply`, `themes` and `overview` rebuild `review.md`, `interview-guide.md` and the map after each write, so reviewers never open a stale picture. Each prints the map's `link:` line and the line about a map that is already open. Do not run `review` and `map` after them.
 
-After a merge that added interviews, write the overview, as "Write the overview" describes. The map opens on it, `review.md` and `interview-guide.md` show its plan for the next interviews, and a merge marks the old one out of date. On a first batch, the overview is the last write before your report, so add `--open` to it:
+After a merge that added interviews or later conversations, write the overview, as "Write the overview" describes, also for a single follow-up. When the merge printed `batch: every transcript is in`, an open map says the study is being updated until the overview is written. The map opens on it, `review.md` and `interview-guide.md` show its plan for the next interviews, and a merge marks the old one out of date. On a first batch, the overview is the last write before your report, so add `--open` to it:
 
 ```
 kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<YYYY-MM-DD>-overview-<job>.json --open
@@ -211,7 +215,7 @@ kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<YYYY-MM-DD>-overview-<job>.js
 - Only when no folder is connected and the transcripts were uploaded to the chat, so the study sits in a sandbox that is gone after the chat: put the map in front of the user as `references/open-files.md` says for your host, then hand back the whole `.pw-kb/` folder the way your host shares files, as a zip when it needs one, and say: "Keep this folder. Next time, upload it with your new interviews." Hand back `review.md` and `interview-guide.md` only when the user asks. Do not say the map is open in their browser.
 - With a connected folder, as in Cowork, never hand back: check that `discovery-map.html` and `review.md` are in the user's own `pw-output/`, then report. If saving them there still fails after the retries in "When the link to the user's computer drops", never report the study as saved: say it is ready but not yet in their folder, and give the words to say: "Save the study".
 
-**The map contains personal data.** It embeds every interviewee's name and every quote. Before suggesting that anyone share it, say so, and let the user decide who may see it. The same goes for the KB file and `review.md`.
+**The map contains personal data.** It embeds every interviewee's name and every quote. Before suggesting that anyone share it, say so, and let the user decide who may see it. The same goes for the KB file and `review.md`. `interview-guide.md` and the printed kit name each person to ask again.
 
 `map` uses `assets/discovery-map-template.html` from this skill. A `discovery-map.html` made by the same version of the skill also works as a template (`--template`).
 
@@ -220,6 +224,7 @@ kb_tool overview .pw-kb/pw-kb.json .pw-kb/patches/<YYYY-MM-DD>-overview-<job>.js
 The reader may be a founder or a domain expert, not an ODI specialist, so write in plain words and short sentences, as "Plain language for a second-language reader" in `references/pw-rules.md` says, in the language the user writes to you in. Lead with one sentence on what changed. Then keep it short:
 
 - new interviews: name, who they are and their core job, and which of the study's core jobs it links to, one line each, plus any skipped as already processed
+- later conversations, one line each: who, how (a call, notes, an email or a chat), and "Ruth changed: …" when you wrote `changed`
 - when the study has several core jobs, name each by its statement with the letter after it ("Keep the trucks on the road (B)"), never by the letter alone
 - what the new evidence strengthened: name the outcomes in words, with the ID after the text, never as a bare list of IDs. This holds for every mention, including a passing one in a closing remark: a reviewer cannot hold "1.1 and 5.1" in their head.
 - new outcomes, each as its full statement
@@ -273,7 +278,7 @@ Run `context` and read the CURRENT SOLUTIONS block, or point the user to the Sol
 
 The discovery map opens on its Overview view: who the study is about, then the study as a short story in six steps, with a "What to do next" block on top. It is made for a person who does not know the method, often a founder starting discovery. The map counts what it can from the KB. The sentences are yours, and without them the view says "No written findings yet".
 
-Write the overview for each core job that got new evidence, at the end of every run that merged interviews, right after the merge (and `themes`, when you rebuild them). Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules, with the first-read test and the "so what" test every sentence must pass, and a worked example of the file. Write it in the study's language.
+Write the overview for each core job that got new evidence, at the end of every run that merged interviews or later conversations, right after the merge (and `themes`, when you rebuild them). Also write it when the user asks, and when `context` shows `OVERVIEW [out of date]`. Read `references/pw-rules.md`, "Overview", first: it holds the writing rules, with the first-read test and the "so what" test every sentence must pass, and a worked example of the file. Write it in the study's language.
 
 1. Run, in place of a second `context`, with the core job's letter in place of `A`:
 
@@ -402,7 +407,7 @@ The KB's fields are explained one by one in `references/kb-schema.md`. Read it b
 ## Files in this skill
 
 - `scripts/kb_tool.py`: init, labels (the study's language and the map's and review sheet's text in it), context, merge (with format, quote, reference and clarity checks), apply, themes, review, map, validate and migrate (which also turns a study written in YAML into JSON, and moves a study made by an earlier version into `.pw-kb/`). Uses only Python's standard library. When they are installed, pypdf reads `.pdf` transcripts and PyYAML lets `migrate` read a study written in YAML.
-- `scripts/kb_map.py`, `scripts/kb_review.py` and `scripts/kb_migrate.py`: the `map` command (it fills the template with the KB, opens it, and writes `pw-output/.map-live/status.js`, which an open map reads to update itself; `context --batch` and `merge` update that file too), the review sheet, the interview guide and the overview's skeleton (`overview --skeleton`), and the `migrate` command. `kb_tool` loads each only for the commands that need it.
+- `scripts/kb_map.py`, `scripts/kb_review.py`, `scripts/kb_people.py` and `scripts/kb_migrate.py`: the `map` command (it fills the template with the KB, opens it, and writes `pw-output/.map-live/status.js`, which an open map reads to update itself; `context --batch` and `merge` update that file too), the review sheet, the interview guide and the overview's skeleton (`overview --skeleton`), later conversations with someone already in the study, and the `migrate` command. `kb_tool` loads each only for the commands that need it.
 - `assets/discovery-map-template.html`: the interactive map viewer. `map` fills it with the KB. Opened on its own, it lets anyone load a KB file, `pw-kb.json`.
 - `assets/labels-en.js`: the English text of the map and the review sheet, the source of every study's own text. The template loads it from beside itself and `map` puts it inside each map, with the study's own labels. The template opened on its own shows English.
 - `references/pw-rules.md`: how to write each kind of statement, with examples and common mistakes. Read it before extracting.

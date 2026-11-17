@@ -129,6 +129,7 @@ The keys are the ones `run-log.md` documents. Each value is an int. A key that t
 | `solutions_added` | int | merge: new solutions |
 | `solution_groups_added` | int | merge: new solution groups |
 | `solution_quotes` | int | merge: quotes added to solutions already in the KB |
+| `follow_ups` | int | merge: later conversations with people already in the study; only when not 0 |
 | `themes` | int | themes: that core job's themes after the run |
 | `theme_outcomes` | int | themes: outcomes in at least one theme |
 | `unassigned` | int | themes: outcomes in no theme |

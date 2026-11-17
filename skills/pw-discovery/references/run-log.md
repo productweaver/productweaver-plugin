@@ -21,7 +21,7 @@ Every line has these fields. The order is stable, so lines are easy to compare.
 | `args` | The options given, with paths relative to the KB folder. `--note`, `--project`, `--interviewer` and the KB path are left out. `transcripts` lists the roots; a root that is a file shows as `<file>`. On the `review` and `map` lines of a rebuild after a write, `via` names the write, such as `merge` |
 | `exit_code` | 0 success, 1 refused or failed with a message, 2 crashed |
 | `written` | True when the run changed the KB file |
-| `tool_version`, `schema_version` | Which `kb_tool.py` ran, and which KB schema it writes |
+| `tool_version`, `schema_version` | Which `kb_tool.py` ran, and the base KB schema it writes, 3. A study that holds a later conversation or a planned follow-up is written as 4, and the log still says 3 |
 | `python`, `os` | Python version and platform |
 | `agent` | The assistant running the tool: `KB_TOOL_AGENT` if set, else `claude-code` or `gemini-cli` when their environment marker is present, else the terminal program, else null |
 | `kb_sha256_before`, `kb_sha256_after` | Hash of the KB file before and after. Equal means nothing changed; a change between two runs means a hand edit |
@@ -35,7 +35,7 @@ Commands add their own fields:
 | `dry_run`, `nothing_new` | merge, themes, overview | Whether it was a dry run, and for merge whether the patch had nothing new |
 | `patch_sha256` | merge | Hash of the patch file, so retries of the same patch can be counted |
 | `bootstrap` | merge | True when the merge created the core job and job map |
-| `counts` | merge | `interviews_added`, `interviews_skipped`, `outcomes_added`, `step_quotes`, `outcome_quotes`, `proposals_filed`, `transcripts_copied` (new transcripts copied into `.pw-kb/transcripts/`), `solutions_added`, `solution_groups_added`, `solution_quotes` (quotes added to solutions already in the KB) |
+| `counts` | merge | `interviews_added`, `interviews_skipped`, `outcomes_added`, `step_quotes`, `outcome_quotes`, `proposals_filed`, `transcripts_copied` (new transcripts copied into `.pw-kb/transcripts/`), `solutions_added`, `solution_groups_added`, `solution_quotes` (quotes added to solutions already in the KB), and `follow_ups` (later conversations added: a person's second conversation or after; only when not 0). `interviews_skipped` counts interviews only, not a later conversation that was skipped |
 | `counts` | themes | `themes` (that core job's themes after the run), `theme_outcomes` (outcomes in at least one of them), `unassigned` (that job's outcomes in no theme) |
 | `counts` | overview | `overview_gaps` (gaps in the overview just written), `overviews` (core jobs that have an overview after the run) |
 | `provenance` | merge | The patch's provenance block without `notes`: `assistant`, `model`, `started`, `transcripts_read` as KB IDs |
@@ -79,9 +79,14 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `job_order` | A bootstrap's core job IDs are not A, B, C… in order |
 | `job_missing` | An interview's core job or related job links to a core job that does not exist |
 | `ref_ambiguous` | A step or outcome ID has no job letter, and the KB has more than one core job |
-| `key_duplicate` | A new interview key is used twice in the patch |
-| `key_is_id` | A new interview key is already an interview ID in the KB |
+| `key_duplicate` | A new interview key, or a later conversation's key, is used twice in the patch |
+| `key_is_id` | A new interview key, or a later conversation's key, is already an interview ID |
 | `transcript_missing` | A transcript file named in the patch or the KB is neither in `.pw-kb/transcripts/` nor under `--transcripts`. Also stops `validate` and `migrate` |
+| `interaction_person` | A later conversation in `interactions` names an interview that is neither in the KB nor a new interview of the patch |
+| `same_interaction` | A later conversation has the same date and format as another conversation with the same person, and does not say `"another": true` |
+| `same_person` | A new interview has the name of a person already in the study, or of an earlier new interview in the patch, and does not say `"same_name_ok": true` |
+| `contact_details` | The file of an `Email` or `Chat` conversation, or of a new interview in that format, still holds an email address or a header line, such as `From:` or `Subject:` |
+| `interaction_ref` | A later conversation's key stands where the patch must name a person: in a `new_core_job`'s `interviews` or as a `relink_interview` target |
 | `step_duplicate` | A bootstrap uses a step number twice in one core job |
 | `step_missing` | A step named in the patch does not exist |
 | `outcome_missing` | An outcome named in the patch does not exist |
@@ -110,7 +115,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `overview_score` | A sentence holds a percentage or a score word, such as "opportunity score" |
 | `overview_placeholder` | The overview file still holds a `<…>` of `overview --skeleton`'s file; the message names its place, such as `next.learn.round[0].who` |
 | `overview_method_word` | A sentence holds a word of the method that readers do not know, such as "core job" or "desired outcome" |
-| `overview_ref` | The plan in `next.learn` names an ID that is not a step, outcome or trait value of the core job, or a trait names someone whose main goal is another core job |
+| `overview_ref` | The plan in `next.learn` names an ID that is not a step, outcome or trait value of the core job, a trait names someone whose main goal is another core job, or a `follow_up` names someone who is not one of the core job's people |
 
 ### Errors that refuse value themes
 
@@ -134,7 +139,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `ref_legacy` | A step or outcome ID without a job letter, or the older bootstrap form, was read as core job A in a KB with one core job |
 | `job_unlinked` | A new interview is linked to no core job, has no `unlinked_reason` saying why, and is not listed in a `new_core_job` proposal |
 | `bootstrap_repeated` | The bootstrap was already applied; ignored |
-| `interview_skipped` | An interview is already in the KB, by file name or content hash |
+| `interview_skipped` | An interview is already in the KB, by file name or content hash, or a later conversation already in the KB. A later conversation in `interactions` is skipped the same way, and when its person's interview is skipped |
 | `evidence_dropped` | Patch items whose evidence came only from skipped interviews were dropped |
 | `transcript_changed` | A transcript's content differs from when it was added. An error in `validate` |
 | `transcripts_root_missing` | A `--transcripts` folder or file does not exist |
@@ -161,6 +166,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `plan_main_uncovered` | The main finding rests on a thin gap that no round entry covers |
 | `plan_status` | `next.learn` says `enough` while thin steps or main-finding gaps remain |
 | `plan_leading` | In an English study, a plan question asks what people would do instead of what they did last time |
+| `follow_up_no_gain` | A `follow_up` round entry of the plan aims at a gap its person cannot close: they are already counted on that step or need, or it is a kind of person not heard yet |
 
 ### Errors that stop a command
 

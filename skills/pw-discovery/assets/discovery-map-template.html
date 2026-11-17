@@ -611,6 +611,15 @@ blockquote.para{box-shadow:inset 3px 0 0 var(--amber-dot)}
 .tag{font-size:12px;border:0;background:var(--fill);border-radius:999px;padding:2px 9px;color:var(--muted)}
 button.tag{font-size:12px}
 button.tag:hover{background:var(--accent-soft);color:var(--link)}
+/* every conversation with one person, in the person's details; and the tag on a quote from a later one */
+.ix{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:6px}
+.ix li{background:var(--fill);border-radius:10px;padding:8px 11px;font-size:13px;display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:baseline}
+.ix .n{width:18px;height:18px;border-radius:50%;background:var(--mono);color:#fff;display:grid;place-items:center;font-size:10.5px;font-weight:600;align-self:center}
+.ix .what{font-weight:600}
+.ix .when{color:var(--muted);font-size:12px;white-space:nowrap}
+.ix .chg{grid-column:2 / -1;color:var(--ink);font-size:13px}
+.ix .chg span{font-weight:600;color:var(--amber)}
+.ixtag{display:inline-block;margin-inline-start:6px;padding:0 7px;border-radius:999px;background:var(--fill);color:var(--muted);font:500 11px/17px var(--font)}
 
 /* sheets: a dimmed window and a large rounded panel, like a macOS sheet */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.24);display:grid;place-items:center;z-index:40;padding:16px}
@@ -647,6 +656,8 @@ button.tag:hover{background:var(--accent-soft);color:var(--link)}
 .nx-head > div{flex:1;min-width:0;display:grid;gap:2px}
 .nx-head h3{font-size:17px;line-height:1.3;font-weight:600;margin:0}
 .nx-num{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:600;flex:none}
+/* a card that asks someone again shows their initials at the right of their name */
+.nx-head .nx-ini{flex:none;margin:0}
 .nx-fills{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .nx-chip{border:0;display:inline-flex;gap:6px;align-items:center;background:var(--surface);color:var(--ink);border-radius:999px;padding:3px 11px;font-size:13px;text-align:left;box-shadow:var(--shadow-sm)}
 .nx-chip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--amber-dot);flex:none}
@@ -800,6 +811,7 @@ table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
 .kit-lines i{display:block;height:6.6mm;border-bottom:.5pt solid var(--k-rule)}
 .kit-step:last-child{break-inside:avoid;break-before:avoid}
 .kit-then{font-size:8.5pt;margin-top:1.5mm}
+.kit-record{margin-top:1.5mm}
 .kit-foot{clear:both;break-before:avoid;border-top:.5pt solid var(--k-line);padding-top:2mm;margin-top:6mm;font-size:8.5pt;color:var(--k-muted);break-inside:avoid}
 .kit-foot b{color:var(--k-ink)}
 .kit-foot .kit-say{font-size:10.5pt;color:var(--k-ink)}
@@ -933,7 +945,7 @@ table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
 
 <script src="labels-en.js"></script>
 <script>
-/* @kb-schema:3 */ /* @live:1 */ /* draws KBs of schema 3 (and 2, the same data in YAML), with one or more core jobs, and still reads schema 1 */
+/* @kb-schema:4 */ /* @live:1 */ /* draws KBs of schema 4 and 3 (and 2, the same data in YAML), with one or more core jobs, and still reads schema 1 */
 /* @kb-data:start */
 const SAMPLE = {"meta":{"project":"Open a study file to begin"}};
 /* @kb-data:end */
@@ -1067,6 +1079,23 @@ document.querySelectorAll("a[data-pw]").forEach(a=>{ a.href=pwUrl(a.dataset.pw);
 const short = (s,n) => { s=String(s||""); if(s.length<=n) return s; const cut=s.slice(0,n-1); return cut.slice(0,Math.max(cut.lastIndexOf(" "),n-20)).replace(/[\s,;:.]+$/,"")+"…"; };
 const ivName = id => M.ivById[id]?.name || t("map.common.person_fallback", {id});
 const names = ids => joinList(ids.map(ivName)); // plain text: wrap in esc()
+/* which conversation with the person a quote comes from: 1, or the number of a later one (schema 4) */
+const ixNum = e => Number.isInteger(e && e.interaction) && e.interaction>1 ? e.interaction : 1;
+/* a conversation's kind as the study stores it; one with none is a transcript, as the merge writes it */
+const ixFormat = x => x && x.format ? String(x.format) : "Transcript";
+/* a person's later conversations, in their order, after the first one that the record itself holds */
+const ixLater = list => (Array.isArray(list) ? list : []).filter(x=>x && typeof x==="object" && Number.isInteger(x.n) && x.n>1)
+  .map(x=>({n:x.n, format:ixFormat(x), date:x.date?String(x.date):"", changed:x.changed?String(x.changed):""}))
+  .sort((a,b)=>a.n-b.n);
+/* when a person last talked to you: the latest date when every conversation of theirs has a YYYY-MM-DD date (iv.sorts),
+   else the date of the highest-numbered one as it is written. kb_tool dates the guide's follow-up sheet the same way. */
+const ixLast = iv => !iv ? "" : iv.sorts ? iv.ix.map(x=>x.date).sort().pop() : iv.ix[iv.ix.length-1].date;
+/* after the source of a quote from a later conversation: its kind and date */
+function ixTag(e){
+  const n=ixNum(e); if(n<2) return "";
+  const x=(M.ivById[String(e.interview)]?.ix||[]).find(c=>c.n===n);
+  return x ? `<span class="ixtag">${esc(x.date ? t("map.quote.when", {format:x.format, date:fmtDate(x.date)}) : x.format)}</span>` : "";
+}
 /* the same sentence from the same person counts once */
 function uniqEv(list){ const seen=new Set(); return list.filter(e=>{ const k=e.interview+"\u0000"+(e.quote||""); if(seen.has(k)) return false; seen.add(k); return true; }); }
 /* Solutions seen from one core job (or from all when job is null). Current users are people on a
@@ -1102,8 +1131,11 @@ function build(raw){
   const outStep = o => v1 ? "A."+(+o.step) : String(o.step);
   const ivs = (raw.interviews||[]).map(i=>{
     const cj = i.core_functional_job||{}, main = v1 ? (jobsRaw.length?"A":null) : (cj.job||null);
+    const date = i.date?String(i.date):"", format = i.format||"";
+    const ix = [{n:1, format:ixFormat(i), date}, ...ixLater(i.interactions)]; // every conversation; the record is the first
     return {
-      id:String(i.id), name:i.name||t("map.common.person_fallback",{id:i.id}), date:i.date?String(i.date):"", format:i.format||"",
+      id:String(i.id), name:i.name||t("map.common.person_fallback",{id:i.id}), date, format,
+      ix, sorts:ix.every(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.date)), // dates decide which is the latest only when all sort
       tags:i.tags||[], file:i.file||"", note:i.analyst_note||"",
       who:(i.job_executor||{}).statement||"", whoEv:(i.job_executor||{}).evidence||[],
       goal:cj.statement||"", goalEv:cj.evidence||[], main, whyNone:main?"":(cj.unlinked_reason||""),
@@ -1137,10 +1169,19 @@ function build(raw){
   sols.forEach(s=>{ if(!groups.some(g=>g.id===s.group)) s.group=""; });
   if(sols.some(s=>s.group==="")) groups.push({id:"", name:t("map.group.none"), why:"", list:[]});
   steps.forEach(s=>{ s.sols=[]; });
+  // At a step, each person's latest conversation about the solution says whether they use it now or stopped: the
+  // latest by date, then by number, and "uses" wins within one conversation. Dates count only when every conversation
+  // of that person has a YYYY-MM-DD date; otherwise the number alone decides. kb_tool counts its users the same way.
+  const whenSaid = e => { const iv=ivById[e.interview], n=ixNum(e), x=iv && iv.sorts ? iv.ix.find(c=>c.n===n) : null;
+    return [x?x.date:"", n]; };
+  const isLater = (a,b) => a[0]!==b[0] ? a[0]>b[0] : a[1]!==b[1] ? a[1]>b[1] : a[2] && !b[2];
   sols.forEach(sol=>{ [...new Set(sol.uses.map(u=>u.step))].forEach(k=>{
     const at=sol.uses.filter(u=>u.step===k), st=stepByKey[k];
     const curEv=uniqEv(at.filter(u=>u.status!=="stopped").flatMap(u=>u.ev)), stopEv=uniqEv(at.filter(u=>u.status==="stopped").flatMap(u=>u.ev));
-    const cur=people(curEv), entry={sol, step:st, cur, stop:people(stopEv).filter(x=>!cur.includes(x)), curEv, stopEv, ev:uniqEv([...curEv,...stopEv])};
+    const last=new Map();
+    [[curEv,true],[stopEv,false]].forEach(([list,now])=>list.forEach(e=>{ const m=[...whenSaid(e), now];
+      if(!last.has(e.interview) || isLater(m, last.get(e.interview))) last.set(e.interview, m); }));
+    const cur=people(curEv).filter(x=>last.get(x)[2]), entry={sol, step:st, cur, stop:people(stopEv).filter(x=>!last.get(x)[2]), curEv, stopEv, ev:uniqEv([...curEv,...stopEv])};
     st.sols.push(entry); sol.at.push(entry);
   }); });
   steps.forEach(s=>{
@@ -1190,7 +1231,7 @@ function build(raw){
   });
   return {raw, project:(raw.meta||{}).project||t("map.header.project_default"), caveat:(raw.meta||{}).caveat||"",
     jobs, jobById:Object.fromEntries(jobs.map(j=>[j.id,j])), job:null, goal:"", goalStatus:"", executor:"",
-    ivs, ivById, allSteps:steps, allOuts:outs, steps, outs, quotes,
+    ivs, ivById, talks:ivs.reduce((a,i)=>a+i.ix.length,0), allSteps:steps, allOuts:outs, steps, outs, quotes,
     solList:sols, solById:Object.fromEntries(sols.map(s=>[s.id,s])), groups, groupById:Object.fromEntries(groups.map(g=>[g.id,g])),
     hasSols:sols.length>0, solAll:solScope(sols, groups, null), sols:null,
     hasOver:jobs.length>0 && ivs.length>0, overStale:!!ovr.stale, over:null, hasNext:steps.length>0,
@@ -1226,11 +1267,14 @@ function setJob(id, keep){
 function renderHeader(){
   document.title = t("map.header.doc_title", {project:M.project, brand:BRAND});
   document.getElementById("title").innerHTML = M.goal ? th("map.header.title", {project:esc(M.project), goal:`<span class="goal">${esc(M.goal)}</span>`}) : esc(M.project);
-  const dates = M.ivs.map(i=>i.date).filter(Boolean).sort();
+  const dates = M.ivs.flatMap(i=>i.ix.map(x=>x.date)).filter(Boolean).sort();
+  const span = dates.length ? {from:fmtDate(dates[0]), to:fmtDate(dates[dates.length-1])} : null;
+  // someone heard from more than once: the line counts both, conversations and people
+  const built = M.talks>M.ivs.length
+    ? t(span ? "map.header.built_again_dates" : "map.header.built_again", {n:M.talks, people:t("map.count.people", {n:M.ivs.length}), ...span})
+    : span ? t("map.header.built_dates", {n:M.ivs.length, ...span}) : t("map.header.built", {n:M.ivs.length});
   // a goal still to confirm links to the decisions waiting for the reader
-  document.getElementById("subtitle").innerHTML = esc(sentences(
-    dates.length ? t("map.header.built_dates", {n:M.ivs.length, from:fmtDate(dates[0]), to:fmtDate(dates[dates.length-1])}) : t("map.header.built", {n:M.ivs.length}),
-    many() ? t("map.header.jobs", {n:M.jobs.length}) : ""))
+  document.getElementById("subtitle").innerHTML = esc(sentences(built, many() ? t("map.header.jobs", {n:M.jobs.length}) : ""))
     + (M.goalStatus==="proposed" ? esc(t("map.text.sentence_sep"))+`<button type="button" class="linkbtn" data-go-decide>${th("map.header.to_confirm")}</button>` : "");
   document.getElementById("title").title = document.getElementById("title").textContent;
   document.getElementById("btnOpen").hidden = M.ivs.length>0 || M.jobs.length>0;
@@ -1246,8 +1290,9 @@ function apNums(scope){
   if(!M.ivs.length) return "";
   const n = many() ? scope.length : M.ivs.length, perJob = many() ? t("map.chip.per_job") : "", sc = M.sols;
   const solTip = sentences(t("map.chip.sols_tip"), sc && sc.onlyStopped ? t("map.chip.sols_stopped", {n:sc.onlyStopped}) : "", perJob);
+  // its tip says a second talk with someone does not count twice: with later conversations, it says people
   const items = [
-    [n,"map.chip.conversations",t("map.chip.conversations_tip")],
+    [n,M.talks>M.ivs.length?"map.count.people":"map.chip.conversations",t("map.chip.heard_tip")],
     [M.quotes,"map.chip.quotes",t("map.chip.quotes_tip")],
     [M.steps.length,"map.chip.steps",sentences(t("map.chip.steps_tip"), perJob)],
     [M.outs.length,"map.chip.outcomes",sentences(t("map.chip.outcomes_tip"), perJob)]
@@ -1370,9 +1415,11 @@ function humanLog(c){
   if(Array.isArray(c.added_interviews) || typeof c.outcome_quotes==="number" || Array.isArray(c.new_solutions)){
     // structured changelog entries, written by kb_tool.py 0.2 and later
     const iv=c.added_interviews||[], no=(c.new_outcomes||[]).length, q=c.outcome_quotes||0, ns=(c.new_solutions||[]).length;
+    const again=[...new Set(lvList(c.added_interactions).filter(x=>x && x.interview!=null).map(x=>String(x.interview)))];
     const parts=[];
     if(c.bootstrap) parts.push(/core jobs/.test(c.summary||"")?t("map.log.drafted_jobs"):t("map.log.drafted_goal"));
     if(iv.length) parts.push(t("map.log.added", {n:iv.length, ids:joinList(iv)}));
+    if(again.length) parts.push(t("map.log.again", {n:again.length, ids:joinList(again)}));
     if(no) parts.push(t("map.log.new_outcomes", {n:no}));
     if(ns) parts.push(t("map.log.new_solutions", {n:ns}));
     if(q) parts.push(t("map.log.new_quotes", {n:q}));
@@ -1441,7 +1488,7 @@ function measure(n){
   const w=WID[n.type]; n.w=w; const chars=Math.floor((w-(TX[n.type]||18)-18)/7.1);
   if(n.type==="cap"){ n.lines=[]; n.h=n.after?30:18; return; }
   if(n.type==="root"){ n.lines=wrap(M.goal||t("map.root.unset"),Math.floor((w-28)/7.6));
-    n.meta = many() ? `${t("map.root.job",{id:M.job})} · ${doers(M.jobById[M.job].main.length)}` : `${t("map.root.goal")} · ${t("map.count.conversations",{n:M.ivs.length})}`; }
+    n.meta = many() ? `${t("map.root.job",{id:M.job})} · ${doers(M.jobById[M.job].main.length)}` : `${t("map.root.goal")} · ${t("map.count.conversations",{n:M.talks})}`; }
   else if(n.type==="stage"){ n.lines=wrap(n.name,chars); n.meta=t("map.count.steps",{n:n.kids.length}); }
   else if(n.type==="step"){ const s=n.ref; n.lines=wrap(s.text,chars); n.meta=`${t("map.count.people",{n:s.allPeople.length})} · ${t("map.count.measures",{n:s.outs.length})}`; }
   else if(n.type==="sol"){ const x=n.ref; n.lines=wrap(x.sol.name,chars);
@@ -1793,7 +1840,7 @@ solview.addEventListener("click",e=>{
 const HL_KINDS = [["pain","map.theme.hl.pain"],["struggle","map.theme.hl.struggle"],["desire","map.theme.hl.desire"]];
 /* a customer's words, with who said them and where they come from */
 const quoteHTML = q => { const iv=M.ivById[String(q.interview)], src=srcLabel(q.source);
-  return `<blockquote class="${q.source==="interviewer_notes"?"para":""}">${esc(quoted(q.quote))}<span class="src"><button type="button" class="linkbtn" data-person="${esc(String(q.interview))}">${esc(iv?.name||q.name||t("map.common.person_fallback",{id:q.interview}))}</button>${src?` · ${esc(src)}`:""}</span></blockquote>`; };
+  return `<blockquote class="${q.source==="interviewer_notes"?"para":""}">${esc(quoted(q.quote))}<span class="src"><button type="button" class="linkbtn" data-person="${esc(String(q.interview))}">${esc(iv?.name||q.name||t("map.common.person_fallback",{id:q.interview}))}</button>${src?` · ${esc(src)}`:""}${ixTag(q)}</span></blockquote>`; };
 function themeCard(tm){
   const total = scopeTotal();
   const outRow = o => { const also=o.themes.filter(x=>x!==tm);
@@ -1947,9 +1994,10 @@ function ovNext(ov){
 function ovPeople(ov, scope){
   const sec=ov && ov.people || {}, first=scope.find(i=>i.whoEv.length);
   const quote=sec.quote || (first ? {...first.whoEv[0], interview:first.id} : null);
-  const dates=scope.map(i=>i.date).filter(Boolean).sort();
-  const answer=sec.answer || t("map.ov.people.answer",{n:scope.length, who:M.executor?lowerFirst(M.executor):t("map.ov.people.who_default")});
-  const foot = dates.length ? th("map.ov.people.foot_dates",{n:scope.length, from:esc(fmtDate(dates[0])), to:esc(fmtDate(dates[dates.length-1]))}) : th("map.ov.people.foot",{n:scope.length});
+  // the lines that say conversations count every conversation with these people; the dates span all of them
+  const talks=scope.flatMap(i=>i.ix), dates=talks.map(x=>x.date).filter(Boolean).sort();
+  const answer=sec.answer || t("map.ov.people.answer",{n:talks.length, who:M.executor?lowerFirst(M.executor):t("map.ov.people.who_default")});
+  const foot = dates.length ? th("map.ov.people.foot_dates",{n:talks.length, from:esc(fmtDate(dates[0])), to:esc(fmtDate(dates[dates.length-1]))}) : th("map.ov.people.foot",{n:talks.length});
   return ovStep(1,th("map.ov.people.ask"),answer,`${ovText(sec.text)}
     <div class="ov-people">${scope.map(i=>`<button type="button" class="ov-person" data-person="${esc(i.id)}"><i aria-hidden="true">${esc(initials(i.name))}</i>${esc(i.name)} <small>${th("map.count.quotes",{n:i.quoteCount})}</small></button>`).join("")}</div>
     ${ovQuote(quote)}
@@ -2118,7 +2166,7 @@ function quotesHTML(ev){
   if(!ev.length) return `<p class="hint">${th("map.drawer.no_quotes")}</p>`;
   const by={}; ev.forEach(e=>{ (by[e.interview]=by[e.interview]||[]).push(e); });
   return Object.entries(by).map(([id,es])=>{ const iv=M.ivById[id]; return `<div class="qgroup"><div class="qwho"><button type="button" data-person="${esc(id)}">${esc(iv?.name||t("map.common.person_fallback",{id}))}</button><small>${esc(iv?.who||"")}</small></div>`+
-    es.map(e=>`<blockquote class="${e.source==="interviewer_notes"?"para":""}">${esc(quoted(e.quote))}<span class="src">${esc(srcLabel(e.source)||t("map.src.unknown"))}</span></blockquote>`).join("")+`</div>`; }).join("");
+    es.map(e=>`<blockquote class="${e.source==="interviewer_notes"?"para":""}">${esc(quoted(e.quote))}<span class="src">${esc(srcLabel(e.source)||t("map.src.unknown"))}${ixTag(e)}</span></blockquote>`).join("")+`</div>`; }).join("");
 }
 /* The method's own words, closed by default: readers who know the method open them, everyone else reads plain words. */
 const methodHTML = inner => `<details class="mdet"><summary>${th("map.drawer.method")}</summary><div class="formal">${inner}</div></details>`;
@@ -2167,12 +2215,17 @@ function openPerson(id){
   const solN=i.solsUsed.length+i.solsStopped.length;
   const jobList=(arr,label)=>arr.length?`<div><div class="sect">${label}</div><div class="feel">${arr.map(j=>`<div>${esc(j.statement)}</div>`).join("")}</div></div>`:"";
   const bold = (key, n) => `<b>${th(key,{n})}</b>`;
-  const added = solN ? th("map.drawer.person.added_sols",{quotes:bold("map.count.quotes",i.quoteCount), steps:bold("map.count.steps",i.steps.length), measures:bold("map.count.measures",i.outs.length), solutions:bold("map.count.solutions",solN)})
-    : th("map.drawer.person.added",{quotes:bold("map.count.quotes",i.quoteCount), steps:bold("map.count.steps",i.steps.length), measures:bold("map.count.measures",i.outs.length)});
-  setDrawer(t("map.drawer.person.kind"),i.name,`
-    <div class="tags">${i.date?`<span class="tag">${esc(fmtDate(i.date))}</span>`:""}${i.format?`<span class="tag">${esc(i.format)}</span>`:""}${i.tags.map(tag=>`<span class="tag">${esc(tag)}</span>`).join("")}</div>
+  // talked to more than once: a list of every conversation replaces the one date and kind, and the counts are theirs
+  const again=i.ix.length>1;
+  const counts = {name:esc(i.name), quotes:bold("map.count.quotes",i.quoteCount), steps:bold("map.count.steps",i.steps.length), measures:bold("map.count.measures",i.outs.length), solutions:bold("map.count.solutions",solN)};
+  const added = solN ? th(again ? "map.drawer.person.added_sols_again" : "map.drawer.person.added_sols", counts)
+    : th(again ? "map.drawer.person.added_again" : "map.drawer.person.added", counts);
+  const ixList=again ? `<div><div class="sect">${th("map.drawer.person.interactions",{name:esc(i.name)})}</div><ol class="ix">${i.ix.map(x=>`<li><span class="n">${x.n}</span><span class="what">${esc(x.format)}</span><span class="when">${esc(fmtDate(x.date))}</span>${
+    x.changed?`<span class="chg"><span>${th("map.drawer.person.changed")}</span> ${esc(x.changed)}</span>`:""}</li>`).join("")}</ol></div>` : "";
+  setDrawer(again ? t("map.drawer.person.kind_again",{n:i.ix.length}) : t("map.drawer.person.kind"),i.name,`
+    ${again&&!i.tags.length?"":`<div class="tags">${!again&&i.date?`<span class="tag">${esc(fmtDate(i.date))}</span>`:""}${!again&&i.format?`<span class="tag">${esc(i.format)}</span>`:""}${i.tags.map(tag=>`<span class="tag">${esc(tag)}</span>`).join("")}</div>`}${ixList}
     <div><div class="sect">${th("map.drawer.person.who")}</div><p style="margin:0">${esc(i.who)}</p></div>
-    <div><div class="sect">${th("map.drawer.person.goal")}</div><p style="margin:0"><b>${esc(i.goal)}</b></p>${i.goalEv[0]?`<blockquote style="margin-top:6px">${esc(quoted(i.goalEv[0].quote))}<span class="src">${esc(srcLabel(i.goalEv[0].source))}</span></blockquote>`:""}</div>
+    <div><div class="sect">${th("map.drawer.person.goal")}</div><p style="margin:0"><b>${esc(i.goal)}</b></p>${i.goalEv[0]?`<blockquote style="margin-top:6px">${esc(quoted(i.goalEv[0].quote))}<span class="src">${esc(srcLabel(i.goalEv[0].source))}${ixTag({...i.goalEv[0], interview:i.id})}</span></blockquote>`:""}</div>
     ${M.jobs.length&&(many()||!i.main)?`<div><div class="sect">${th("map.jobs.label")}</div><div class="olist">${i.main?`<button class="oitem" type="button" data-job="${esc(i.main)}"><span><b>${th("map.drawer.person.main")}</b> ${esc(jobName(i.main))}</span></button>`:`<div class="flag">${esc(sentences(t("map.drawer.person.no_job"), i.whyNone))}</div>`}${i.also.map(j=>`<button class="oitem" type="button" data-job="${esc(j)}"><span><b>${th("map.drawer.person.also")}</b> ${esc(jobName(j))}</span></button>`).join("")}</div></div>`:""}
     ${i.note?`<div class="flag">${esc(i.note)}</div>`:""}
     ${jobList(i.emotional,th("map.drawer.person.feel"))}
@@ -2262,7 +2315,7 @@ document.getElementById("btnRead").onclick=()=>openModal(`
 document.getElementById("btnBuilt").onclick=()=>openModal(`
   <h2 id="mTitle">${th("map.built.title")}</h2>
   <ol>
-    <li><b>${th("map.built.talk")}</b> ${th("map.built.talk_text",{n:M.ivs.length})}</li>
+    <li><b>${th("map.built.talk")}</b> ${th("map.built.talk_text",{n:M.talks})}</li>
     <li><b>${th("map.built.quotes")}</b> ${th("map.built.quotes_text")}</li>
     <li><b>${th("map.built.form")}</b> ${th("map.built.form_text")}</li>
     <li><b>${th("map.built.count")}</b> ${th("map.built.count_text")}</li>
@@ -2325,6 +2378,11 @@ function nxAimed(round, gaps){ const aimed=new Set((round||[]).flatMap(e=>(e && 
 const nxKitOk = (round, gaps) => nxAimed(round, gaps).length > 0;
 /* One item per call: an entry for 2 people gives 2 calls, numbered across the round. */
 const nxCalls = round => (round||[]).flatMap(e=>Array.from({length:Math.max(1, +e.count||1)}, ()=>e)).map((entry,i)=>({entry, n:i+1}));
+/* An entry that asks someone in the study again (kind follow_up) names one person: no count, who or traits. It is
+   one call, and the owner's words for it are "Ask Dana Reyes". */
+const nxAgain = e => !!e && e.kind==="follow_up";
+const nxName = e => ivName(String(e.interview||""));
+const nxWho = e => nxAgain(e) ? t("map.nx.ask", {name:nxName(e)}) : e.who||"";
 /* pw-rules asks `listen` for "what to write down: what it shows"; a line with no colon is all "write down". */
 function nxSplitListen(s){
   const text=String(s||"").trim(), at=text.search(/[:：]/);
@@ -2336,11 +2394,14 @@ function nxKitDate(){
   const d=new Date(), two=x=>String(x).padStart(2,"0");
   return `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
 }
-/* The title promises only the gaps the round's cards back up, not every open gap. */
+/* The title promises only the gaps the round's cards back up, not every open gap. It counts new people, and the
+   people in the study the plan asks again. */
 function nxTitle(round, gaps){
-  const n=nxAimed(round, gaps).length;
+  const n=nxAimed(round, gaps).length, known=round.filter(nxAgain).length, fresh=round.filter(e=>!nxAgain(e));
+  const people=t("map.nx.people",{n:fresh.reduce((a,e)=>a+(+e.count||1),0)});
   return !gaps.length ? t("map.nx.enough") : !round.length || !n ? t("map.nx.title_none",{n:gaps.length})
-    : t("map.nx.title",{people:t("map.nx.people",{n:round.reduce((a,e)=>a+(+e.count||1),0)}), gaps:t("map.nx.gaps",{n})});
+    : !known ? t("map.nx.title",{people, gaps:t("map.nx.gaps",{n})})
+    : t(fresh.length ? "map.nx.title_ask" : "map.nx.title_ask_only", {people, known:t("map.nx.known",{n:known}), gaps:t("map.nx.gaps",{n})});
 }
 const nxStep = (n,ask,answer,body) => `<section class="ov-blk ov-step" id="nx-s${n}"><p class="ov-ask"><b>${n}</b>${ask}</p><h2 class="ov-ans">${esc(fullStop(answer))}</h2>${body}</section>`;
 function renderNxView(){
@@ -2359,11 +2420,20 @@ function renderNxView(){
     ${last?`<div class="nx-last${last.closed?" nx-won":""}">${last.closed?'<svg class="ap-ic" viewBox="0 0 16 16" aria-hidden="true"><use href="#ap-check"/></svg>':""}<b>${th("map.nx.last",{closed:last.closed, targeted:last.targeted})}</b> ${last.open.length?th("map.nx.still_open",{list:esc(joinList(last.open.map(r=>noStop(byRef[r]||r))))}):""}</div>`:""}`);
   const chip=ref=>{ const g=gaps.find(x=>x.ref===ref), text=esc(g?g.text:byRef[ref]||ref), main=g&&g.main?`<i class="nx-main">${th("map.nx.main")}</i>`:"";
     return g&&g.node ? `<button type="button" class="nx-chip" data-nx-go="${esc(g.node)}">${text}${main}</button>` : `<span class="nx-chip${g?"":" nx-done"}">${text}${main}</span>`; };
-  const card=(e,i)=>`<article class="nx-card" id="nx-c${i+1}"><div class="nx-head"><b class="nx-num">${i+1}</b><div><h3>${esc(e.who||"")}</h3><p class="ov-note">${esc([t("map.nx.count",{n:+e.count||1}), ...(e.traits||[]).map(id=>values.find(v=>v.id===String(id))).filter(Boolean).map(v=>`${v.name}: ${v.label}`)].join(" · "))}</p></div><button type="button" class="nx-btn nx-ghost" data-nx-copy="${i}">${th("map.nx.copy_one")}</button></div>
+  const ini=id=>{ const i=M.ivById[id], name=i?i.name:id; return `<span class="nx-ini" title="${esc(name)}">${esc(initials(name))}</span>`; };
+  /* under a card's title: how many people and of what kind; for someone asked again, the kinds of people they are
+     and when you last heard from them */
+  const note=e=>{ if(!nxAgain(e)) return [t("map.nx.count",{n:+e.count||1}), ...(e.traits||[]).map(id=>values.find(v=>v.id===String(id))).filter(Boolean).map(v=>`${v.name}: ${v.label}`)];
+    const id=String(e.interview||""), last=ixLast(M.ivById[id]);
+    return [...values.filter(v=>(v.interviews||[]).map(String).includes(id)).map(v=>`${v.name}: ${v.label}`), ...last?[t("map.nx.last_heard",{date:fmtDate(last)})]:[]]; };
+  const card=(e,i)=>`<article class="nx-card" id="nx-c${i+1}"><div class="nx-head"><b class="nx-num">${i+1}</b><div><h3>${esc(nxWho(e))}</h3><p class="ov-note">${esc(note(e).join(" · "))}</p></div>${nxAgain(e)?ini(String(e.interview||"")):""}<button type="button" class="nx-btn nx-ghost" data-nx-copy="${i}">${th("map.nx.copy_one")}</button></div>
     <div class="nx-fills"><span class="ov-note">${th("map.nx.backs_up")}</span>${(e.gaps||[]).map(chip).join("")}</div>
     <ol class="nx-qs">${(e.questions||[]).map(q=>`<li><q>${esc(q.ask||"")}</q><p><span>${th("map.nx.listen")}</span> ${esc(q.listen||"")}</p></li>`).join("")}</ol></article>`;
-  const s2=round.length?nxStep(2, th("map.nx.q.who"), t("map.nx.a.who",{n:round.length}), round.map(card).join("")+(learn.tip?`<p class="nx-tip"><b>${th("map.nx.tip")}</b> ${esc(learn.tip)}</p>`:"")):"";
-  const missing=values.filter(v=>!(v.interviews||[]).length), ini=id=>{ const i=M.ivById[id], name=i?i.name:id; return `<span class="nx-ini" title="${esc(name)}">${esc(initials(name))}</span>`; };
+  const known=round.filter(nxAgain).length, kinds=round.length-known; // people asked again are not to be found
+  const who=!known ? t("map.nx.a.who",{n:round.length}) : kinds ? sentences(t("map.nx.a.who",{n:kinds}), t("map.nx.a.who_again",{n:known}))
+    : t("map.nx.a.who_again_only",{n:known});
+  const s2=round.length?nxStep(2, th("map.nx.q.who"), who, round.map(card).join("")+(learn.tip?`<p class="nx-tip"><b>${th("map.nx.tip")}</b> ${esc(learn.tip)}</p>`:"")):"";
+  const missing=values.filter(v=>!(v.interviews||[]).length);
   let grid="";
   if(traits.length>=2){
     const [rows, cols, third]=traits.slice(0,3).sort((a,b)=>b.values.length-a.values.length); // the two biggest make the grid
@@ -2400,6 +2470,7 @@ function renderNxKit(){
   const learn=nxLearn(), round=Array.isArray(learn.round)?learn.round:[], gaps=nxGaps();
   if(!nxKitOk(round, gaps)) return "";
   const values=nxValues(learn), calls=nxCalls(round), total=calls.length, aimed=nxAimed(round, gaps);
+  const fresh=calls.filter(c=>!nxAgain(c.entry)).length; // calls with new people: asking someone again needs no invites
   const scope=overScope(), sure=overSure(scope), date=nxKitDate(), job=M.jobById[M.job], toNext=nxToNext(sure, scope.length);
   const quoted=key=>esc(t("map.text.quote",{q:t(key)}));
   const head=`<div class="kit-rh"><span><b>${esc(M.project)}</b> · ${th("map.nx.kit.head")}</span><span>${esc(t("map.nx.kit.plan_date",{date}))}</span></div>`;
@@ -2412,7 +2483,7 @@ function renderNxKit(){
     ${job?`<p class="kit-kick">${esc(job.statement)}</p>`:""}
     <h2>${th("map.nx.kit.title",{n:total})}</h2>
     <p class="kit-lead">${esc(lead)}</p>
-    <div class="kit-top"><div class="kit-sec"><h3><span>${th("map.nx.kit.sure")}</span><small>${th("map.nx.kit.so_far",{n:scope.length})}</small></h3>
+    <div class="kit-top"><div class="kit-sec"><h3><span>${th("map.nx.kit.sure")}</span><small>${th("map.nx.kit.so_far",{n:scope.reduce((a,i)=>a+i.ix.length,0)})}</small></h3>
       <div class="kit-bar lv${sure.level}" aria-hidden="true">${OV_SURE.map((l,i)=>`<i class="${i<sure.level?"on":""}"></i>`).join("")}</div>
       <div class="kit-levels">${OV_SURE.map((l,i)=>i+1===sure.level?`<b>${th(l)}</b>`:`<span>${th(l)}</span>`).join("")}</div>
       ${toNext?`<p class="kit-small">${esc(toNext)}</p>`:""}</div>
@@ -2420,19 +2491,22 @@ function renderNxKit(){
     <div class="kit-sec"><h3><span>${th("map.nx.kit.calls")}</span><small>${th("map.nx.kit.tick")}</small></h3>
       <table class="kit-calls"><thead><tr><th></th><th>${th("map.nx.kit.col.who")}</th><th>${th("map.nx.kit.col.fit")}</th>
         <th class="c">${th("map.nx.kit.col.booked")}</th><th class="c">${th("map.nx.kit.col.done")}</th><th class="c">${th("map.nx.kit.col.sent")}</th></tr></thead>
-      <tbody>${calls.map(({entry, n})=>`<tr><td class="kit-num">${n}</td><td>${esc(entry.who||"")}</td><td>${esc(fitOf(entry))}</td>
+      <tbody>${calls.map(({entry, n})=>`<tr><td class="kit-num">${n}</td><td>${esc(nxWho(entry))}</td><td>${esc(nxAgain(entry)?"":fitOf(entry))}</td>
         <td class="c">${box}</td><td class="c">${box}</td><td class="c">${box}</td></tr>`).join("")}</tbody></table></div>
-    <div class="kit-plan-end"><div class="kit-sec"><h3><span>${th("map.nx.kit.ask_h")}</span><small>${th("map.nx.kit.write_to",{n:total, invites:3*total})}</small></h3>
-      <p class="kit-say kit-quote">${quoted("map.nx.kit.say.invite")}</p><p class="kit-small" style="margin-top:2mm">${th("map.nx.kit.where")}</p></div>
+    <div class="kit-plan-end">${fresh?`<div class="kit-sec"><h3><span>${th("map.nx.kit.ask_h")}</span><small>${th("map.nx.kit.write_to",{n:fresh, invites:3*fresh})}</small></h3>
+      <p class="kit-say kit-quote">${quoted("map.nx.kit.say.invite")}</p><p class="kit-small" style="margin-top:2mm">${th("map.nx.kit.where")}</p></div>`:""}
     <div class="kit-sec"><h3><span>${th("map.nx.kit.rules")}</span></h3>
       <ol class="kit-rules"><li>${learn.tip?esc(learn.tip):th("map.nx.kit.rule.last")}</li><li>${th("map.nx.kit.rule.show")}</li><li>${th("map.nx.kit.rule.write")}</li></ol></div>
     ${M.proposals.length?`<p class="kit-decide">${th("map.nx.kit.decide",{n:M.proposals.length})}</p>`:""}</div></section>`;
+  /* A sheet for asking someone again has no check before booking and no warm-up: it opens with thanks for last time,
+     and, on a call, asks to record before the questions, in a first call's words. Its side column ends with how else
+     to ask (a chat, an email) and how to hand the answer back. */
   const sheet=({entry:e, n})=>{
-    const qs=Array.isArray(e.questions)?e.questions:[], room=KIT_LINES[Math.min(qs.length,4)]||3, fit=fitOf(e);
-    const learns=(e.gaps||[]).map(ref=>gaps.find(g=>g.ref===ref)).filter(Boolean);
+    const qs=Array.isArray(e.questions)?e.questions:[], room=KIT_LINES[Math.min(qs.length,4)]||3, again=nxAgain(e), fit=again?"":fitOf(e);
+    const learns=(e.gaps||[]).map(ref=>gaps.find(g=>g.ref===ref)).filter(Boolean), warm=again?0:1;
     return `<section class="kit-call" data-call="${n}">${head}
       <p class="kit-kick">${th("map.nx.kit.call",{i:n, total})}</p>
-      <h2>${esc(e.who||"")}</h2>
+      <h2>${esc(nxWho(e))}</h2>
       <div class="kit-fields"><span class="kit-field">${th("map.nx.kit.name")} <i></i></span><span class="kit-field">${th("map.nx.kit.date")} <i></i></span>
         <span class="kit-check">${box} ${th("map.nx.kit.rec_on")}</span><span class="kit-check">${box} ${th("map.nx.kit.notes_only")}</span></div>
       ${fit?`<p class="kit-fit"><b>${th("map.nx.kit.fit")}</b> ${esc(fit)}</p>`:""}
@@ -2441,14 +2515,14 @@ function renderNxKit(){
         <div><h3>${th("map.nx.kit.never_h")}</h3><p>${th("map.nx.kit.never")}</p></div>
         <div><h3>${th("map.nx.kit.idea_h")}</h3><p class="kit-say">${quoted("map.nx.kit.say.idea")}</p></div>
         <div><h3>${th("map.nx.kit.norec_h")}</h3><p>${th("map.nx.kit.norec")}</p></div>
-        ${learns.length?`<div><h3>${th("map.nx.kit.learns")}</h3><ul>${learns.map(g=>`<li>${esc(g.text)}${g.main?` <span class="kit-mark">${th("map.nx.main")}</span>`:""}</li>`).join("")}</ul></div>`:""}
+        ${learns.length?`<div><h3>${th("map.nx.kit.learns")}</h3><ul>${learns.map(g=>`<li>${esc(g.text)}${g.main?` <span class="kit-mark">${th("map.nx.main")}</span>`:""}</li>`).join("")}</ul></div>`:""}${again?`<div><p>${esc(t("map.nx.kit.again_how",{name:nxName(e)}))}</p></div>`:""}
       </aside><div class="kit-main">
-        <div class="kit-step"><h3><b>1</b>${th("map.nx.kit.step.start")}</h3><p class="kit-say">${quoted("map.nx.kit.say.open")}</p></div>
-        <div class="kit-step"><h3><b>2</b>${th("map.nx.kit.step.warm")}</h3><p class="kit-say">${quoted("map.nx.kit.say.warm")}</p>${lines(2)}</div>
-        <div class="kit-step"><h3><b>3</b>${th("map.nx.kit.step.ask")}</h3>${qs.map((q,k)=>{ const l=nxSplitListen(q && q.listen);
+        <div class="kit-step"><h3><b>1</b>${th("map.nx.kit.step.start")}</h3><p class="kit-say">${again?esc(t("map.text.quote",{q:t("map.nx.kit.say.again",{n:qs.length})})):quoted("map.nx.kit.say.open")}</p>${again?`<p class="kit-record">${th("map.nx.kit.again_record")}</p>`:""}</div>
+        ${warm?`<div class="kit-step"><h3><b>2</b>${th("map.nx.kit.step.warm")}</h3><p class="kit-say">${quoted("map.nx.kit.say.warm")}</p>${lines(2)}</div>`:""}
+        <div class="kit-step"><h3><b>${2+warm}</b>${th("map.nx.kit.step.ask")}</h3>${qs.map((q,k)=>{ const l=nxSplitListen(q && q.listen);
           return `<div class="kit-q"><p class="kit-ask">${k+1}. ${esc(t("map.text.quote",{q:(q && q.ask)||""}))}</p>
             <p class="kit-write"><b>${th("map.nx.kit.write")}</b> ${esc(l.write)}</p>${l.why?`<p class="kit-why">${th("map.nx.kit.why")} ${esc(l.why)}</p>`:""}${lines(room)}</div>`; }).join("")}</div>
-        <div class="kit-step"><h3><b>4</b>${th("map.nx.kit.step.end")}</h3><p class="kit-say">${quoted("map.nx.kit.say.close_1")} ${quoted("map.nx.kit.say.close_2")}</p>${lines(2)}
+        <div class="kit-step"><h3><b>${3+warm}</b>${th("map.nx.kit.step.end")}</h3><p class="kit-say">${quoted("map.nx.kit.say.close_1")} ${quoted("map.nx.kit.say.close_2")}</p>${lines(2)}
           <p class="kit-then">${th("map.nx.kit.end_then")}</p></div>
       </div></div>
       <p class="kit-foot"><b>${th("map.nx.kit.after")}</b> <span class="kit-say">${quoted("map.nx.kit.say.after")}</span></p></section>`;
@@ -2458,7 +2532,7 @@ function renderNxKit(){
 /* The decisions waiting, here too, next to the plan they change. */
 function nxDecide(){ return M.proposals.length ? `<div class="nx-decide">${decideHTML("h3")}</div>` : ""; }
 function nxQuestions(i){
-  const e=nxLearn().round[i]; return [e.who, ...(e.questions||[]).map((q,k)=>`${k+1}. ${q.ask}\n   ${t("map.nx.listen")}: ${q.listen}`)].join("\n");
+  const e=nxLearn().round[i]; return [nxWho(e), ...(e.questions||[]).map((q,k)=>`${k+1}. ${q.ask}\n   ${t("map.nx.listen")}: ${q.listen}`)].join("\n");
 }
 function nxCopy(text, btn){
   const done=()=>{ const was=btn.innerHTML; btn.innerHTML=th("map.nx.copied"); setTimeout(()=>{ btn.innerHTML=was; },1500); };
@@ -2519,7 +2593,8 @@ function lvFresh(log, base){
   const f={iv:new Set(), out:new Set(), sol:new Set(), group:new Set()};
   lvList(log).forEach(c=>{ if(!c || c.action!=="merge" || lvTime(c)<=base) return;
     lvList(c.added_interviews).forEach(x=>f.iv.add(String(x))); lvList(c.new_outcomes).forEach(x=>f.out.add(String(x)));
-    lvList(c.new_solutions).forEach(x=>f.sol.add(String(x))); lvList(c.new_solution_groups).forEach(x=>f.group.add(String(x))); });
+    lvList(c.new_solutions).forEach(x=>f.sol.add(String(x))); lvList(c.new_solution_groups).forEach(x=>f.group.add(String(x)));
+    lvList(c.added_interactions).forEach(x=>{ if(x && x.interview!=null) f.iv.add(String(x.interview)); }); }); // talked to again
   return f;
 }
 const newTag = (kind, id) => LV.fresh[kind].has(String(id)) ? `<span class="lv-new" title="${esc(t("map.live.new_tip"))}">${th("map.live.new")}</span>` : "";
@@ -2619,16 +2694,20 @@ function lvPlace(){
   box.style.left=Math.round(left+window.scrollX)+"px"; box.style.top=Math.round(r.bottom+10+window.scrollY)+"px";
   box.style.setProperty("--lv-caret", Math.round(Math.max(18, Math.min(w-18, mid-left)))+"px");
 }
-function lvChanges(from){
-  const iv=new Set(), out=new Set(), sol=new Set(), grp=new Set(); let asked=0, decided=0, over=false, themes=false;
+function lvChanges(from, busy){
+  const iv=new Set(), out=new Set(), sol=new Set(), grp=new Set(), ix=new Map(); let asked=0, decided=0, over=false, themes=false;
   lvList(M.changelog).forEach(c=>{ if(!c || lvTime(c)<=from) return;
     if(c.action==="merge"){ lvList(c.added_interviews).forEach(x=>iv.add(String(x))); lvList(c.new_outcomes).forEach(x=>out.add(String(x)));
       lvList(c.new_solutions).forEach(x=>sol.add(String(x))); lvList(c.new_solution_groups).forEach(x=>grp.add(String(x)));
+      lvList(c.added_interactions).forEach(x=>{ if(x && x.interview!=null) ix.set(String(x.interview)+"#"+x.n, String(x.interview)); });
       asked+=lvList(c.proposals).length; }
     else if(c.action==="decide") decided++;
     else if(c.action==="rebuild"){ if(c.layer==="overview") over=true; if(c.layer==="value_themes") themes=true; } });
+  // a later conversation counts apart, unless the person is new too: then the reader does not know them yet
+  const again=[...ix.values()].filter(id=>!iv.has(id)).length, firstToo=ix.size-again;
   const parts=[];
-  if(iv.size) parts.push(t("map.live.convs", {n:iv.size}));
+  if(iv.size) parts.push(t("map.live.convs", {n:iv.size+firstToo}));
+  if(again) parts.push(t("map.live.again", {n:again}));
   if(out.size) parts.push(t("map.count.new_outcomes", {n:out.size}));
   if(sol.size) parts.push(t("map.live.sols", {n:sol.size}));
   if(grp.size) parts.push(t("map.live.groups", {n:grp.size}));
@@ -2636,6 +2715,7 @@ function lvChanges(from){
   if(decided) parts.push(t("map.live.decided", {n:decided}));
   if(over) parts.push(t("map.live.overview"));
   if(themes) parts.push(t("map.live.themes"));
+  if(busy) return parts.length ? t("map.live.so_far", {changes:joinList(parts)}) : "";
   const when=lvAgo(M.made.at);
   return parts.length ? t("map.live.notice", {when, changes:joinList(parts)}) : t("map.live.notice_plain", {when});
 }
@@ -2699,7 +2779,7 @@ function lvSave(){
   lvSet(LV.ss, "base", seen && seen.ts>=LV.newest ? LV.newest : LV.base);
   lvSet(LV.ss, "state", {at:Date.now(), from:LV.newest, job:M.job, x:view.x, y:view.y, k:view.k, exp:[...expanded],
     sols:showSols, person:personHL, q:document.getElementById("q").value, sol:solHL, tab:tab ? tab.dataset.tab : "",
-    next:nextOpen, open:LV.open, focus:(document.activeElement && document.activeElement.id) || "",
+    next:nextOpen, open:LV.open, work:LV.state==="ok" ? LV.workRaw : null, focus:(document.activeElement && document.activeElement.id) || "",
     scroll:{panel:panel ? panel.scrollTop : 0, people:document.getElementById("pane-people").scrollTop,
       progress:document.getElementById("pane-progress").scrollTop, drawer:document.getElementById("dBody").scrollTop, page:window.scrollY}});
 }
@@ -2734,7 +2814,10 @@ function lvRestore(st){
 function lvShown(){
   if(document.hidden) return;
   if(LV.titleMark!==null){ document.title=LV.titleMark; LV.titleMark=null; }
-  if(LV.pending){ LV.pending=false; lvNotice(lvChanges(LV.from), true); }
+  if(LV.pending){ LV.pending=false;
+    const w = LV.state==="ok" ? lvWork(LV.workRaw) : null; // a reload in the middle of a batch: one message, not two
+    if(w) lvNotice(lvChanges(LV.from, true) || lvWorkText(w)+t("map.text.full_stop"), false, lvDoing(w));
+    else lvNotice(lvChanges(LV.from), true); }
   clearTimeout(LV.seenTimer);
   LV.seenTimer=setTimeout(()=>{ if(!document.hidden && LV.own && !LV.user) lvSet(LV.ls, "seen", {ts:LV.newest}); }, 1500);
 }
@@ -2750,7 +2833,8 @@ function liveInit(){
   LV.newest=lvNewest(SAMPLE.changelog);
   const tried=lvGet(LV.ss, "try"); if(tried && tried.build===LV.own) lvSet(LV.ss, "try", null); // the reload worked
   const st=lvGet(LV.ss, "state"); lvSet(LV.ss, "state", null);
-  if(st && LV.own && Date.now()-(+st.at||0)<120000){ LV.st=st; LV.keep=Date.now()+1500; }
+  if(st && LV.own && Date.now()-(+st.at||0)<120000){ LV.st=st; LV.keep=Date.now()+1500;
+    if(lvWork(st.work)){ LV.workRaw=st.work; LV.state="ok"; } } // the stamp says "Updating" from the first paint
   const seen=lvGet(LV.ls, "seen"), base=lvGet(LV.ss, "base");
   LV.base = typeof base==="number" ? base : seen && typeof seen.ts==="number" ? seen.ts : LV.newest; // first visit: nothing is new
   lvSet(LV.ss, "base", LV.base);

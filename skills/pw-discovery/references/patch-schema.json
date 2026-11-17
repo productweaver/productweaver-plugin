@@ -12,6 +12,13 @@
         "$ref": "#/$defs/new_interview"
       }
     },
+    "interactions": {
+      "type": "array",
+      "description": "Later conversations with someone already in the study, or with a new interview of this patch: a follow-up call, notes, an email or a chat. Each one gets a short key you choose; evidence elsewhere in the patch cites that key.",
+      "items": {
+        "$ref": "#/$defs/new_interaction"
+      }
+    },
     "bootstrap": {
       "$ref": "#/$defs/bootstrap"
     },
@@ -240,6 +247,10 @@
         "quote": {
           "type": "string",
           "minLength": 1
+        },
+        "interaction": {
+          "type": "integer",
+          "minimum": 1
         }
       }
     },
@@ -315,6 +326,10 @@
         "format": {
           "type": "string"
         },
+        "same_name_ok": {
+          "type": "boolean",
+          "description": "True only when the user said this is another person with the same name as someone in the study. Not stored."
+        },
         "cluster": {
           "type": "string"
         },
@@ -350,6 +365,89 @@
         },
         "analyst_note": {
           "type": "string"
+        }
+      }
+    },
+    "new_interaction": {
+      "type": "object",
+      "description": "A later conversation with one person. Its job lists are added to the person's record; its two _evidence lists add quotes to the person's own statements.",
+      "required": [
+        "key",
+        "interview",
+        "file",
+        "date"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "interview": {
+          "$ref": "#/$defs/interview_ref",
+          "description": "The person: a KB interview ID, or the key of a new interview in this patch."
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "When the conversation took place, as YYYY-MM-DD."
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "Transcript",
+            "Notes",
+            "Transcript + notes",
+            "Email",
+            "Chat"
+          ]
+        },
+        "changed": {
+          "type": "string",
+          "description": "One sentence on what differs from before. Only when the person's situation or answer changed."
+        },
+        "another": {
+          "type": "boolean",
+          "description": "true when the person already has a conversation of this format on this date, and this is another one."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "job_executor_evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/own_evidence"
+          }
+        },
+        "core_functional_job_evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/own_evidence"
+          }
+        },
+        "related_jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/own_job"
+          }
+        },
+        "emotional_jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/own_statement"
+          }
+        },
+        "social_jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/own_statement"
+          }
         }
       }
     },

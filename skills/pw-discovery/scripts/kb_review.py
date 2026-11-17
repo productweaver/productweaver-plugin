@@ -115,7 +115,9 @@ def _new_solution_lines(kb: Json, since: str, text) -> list[str]:
 def _review_new(kb: Json, since: str, new_outcomes: set[str], text) -> list[str]:
     new_interviews = [i for i in kb["interviews"] if since and str(i.get("added", "")) >= since]
     solution_lines = _new_solution_lines(kb, since, text)
-    if not (new_interviews or new_outcomes or solution_lines):
+    again = [(r, x) for r in kb["interviews"] for x in r.get("interactions") or []
+             if since and str(x.get("added", "")) >= since]
+    if not (new_interviews or new_outcomes or solution_lines or again):
         return []
     lines = ["## " + text("review.h.new", date=since), ""]
     for record in new_interviews:
@@ -123,6 +125,12 @@ def _review_new(kb: Json, since: str, new_outcomes: set[str], text) -> list[str]
         link = text("review.core_job_ref", id=job) if job else text("review.no_core_job_yet")
         own = text("review.new_interview_job", job=f"*{record['core_functional_job']['statement']}*", link=link)
         lines.append(f"- **{record['id']} {record.get('name', '')}:** {record['job_executor']['statement']} {own}")
+    for record, item in again:  # no format is a Transcript, as the merge writes it; no date leaves it out
+        fmt = item.get("format") or "Transcript"
+        said = text("review.new_again", format=fmt, date=item["date"]) if item.get("date") \
+            else text("review.new_again_undated", format=fmt)
+        changed = f" {item['changed']}" if item.get("changed") else ""
+        lines.append(f"- **{record['id']} {record.get('name', '')}:** {said}{changed}")
     for outcome in kb["desired_outcomes"]["outcomes"]:
         if outcome["id"] in new_outcomes:
             label = text("review.new_outcome", id=f"**{outcome['id']}:**")
@@ -288,6 +296,19 @@ def _nx_where(kb: Json, job: str, text) -> list[str]:
     return [*lines, ""]
 
 
+def _nx_person(kb: Json, person: str) -> tuple[str, str]:
+    """The name of someone a follow-up asks again, and the date of their latest conversation ("" when unknown). As for
+    who uses a solution now, dates decide only when each of their conversations has a YYYY-MM-DD date (kt.ix_dates);
+    otherwise it is the highest-numbered conversation's date, as it is written."""
+    record = next((r for r in kb["interviews"] if str(r.get("id")) == person), {})
+    dates = [date for ref, date in kt.ix_dates(kb).items() if ref.split("#")[0] == person and date]
+    if not dates:
+        numbered = [(x.get("n") if x is not record else 1, str(x.get("date") or "")) for x in kt.conversations(record)
+                    if isinstance(x, dict) and (x is record or kt._is_int(x.get("n")))]
+        dates = [max(numbered)[1]]
+    return str(record.get("name") or person), max(dates, default="")
+
+
 def _nx_round(kb: Json, learn: Json, text, guide: bool) -> list[str]:
     names = {kt.step_key(s): s["statement"] for s in kb["job_map"]["steps"]}
     plain = guide and text.language == kt.ENGLISH
@@ -296,7 +317,9 @@ def _nx_round(kb: Json, learn: Json, text, guide: bool) -> list[str]:
     names.update({v["id"]: f"{t['name']}: {v['label']}" for t in learn["traits"] for v in t["values"]})
     lines = []
     for n, entry in enumerate(learn["round"], 1):
-        talk = text("review.nx.talk", n=entry["count"], who=entry["who"])
+        again = entry.get("kind") == "follow_up"  # asks someone in the study again: no count, who or traits
+        name, date = _nx_person(kb, str(entry.get("interview"))) if again else ("", "")
+        talk = text("review.nx.ask", name=name) if again else text("review.nx.talk", n=entry["count"], who=entry["who"])
         asks = [f"{i}. {q['ask']}  \n   *{text('review.nx.listen')}:* {q['listen']}"
                 for i, q in enumerate(entry["questions"], 1)]
         if not guide:
@@ -305,10 +328,14 @@ def _nx_round(kb: Json, learn: Json, text, guide: bool) -> list[str]:
             continue
         hints = [names[ref] for ref in entry.get("traits", [])]
         lines += [f"### {n}. {talk}", ""]
+        lines += [text("review.guide.last_heard", date=date), ""] * bool(date)
         lines += [f"**{text('review.guide.fit')}**", "", *(f"- {h}" for h in hints), ""] * bool(hints)
         learns = [f"- {names[ref]}" for ref in entry["gaps"] if ref in names and ref not in entry.get("traits", [])]
-        lines += [f"**{text('review.guide.ask')}**", "", *asks, ""]
-        lines += [f"**{text('review.guide.learns')}**", "", *learns, ""] * bool(learns)
+        opening = [text("review.guide.again", n=len(entry["questions"])), "",
+                   text("review.guide.again_record"), ""] * again  # a call asks to record first
+        lines += [f"**{text('review.guide.ask')}**", "", *opening, *asks, ""]
+        block = [*learns, ""] * bool(learns) + [text("review.guide.again_how", name=name), ""] * again
+        lines += [f"**{text('review.guide.learns')}**", "", *block] * bool(block)
     return lines
 
 
@@ -498,8 +525,122 @@ def cmd_skeleton(args: argparse.Namespace, kb: Json, tool: Any) -> int:
         print(json.dumps({"ok": True, "job": job, "skeleton": data}, ensure_ascii=False, indent=2))
         return 0
     people = [f"  {r['id']} {r['job_executor']['statement']}" for r in kb["interviews"] if kt.main_job(r) == job]
-    print("\n".join([f"CORE JOB {job}: {kt.jobs_by_id(kb)[job]['statement']}", *kt.gap_lines(kb, job),
+    print("\n".join([f"CORE JOB {job}: {kt.jobs_by_id(kb)[job]['statement']}", *gap_lines(kb, job),
                      "\nPEOPLE whose main goal it is, for the traits' values:", *people,
                      f"\nFILE TO FILL IN (save as {kt.KB_FOLDER}/patches/{kt.today()}-overview-{job}.json):",
                      json.dumps(data, ensure_ascii=False, indent=2)]))
     return 0
+
+
+def _print_themes(data: Json, stale: bool) -> None:
+    if not data["themes"]:
+        return
+    print("\nVALUE THEMES" + (" [out of date]" if stale else "")
+          + " (when you update them, keep each ID, label and need unless there is a reason to change it)")
+    for theme in data["themes"]:
+        print(f"{theme['id']} {theme['label']}: {theme['need']}  (people {theme['interview_count']})")
+        for outcome in theme["outcomes"]:
+            print(f"   {outcome['id']:>7}  {outcome['statement']}")
+    if data["unassigned"]:
+        print("IN NO THEME YET")
+        for outcome in data["unassigned"]:
+            print(f"   {outcome['id']:>7}  {outcome['statement']}")
+
+
+def person_line(person: Json) -> str:
+    links = person["job"] or "no core job" + (f" ({person['unlinked_reason']})" if person["unlinked_reason"] else "")
+    also = sorted({r["job"] for r in person["related"] if r["job"] and r["job"] != person["job"]})
+    return f"  {person['id']} {person['name']}: {person['core_functional_job']} -> {links}" + \
+        (f"; also {', '.join(also)}" if also else "") + (f" [{', '.join(person['tags'])}]" * bool(person["tags"])) + \
+        ("; later: " + ", ".join(map(_later, person["interactions"])) if person.get("interactions") else "")
+
+
+def _later(item: Json) -> str:
+    """A later conversation on a person's line in `context`: "#2 Email 2026-04-05". No format is a Transcript, as the
+    merge writes it; no date leaves it out."""
+    date = f" {item['date']}" if item.get("date") else ""
+    return f"#{item.get('n')} {item.get('format') or 'Transcript'}{date}"
+
+
+def _print_jobs(data: Json) -> None:
+    print(f"PROJECT {data['project']}  language={data['language']}  interviews={data['interview_count']}  "
+          f"core jobs={len(data['core_jobs'])}")
+    if data.get("labels_missing"):
+        print(f"LABELS: {data['labels_missing']} labels of the map and the review sheet have no {data['language']} "
+              f"text yet; write them first: kb_tool labels {kt.KB_HOME}")
+    if not data["core_jobs"]:
+        print("CORE JOB: (none yet: bootstrap)")
+    for job in data["core_jobs"]:
+        print(f"\nCORE JOB {job['id']}: {job['statement']}  [{job['status']}]")
+        if job["job_executor"]:
+            print(f"  EXECUTOR: {job['job_executor']}")
+        main, also = ", ".join(job["interviews"]) or "none", ", ".join(job["related_interviews"]) or "none"
+        print(f"  PEOPLE: main {main}; also {also}")
+        for step in job["steps"]:
+            print(f"STEP {step['id']} [{step['stage']}] {step['statement']}  (people {step['voices']})")
+            for outcome in step["outcomes"]:
+                print(f"   {outcome['id']:>7}  {outcome['statement']}  (iv {outcome['interview_count']})")
+
+
+def _print_solutions(data: Json) -> None:
+    if not (data["groups"] or data["solutions"]):
+        return
+    print("\nCURRENT SOLUTIONS (cite an ID in solution_evidence; add only what is not here to new_solutions)")
+    for group in data["groups"]:
+        print(f"GROUP {group['key']}: {group['name']}. Why: {group['why']}")
+        for solution in [s for s in data["solutions"] if s["group"] == group["key"]]:
+            stopped = f", stopped {len(solution['stopped_by'])}" if solution["stopped_by"] else ""
+            mark = "  [stopped]" if not solution["interviews"] else ""
+            print(f"  {solution['id']} [{solution['kind']}] {solution['name']}  steps {', '.join(solution['steps'])}"
+                  f"  (people {len(solution['interviews'])}{stopped}){mark}")
+
+
+def _print_overview(data: Json) -> None:
+    if not data["overview"]:
+        return
+    old = "overview" in data["stale"] or any(not entry["executor"] for entry in data["overview"])
+    print("\nOVERVIEW" + (" [out of date]" if old else ""))
+    for entry in data["overview"]:
+        about = f" (about: {entry['executor']})" if entry["executor"] else \
+            " (written before the map showed who the study is about: write it again)"
+        print(f"{entry['job']} written {entry['written']}: {entry['bottom_line']}{about}")
+
+
+def gap_lines(kb: Json, job: str) -> list[str]:
+    """One core job's OPEN GAPS, as `context` and `overview --skeleton` print them; none when nothing is open."""
+    gaps = kt.open_gaps(kb, job)
+    if not gaps:
+        return []
+    sure = kt.sure_level(kb, job)
+    after = f"{sure['to_next']} more reach the next" if sure["to_next"] else "next: new ones stop adding needs"
+    lines = ["", f"OPEN GAPS for core job {job} (main finding first; next.learn's round should cover the top ones)",
+             f"  level {sure['level']} of 3 after {sure['conversations']} conversations"
+             + f"; {after}" * (sure["level"] < 3)]
+    for g in gaps:
+        who = f"people {len(g['people'])}: {', '.join(g['people'])}" if g["people"] else "nobody yet"
+        lines.append(f"  {g['ref']} [{g['kind']}{', main' * g['main']}] {g['text']}  ({who})")
+    return lines
+
+
+def print_context(kb: Json, data: Json) -> None:
+    """The text `context` prints after its JSON branch."""
+    _print_jobs(data)
+    for job in data["open_gaps"]:
+        lines = gap_lines(kb, job)
+        if lines:
+            print("\n".join(lines))
+    _print_solutions(data["current_solutions"])
+    _print_themes(data["value_themes"], "value_themes" in data["stale"])
+    _print_overview(data)
+    if data["segments"]:
+        print("\nSEGMENTS: " + "; ".join(f"{k}={v}" for k, v in data["segments"].items()))
+    if data["people"]:
+        print("\nPEOPLE AND THEIR JOBS (their own core job -> the core job it rolls up to)")
+        for person in data["people"]:
+            print(person_line(person))
+    print("\nPROCESSED FILES: " + ", ".join(data["processed_files"]))
+    if data["pending_proposals"]:
+        pending = "; ".join(f"{p['id']} {p['type']} {p['target']}" for p in data["pending_proposals"])
+        print(f"\nPENDING PROPOSALS: {pending}")
+    if data["stale"]:
+        print("\nSTALE LAYERS: " + ", ".join(data["stale"]))

@@ -208,19 +208,21 @@ def start_batch(args: argparse.Namespace, tool: Any) -> Json:
     return {"n": n, "minutes": minutes(n), "map": shown}
 
 
-def batch_merged(kb_path: str, added: int, tool: Any) -> None:
-    """After a merge: count the interviews in, and when the batch is in, tell an open map the overview comes next.
-    Never fails the merge: a status that cannot be read or written is left as it is."""
+def batch_merged(kb_path: str, added: int, tool: Any) -> bool:
+    """After a merge: count the conversations in (new interviews and later conversations), and when the batch is in,
+    tell an open map the overview comes next. True when this merge ended the batch's reading. Never fails the merge: a
+    status that cannot be read or written is left as it is."""
     global kt  # noqa: PLW0603 - kb_tool hands itself over once, here
     kt = tool
     path = live_path(kb_path)
     old = read_status(path)
     work = old.get("work")
     if added < 1 or not isinstance(work, dict) or not isinstance(work.get("n"), int):
-        return
+        return False
     done = work.get("done") if isinstance(work.get("done"), int) else 0
     done += added
-    write_status(path, {**old, "work": {**work, "done": done, "phase": "summary" if done >= work["n"] else "reading"}})
+    phase = "summary" if done >= work["n"] else "reading"
+    return write_status(path, {**old, "work": {**work, "done": done, "phase": phase}}) and phase == "summary"
 
 
 def has_local_browser() -> bool:
@@ -289,7 +291,7 @@ def read_template(args: argparse.Namespace) -> str:
     with open(template_path, encoding="utf-8") as handle:
         template = handle.read()
     if kt.MAP_SCHEMA not in template:
-        raise kt.KbError(f"the map template {template_path} is older than KB schema {kt.SCHEMA_VERSION}; use "
+        raise kt.KbError(f"the map template {template_path} is older than KB schema {kt.SCHEMA_NEWEST}; use "
                          "discovery-map-template.html from the skill", code="template_old")
     for name in kt.MAP_ASSETS:
         template = inline_asset(template, template_path, name)
