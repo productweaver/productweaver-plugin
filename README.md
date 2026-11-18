@@ -141,6 +141,9 @@ To start, or when you come back to a study and do not know what to do
 - "Help me get started with Product Weaver." (In Claude Code you can also
   type `/pw-start`.)
 - "What should I do next?" The assistant names one next step.
+- "Which version of Product Weaver do I have?" `pw-about` shows the version,
+  where it is loaded from and what it runs on. Add "for a bug report" to get
+  a block to paste, or "am I up to date?" to check for a newer version.
 
 Once you know your way around, ask in plain words, for example
 
@@ -222,6 +225,13 @@ Still stuck? Ask in this repository's
 The plugin sends nothing unless you turn on usage statistics for a study, and
 even then never your interviews, names, quotes, prompts or file names. It
 downloads nothing.
+
+**The update check runs only when you ask.** When you ask `pw-about` whether
+you are up to date, it sends one request to
+`https://www.productweaver.com/api/plugin-version` to read the newest
+version number. The request holds no cookie, ID, name or file name, and it
+is made even when `DO_NOT_TRACK` is set, because you asked for it. Nothing
+else in `pw-about` goes online.
 
 **Usage statistics are opt-in.** The first time you work on a study, the
 assistant asks once whether to share them. Each person who gets the study

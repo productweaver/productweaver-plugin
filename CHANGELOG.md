@@ -4,6 +4,20 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.17.1 — 2026-11-17
+
+### What's new
+
+- **Which version do I have?** Ask "Which version of Product Weaver do I
+  have?" or say `pw-about`. The new `pw-about` skill shows the version, the
+  folder the plugin is loaded from, your assistant and model, your system and
+  Python, the study in the folder and whether usage statistics are on. Add
+  "for a bug report" to get a block to paste: it hides your home folder and
+  login name, and holds no study content.
+- **Am I up to date?** Only when you ask, `pw-about` checks
+  productweaver.com for a newer version and says how to update. Nothing else
+  in it goes online.
+
 ## 0.17.0 — 2026-11-17
 
 ### What's new

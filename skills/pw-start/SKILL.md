@@ -15,6 +15,8 @@ The work itself is done by the `pw-discovery` skill, which turns interview trans
 
 If the request already names work `pw-discovery` does, use `pw-discovery` and say nothing about getting started. For example: "process the interviews in Interviews/", "add these calls to the study", "approve P1", "In my Product Weaver study, the goal is right", "build value themes", "show me the map". Never give a welcome tour to someone who already said what they want.
 
+If the user asks which version they have, whether the plugin is up to date, or for details for a bug report, use `pw-about` instead.
+
 ## Look before you ask
 
 Ask nothing yet. Look at the workspace and at any files the user attached. The workspace is the user's folder, as `pw-discovery`'s "Where the study lives" defines it: in Cowork, the folder connected to the task or to its project, not the folder the shell starts in.
