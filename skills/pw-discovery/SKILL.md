@@ -82,8 +82,8 @@ Some users read English with difficulty. A study is written in one language, cho
 **Then.** For English, nothing more. For any other language:
 
 1. `kb_tool labels .pw-kb/pw-kb.json --language <code>`, with a BCP 47 code such as `it`, `es`, `pt-BR` or `zh-Hans`. It sets the language and writes `.pw-kb/patches/<date>-labels-<code>.json`: the text of the map and the review sheet in English, with a `"<key>#note"` entry just above each label that needs a note.
-2. Read that file and write it back in the study's language, as its `instructions` say. Keep every `{name}`, and translate each plural form it lists. There are about 540 labels: tell the user you are writing the map's text in their language, once, and that it takes a few minutes.
-3. `kb_tool labels .pw-kb/pw-kb.json --add <that file>`. It refuses a label that lost a `{name}`, holds markup or is empty, and keeps the rest in `.pw-kb/labels.json`. Fix what it refuses and add the file again.
+2. Read that file and write it back in the study's language, as its `instructions` say. Write each label yourself, as a whole sentence in the language: never with a script or a word list that swaps words one by one, which leaves half the text in English. Keep every `{name}`, and translate each plural form it lists. There are about 750 labels: tell the user you are writing the map's text in their language, once, and that it takes a few minutes.
+3. `kb_tool labels .pw-kb/pw-kb.json --add <that file>`. It refuses a label that lost a `{name}`, holds markup, is empty or still reads as English, and keeps the rest in `.pw-kb/labels.json`. Fix what it refuses and add the file again.
 
 Write every statement in the study's language. `references/pw-rules.md`, "Writing in another language", has the rules. In a study that is not in English, the tool allows about a fifth more words, does not check the English openings "Minimize…" and "Help me…", and counts letters in Chinese, Japanese and Thai.
 

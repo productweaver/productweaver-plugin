@@ -73,7 +73,7 @@ try:  # optional: richer schema messages. jsonschema before 4.0 (3.2 on Ubuntu 2
 except ImportError:  # pragma: no cover - depends on the machine
     _LibraryValidator = None
 
-__version__ = "0.17.1"
+__version__ = "0.17.2"
 SCHEMA_VERSION = 3  # what a study is written as, and below which it needs `migrate`
 SCHEMA_NEWEST = 4  # the newest a command reads: written once a study holds or plans a later conversation
 
@@ -177,6 +177,15 @@ def _plain_terms(terms: tuple[tuple[str, str, str], ...]) -> list[tuple[re.Patte
 
 METHOD_TERMS = _plain_terms(METHOD_WORDS)
 JARGON_TERMS = _plain_terms(JARGON_WORDS)
+# A label of a study in another language that still holds these words was not written in that language: often an
+# assistant swapped words one by one ("Copia the intervista guide"). None is a common word in a language that
+# writes with Latin letters, unlike "to", "of", "for", "has", "more" or "will".
+ENGLISH_ONLY_WORDS = frozenset(("the", "and", "with", "what", "your", "you", "they", "their", "them", "this", "that",
+                                "these", "those", "from", "which", "when", "where", "there", "have", "been", "would",
+                                "could", "should", "about", "into", "than", "then", "today"))
+LABEL_WORD = re.compile(r"[^\W\d_]{3,}")
+# a command, a file name, an address or a hyphenated name (jobs-to-be-done) stays as it is
+LABEL_CODE = re.compile(r"`[^`]*`|\S*[_/.]\S*[^\W\d_]\S*|[^\W\d_]+(?:-[^\W\d_]+)+")
 GROUP_KEY = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 TRANSCRIPT_EXTS = (".md", ".markdown", ".txt", ".docx", ".pdf")
 KEEP_BACKUPS = 20
@@ -602,6 +611,29 @@ def wanted_text(english: Any) -> str:
     return english["other"] if isinstance(english, dict) else str(english)
 
 
+def _label_words(text: str) -> list[str]:
+    return LABEL_WORD.findall(LABEL_CODE.sub(" ", PLACEHOLDER.sub(" ", text)))
+
+
+def english_left(value: Any, english: Any) -> bool:
+    """True when a label in another language still reads as English: it holds a word only English uses, or at least
+    half of its words, two or more, are the English label's own. Names and loanwords alone do not count."""
+    source = {w.lower() for text in (english.values() if isinstance(english, dict) else [english])
+              for w in _label_words(text)}
+    for text in value.values() if isinstance(value, dict) else [value]:
+        words = _label_words(str(text))
+        shared = sum(w in source for w in words if w[0].islower())  # a capital marks a name: Google Meet, Zoom
+        if ENGLISH_ONLY_WORDS.intersection(w.lower() for w in words) or (
+                len(words) >= 3 and shared >= 2 and 2 * shared >= len(words)):
+            return True
+    return False
+
+
+def usable_label(value: Any, english: Any) -> bool:
+    """A stored label the map and the review sheet can show; the others show in English and count as missing."""
+    return not label_problem(value, english) and not english_left(value, english)
+
+
 def labels_path(kb_path: str) -> str:
     return os.path.join(os.path.dirname(os.path.abspath(kb_path)), STUDY_LABELS)
 
@@ -626,7 +658,7 @@ def study_labels(kb: Json, kb_path: str) -> tuple[Json, int]:
     if base_language(study_language(kb)) == ENGLISH:
         return {}, 0
     english = english_table()["labels"]
-    own = {k: v for k, v in stored_labels(kb, kb_path).items() if k in english and not label_problem(v, english[k])}
+    own = {k: v for k, v in stored_labels(kb, kb_path).items() if k in english and usable_label(v, english[k])}
     return own, len(english) - len(own)
 
 
@@ -4251,6 +4283,8 @@ not know the method would say it. Address the reader informally, as most apps in
 - Keep every {{name}} exactly: the tool fills it in, and the "<key>{note}" entry just above a label says what it \
 holds. A number in a {{name}} can be 1, so write the sentence to read right for any number, for example with the \
 number after a colon.
+- Write each label yourself, as a whole sentence in that language. Do not use a script or a word list that swaps \
+words one by one: it leaves English in every label, and --add refuses a label that still reads as English.
 - A plural label lists one text per plural form the language needs for it. Translate each; keep {{n}} in each.
 - Pick one word for each idea that comes back, and use it in every label: the main goal (the review sheet calls it \
 the core job), a step, a stage, a measure of success (the review sheet's outcome), a value theme, and a solution, \
@@ -4346,6 +4380,10 @@ def _check_labels(given: Json, language: str, report: Report) -> Json:
         if problem:
             report.error(f"{key}: {problem[1]}", code=problem[0])
             continue
+        if english_left(value, english[key]):
+            report.error(f"{key}: still reads as English; write the whole label in {language} from what it means, "
+                         "not word by word", code="labels_english")
+            continue
         if value == english[key] and re.search(r"[A-Za-z]{3}", PLACEHOLDER.sub("", wanted_text(english[key]))):
             report.warn(f"{key}: the same as the English text; fine for a name, otherwise write it in {language}",
                         code="labels_same")
@@ -4372,7 +4410,7 @@ def _add_labels(kb: Json, args: argparse.Namespace, language: str) -> int:
     else:
         english = english_table()["labels"]
         kept = {k: v for k, v in stored_labels(kb, args.kb).items()
-                if k in english and not label_problem(v, english[k])}
+                if k in english and usable_label(v, english[k])}
         kept.update(good)
         ordered = {key: kept[key] for key in english if key in kept}  # the English order: by area, not by letter
         save_json({"about": STUDY_LABELS_HEADER, "language": language, "labels": ordered}, labels_path(args.kb))

@@ -4,6 +4,19 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.17.2 — 2026-11-17
+
+### What's fixed
+
+- **No more maps in half Italian, half English.** In a study in another
+  language, the map could show text such as "Copia the intervista guide":
+  the assistant had swapped single words instead of writing each label in
+  the language, and the plugin kept it. Now `kb_tool labels --add` refuses a
+  label that still reads as English and says which one. Labels saved before
+  that read as English show in plain English and count as missing, so your
+  assistant writes them again in your language the next time you work on the
+  study.
+
 ## 0.17.1 — 2026-11-17
 
 ### What's new

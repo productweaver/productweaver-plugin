@@ -199,6 +199,7 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `labels_placeholder` | `labels --add`: a label does not keep exactly the English label's `{name}` places |
 | `labels_plural` | `labels --add`: a plural label is not an object of plural forms with `other`, or a form lacks `{n}` |
 | `labels_markup` | `labels --add`: a label holds `<` or `>` |
+| `labels_english` | `labels --add`: a label still reads as English: it holds a word only English uses, such as "the" or "your", or half its words are the English label's. Such a label stored earlier shows in English and counts as missing |
 | `template_invalid` | The map template has no place to put the KB |
 | `template_old` | The map template is older than the KB schema; use the one in the skill |
 | `style_invalid` | `meta.style` is not shaped as documented |
