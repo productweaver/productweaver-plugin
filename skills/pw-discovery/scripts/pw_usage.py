@@ -18,11 +18,11 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import importlib.util
 import json
 import os
 import re
 import sys
-import tempfile
 import threading
 import time
 import urllib.error
@@ -89,17 +89,23 @@ class Session:
 
 # --- files -----------------------------------------------------------------------------------------------------
 
+def base():
+    """pw_base.py from beside this script: the plugin's version and the atomic write, as kb_tool uses them."""
+    if "pw_base" not in sys.modules:
+        spec = importlib.util.spec_from_file_location("pw_base", Path(__file__).resolve().parent / "pw_base.py")
+        module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+        before, sys.dont_write_bytecode = sys.dont_write_bytecode, True  # no cache in the plugin folder
+        try:
+            spec.loader.exec_module(module)  # type: ignore[union-attr]
+        finally:
+            sys.dont_write_bytecode = before
+        sys.modules["pw_base"] = module
+    return sys.modules["pw_base"]
+
+
 def write_atomic(path: Path, data: bytes) -> None:
-    """Write through a temporary file in the same folder, then replace: a reader never sees half a file."""
-    handle, temp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
-    try:
-        with os.fdopen(handle, "wb") as out:
-            out.write(data)
-        os.replace(temp, path)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            os.unlink(temp)
-        raise
+    """Swap the file in whole: a reader never sees half a file. A new file is the user's alone to read."""
+    base().write_atomic(path, data, mode=0o600)
 
 
 def count_lines(path: Path) -> int:
@@ -379,23 +385,13 @@ def at_minute(ts: object) -> str | None:
 
 
 def plugin_version() -> str | None:
-    """The plugin's version, from plugin.json at the plugin's root. None when it cannot be read."""
-    try:
-        data = json.loads((Path(__file__).resolve().parents[3] / "plugin.json").read_text(encoding="utf-8"))
-        version = data.get("version") if isinstance(data, dict) else None
-    except (OSError, ValueError, RecursionError, IndexError):
-        return None
-    return version if matches(VERSION_PATTERN, version) else None
+    """The plugin's version, from its manifest. None when it cannot be read."""
+    return base().plugin_version()
 
 
 def tool_version() -> str | None:
     """The version of the kb_tool.py beside this script. None when it cannot be read."""
-    try:
-        text = (Path(__file__).resolve().parent / "kb_tool.py").read_text(encoding="utf-8")
-    except (OSError, ValueError):
-        return None
-    found = re.search(r'^__version__ = "([\d.]+)"', text, re.M)
-    return found.group(1) if found and matches(VERSION_PATTERN, found.group(1)) else None
+    return base().tool_version()
 
 
 def os_family() -> str:

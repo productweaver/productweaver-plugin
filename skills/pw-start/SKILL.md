@@ -19,7 +19,7 @@ If the user asks which version they have, whether the plugin is up to date, or f
 
 ## Look before you ask
 
-Ask nothing yet. Look at the workspace and at any files the user attached. The workspace is the user's folder, as `pw-discovery`'s "Where the study lives" defines it: in Cowork, the folder connected to the task or to its project, not the folder the shell starts in.
+Ask nothing yet. Look at the workspace and at any files the user attached. The workspace is the user's folder, as "Where the study lives" in `<plugin folder>/skills/pw-discovery/references/files-and-commands.md` defines it: in Cowork, the folder connected to the task or to its project, not the folder the shell starts in.
 
 1. **A study.** `.pw-kb/pw-kb.json` means a study exists. `.pw-kb/pw-kb.yaml`, or a `KB/` folder with a study file and no `.pw-kb/pw-kb.json`, means a study made by an older version: bring it up to date with `pw-discovery`'s migrate step, without running `context` first.
 2. **A first-round guide.** `pw-output/interview-guide.md` (or `.pw-kb/interview-guide.md`, from plugin 0.11 or earlier) with no `.pw-kb/pw-kb.json` means the user planned their first interviews earlier.
@@ -48,7 +48,7 @@ python3 <plugin folder>/skills/pw-discovery/scripts/pw_usage.py start .pw-kb --s
 
 Write the script's full path in every command, as above: never put it in a shell variable (`S=<plugin folder>`) and never `cd` into the plugin folder. Claude Code cannot check such a command, so it asks the user or refuses it.
 
-`<name>` and `<id>` are as in `pw-discovery`'s "Usage statistics", which also says what its output line means and how to ask the question. When no `.pw-kb/` folder is made (path D, or a sandbox that keeps nothing), skip it and everything below that mentions `pw_usage.py`. Every run that ran `start` runs `end` once, when its work is done, with the same options: path B adds `--guide-written`, path C runs it right before you give the next step, and path A hands over to `pw-discovery`, which skips `start` and runs `end` itself.
+`<name>` and `<id>` are as in "Usage statistics" in `<plugin folder>/skills/pw-discovery/references/files-and-commands.md`, which also says what its output line means and how to ask the question. When no `.pw-kb/` folder is made (path D, or a sandbox that keeps nothing), skip it and everything below that mentions `pw_usage.py`. Every run that ran `start` runs `end` once, when its work is done, with the same options: path B adds `--guide-written`, path C runs it right before you give the next step, and path A hands over to `pw-discovery`, which skips `start` and runs `end` itself.
 
 A first-round guide with no study: put it in front of the user as `<plugin folder>/skills/pw-discovery/references/open-files.md` says for your host. If transcripts are there now, take path A and do not ask the planning questions again. If not, ask how the interviews are going and say what to do when they have them: "When you have 3 or more, put the transcripts in one folder here and say: Add my interviews to the study." Never rewrite the guide unless they ask.
 
@@ -104,7 +104,7 @@ Then go down this list. The first item that applies is the next step:
 1. **The tool refuses the study.** `context` prints one `error:` line instead of the study.
    - It says to run `migrate`: the study is in an older format. Bring it up to date with `pw-discovery`'s migrate step.
    - It says "Update the pw-discovery skill": a newer version of the plugin wrote the study. Ask the user to update the plugin, and do nothing else.
-   - Any other `error:` line: show it in one line, run `pw-discovery`'s `validate` to see what is wrong, and give no next step until that is fixed.
+   - Any other `error:` line: show it in one line, run `validate`, as "Checking a KB" in that same file says, to see what is wrong, and give no next step until that is fixed.
 2. **New conversations.** Transcripts, notes or emails in the workspace whose names are not under `PROCESSED FILES:`. Compare names without their extension: a PDF read without pypdf is kept as a `.txt` copy. Some may be a later conversation with someone already in the study, such as "I talked to Dana again": `pw-discovery` adds them to that person. An email or chat is already in the study when its writer has a conversation of that format on its date: a later one listed on their line under `PEOPLE AND THEIR JOBS`, or their first conversation, the `date` and `format` of their record in `.pw-kb/pw-kb.json`. The study keeps a cleaned copy under another name. It is new only when the user says it is another one. Say "Add the N new conversations to the study."
 3. **Missing text.** A `LABELS:` line: the map's own text in the study's language is not complete. Finish it with `pw-discovery`'s labels steps.
 4. **What the study is about is not confirmed.** A pending proposal of type `confirm_core_job`. Ask it as a click, as `pw-discovery`'s "Ask the decisions as a click" says: show the goal in plain words with three of its steps, then ask "These <N> people are all trying to: <the goal>. Is that right?", with the choices "Yes, that's it" and "Close, but change it". Act on the answer as that section says.
@@ -125,7 +125,7 @@ Then go down this list. The first item that applies is the next step:
 > Next: talk to 2 more groomers who work from a van, about how they book the day. The questions are in your interview guide.
 > Say "show me the interview guide", or, when the calls are done, "Add my interviews to the study".
 
-For items 2, 3, 6, 8 and 9, and a migrate in item 1, offer to do it now ("Shall I do it now?"). For items 4 and 5 the question is the step: run `end` as `pw-discovery`'s "Usage statistics" says for a decision. Level names in words: 1 is "a hunch", 2 is "an early signal", 3 is "a clear pattern".
+For items 2, 3, 6, 8 and 9, and a migrate in item 1, offer to do it now ("Shall I do it now?"). For items 4 and 5 the question is the step: run `end` as that "Usage statistics" part says for a decision. Level names in words: 1 is "a hunch", 2 is "an early signal", 3 is "a clear pattern".
 
 The files people read are in `pw-output/`, a folder Finder shows: point there, never inside `.pw-kb/`, which Finder hides. Check that the map exists. If it is missing, run `map` (a study made by plugin 0.11 or earlier keeps it in `.pw-kb/`, and `map` moves it): `python3 <plugin folder>/skills/pw-discovery/scripts/kb_tool.py map .pw-kb/pw-kb.json`. Then put it in front of the user as `<plugin folder>/skills/pw-discovery/references/open-files.md` says for your host: one link or file card that opens `pw-output/discovery-map.html`. Name its Next interviews tab, in words, for the interview guide.
 

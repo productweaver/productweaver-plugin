@@ -108,10 +108,8 @@ header.ap-bar{padding:8px 16px 0;display:grid;grid-template-columns:minmax(0,1fr
 .ap-brand{display:inline-flex;align-items:center;gap:9px;min-width:0;justify-self:start;color:var(--ink);text-decoration:none;
   white-space:nowrap;border-radius:999px;padding:2px 10px 2px 2px;margin-left:-2px}
 .ap-brand:hover{background:var(--fill)}
-/* the brand mark's colours: ink and indigo on light, white and lilac on dark (pw-mark-reversed) */
-.pwlogo{width:24px;height:24px;flex:none;margin:2px;--pw-warp:#1B2340;--pw-weft:#4C5BD4}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .pwlogo{--pw-warp:#FFFFFF;--pw-weft:#9AA4F7}}
-:root[data-theme="dark"] .pwlogo{--pw-warp:#FFFFFF;--pw-weft:#9AA4F7}
+/* the PW circle (#pw-logo): its white ring lets the same drawing read on light and dark */
+.pwlogo{width:24px;height:24px;flex:none;margin:2px}
 .wordmark{font-size:15px;font-weight:650;letter-spacing:-.015em}
 .kicker{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;min-width:0}
 .kicker::before{content:"·";margin-right:9px}
@@ -894,15 +892,21 @@ table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
   <symbol id="mk-i-people" viewBox="0 0 16 16"><circle cx="8" cy="5.2" r="2.8" fill="currentColor"/><path d="M2.6 14c.5-3 2.6-4.8 5.4-4.8s4.9 1.8 5.4 4.8z" fill="currentColor"/></symbol>
   <symbol id="mk-i-own_method" viewBox="0 0 16 16"><path d="M3 13l.6-2.6 7.5-7.5 2 2-7.5 7.5zM9.6 4.4l2 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
   <symbol id="mk-i-other" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="currentColor"/></symbol>
-  <!-- the Product Weaver mark, from design/brand/pw-mark-color.svg (light) and pw-mark-reversed.svg (dark): warp in
-       --pw-warp, weft in --pw-weft, the gold evidence thread fixed -->
-  <symbol id="pw-logo" viewBox="0 0 84 84">
-    <g fill="var(--pw-warp)"><rect x="0" y="25" width="22" height="34" rx="3"/><rect x="31" y="0" width="22" height="28" rx="3"/>
-      <rect x="31" y="56" width="22" height="28" rx="3"/><rect x="62" y="25" width="22" height="34" rx="3"/></g>
-    <g fill="var(--pw-weft)"><rect x="0" y="0" width="28" height="22" rx="3"/><rect x="56" y="0" width="28" height="22" rx="3"/>
-      <rect x="0" y="62" width="28" height="22" rx="3"/><rect x="56" y="62" width="28" height="22" rx="3"/></g>
-    <rect x="25" y="31" width="34" height="22" rx="3" fill="#EE9A2E"/>
-  </symbol>
+  <!-- the PW logo, from design/pw-logo.svg as design/README.md says: a white ring behind the black circle and the
+       letters clipped to it, so it reads on light and dark. Do not recolour it. -->
+  <clipPath id="pw-ring"><circle cx="168.72" cy="168.72" r="168.72"/></clipPath>
+  <symbol id="pw-logo" viewBox="0 0 337.43 337.43">
+    <circle cx="168.72" cy="168.72" r="168.72" fill="#fff"/><circle cx="168.72" cy="168.72" r="159.16"/>
+    <path clip-path="url(#pw-ring)" fill="#fff" d="
+    M362 123c0 4-1 8-3 11-3 4-5 6-8 8-4 2-7 3-10 3-3 0-6-1-8-3-3-1-4-3-5-5l-46 77c-4 6-7 11-10 13-3 3-6 4-10 4-8 0
+    -13-6-14-17l-6-55-39 55c-4 7-8 11-10 13-3 3-6 4-10 4-7 0-12-6-14-18l-12-86c0-3-1-5-2-6-1-2-3-3-4-5-1-1-2-2-3-2 0
+    -1 0-2 0-3-1-4 2-7 8-7l47 0c3 0 5 1 7 2 1 1 2 3 2 5 0 1-1 2-1 3-1 1-1 2-2 2-1 2-2 3-3 5-1 1-1 3-1 5l5 46 29-41-1
+    -4c0-3-1-5-2-6-1-2-2-3-4-5-1-1-2-2-2-2-1-1-1-2-1-3-1-4 2-7 8-7l48 0c3 0 5 1 6 2 2 1 3 3 2 5 0 2 0 3-2 5-1 2-2 3
+    -3 5-1 1-1 3-1 5l2 42 26-45c4-7 8-12 12-15 4-3 9-4 16-4 5 0 10 1 14 5 3 3 5 8 5 14zm0 0m-259-19c14 0 24 3 31 9 8
+    6 11 14 11 23 0 4 0 8-2 12-3 13-10 22-21 28-10 6-23 9-39 9l-20 0-6 23c0 1-1 2-1 3 0 2 1 4 2 5 1 1 2 2 3 4 2 1 3
+    2 3 3 1 0 1 1 1 2 0 2-1 4-3 4-2 1-5 2-9 2l-48 0c-3 0-5-1-7-2-2-1-2-3-2-5 0-1 1-2 2-3 0 0 1-1 3-2 2-1 4-3 5-4 1-2
+    2-4 3-7l23-82c1-1 1-3 1-4 0-2 0-3-1-4 0-1-1-2-2-3-1-2-1-3-1-4 0 0 0-1 0-2 1-2 2-3 3-4 2 0 5-1 8-1zm-5 41c2-5 2-9
+    2-13 0-7-3-11-10-11l-8 0-14 47 8 0c6 0 10-1 13-5 4-3 7-9 9-18zm0 0"/></symbol>
   <!-- interface glyphs in the SF Symbols manner (our own drawings): stroke only, sized by svg.ap-ic -->
   <symbol id="ap-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4L14 14"/></symbol>
   <symbol id="ap-x" viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></symbol>
@@ -935,7 +939,7 @@ table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
   <symbol id="ov-r-parent" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6.5" r="2.6"/><path d="M4.5 20v-5a4.5 4.5 0 0 1 9 0v5"/><circle cx="17.5" cy="11" r="1.9"/><path d="M15 20v-2.5a2.5 2.5 0 0 1 5 0V20"/></g></symbol>
 </defs></svg>
 <header class="ap-bar">
-  <a class="ap-brand" href="https://www.productweaver.com/" data-pw="header-logo" target="_blank" rel="noopener"><svg class="pwlogo" viewBox="0 0 84 84" aria-hidden="true"><use href="#pw-logo"/></svg><span class="wordmark">Product Weaver</span><span class="kicker" data-t="map.header.kicker"></span></a>
+  <a class="ap-brand" href="https://www.productweaver.com/" data-pw="header-logo" target="_blank" rel="noopener"><svg class="pwlogo" viewBox="0 0 337.43 337.43" aria-hidden="true"><use href="#pw-logo"/></svg><span class="wordmark">Product Weaver</span><span class="kicker" data-t="map.header.kicker"></span></a>
   <div class="viewsw" id="viewsw" role="tablist" data-t-aria="map.aria.views" hidden>
     <button type="button" role="tab" id="vOver" aria-selected="false" aria-controls="overview" tabindex="-1" hidden data-t="map.view.over"></button>
     <button type="button" role="tab" id="vMap" aria-selected="true" tabindex="0" data-t="map.view.map"></button>

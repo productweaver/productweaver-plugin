@@ -46,16 +46,19 @@ FLAGS = ("install-damaged", "versions-differ", "python-too-old", "study-needs-mi
          "study-unreadable", "update-available", "check-failed")
 
 
-def load_usage():
-    """pw_usage.py from beside this script, or None when it is missing or broken (a damaged install)."""
+def load(name: str):
+    """A script from beside this one (pw_usage, pw_base), or None when it is missing or broken (a damaged install)."""
+    before, sys.dont_write_bytecode = sys.dont_write_bytecode, True  # this script writes no file
     try:
-        spec = importlib.util.spec_from_file_location("pw_usage", HERE / "pw_usage.py")
+        spec = importlib.util.spec_from_file_location(name, HERE / f"{name}.py")
         module = importlib.util.module_from_spec(spec)
-        sys.modules["pw_usage"] = module  # its dataclass looks itself up there
+        sys.modules[name] = module  # a dataclass looks its module up there
         spec.loader.exec_module(module)
     except Exception:  # noqa: BLE001 - any failure here only means the install is damaged
-        sys.modules.pop("pw_usage", None)
+        sys.modules.pop(name, None)
         return None
+    finally:
+        sys.dont_write_bytecode = before
     return module
 
 
@@ -103,12 +106,6 @@ def read_json(path: Path):
         return None
 
 
-def manifest_version(path: Path) -> str | None:
-    data = read_json(path)
-    version = data.get("version") if isinstance(data, dict) else None
-    return version if isinstance(version, str) and re.fullmatch(r"\d+\.\d+\.\d+", version) else None
-
-
 def kb_tool_text() -> str:
     try:
         return (HERE / "kb_tool.py").read_text(encoding="utf-8")
@@ -121,12 +118,11 @@ def constant(text: str, pattern: str) -> str | None:
     return found.group(1) if found else None
 
 
-def plugin_facts(tool_text: str) -> dict:
-    manifests = {
-        "plugin.json": manifest_version(PLUGIN_ROOT / "plugin.json"),
-        ".claude-plugin/plugin.json": manifest_version(PLUGIN_ROOT / ".claude-plugin" / "plugin.json"),
-        "kb_tool": constant(tool_text, r'^__version__ = "(\d+\.\d+\.\d+)"'),
-    }
+def plugin_facts(tool_text: str, base) -> dict:
+    """The versions the install gives, each read by pw_base as the other scripts read it; none without pw_base."""
+    manifests = {name: base.manifest_version(PLUGIN_ROOT / name) if base else None
+                 for name in ("plugin.json", ".claude-plugin/plugin.json")}
+    manifests["kb_tool"] = base.tool_version(tool_text) if base else None
     skills = []
     with contextlib.suppress(OSError):
         skills = sorted(p.name for p in (PLUGIN_ROOT / "skills").iterdir() if (p / "SKILL.md").is_file())
@@ -209,7 +205,7 @@ def run_facts(line: dict | None) -> dict | None:
         else None
     pick["command"] = clean_text(pick["command"], 20) if isinstance(pick["command"], str) else None
     pick["tool_version"] = pick["tool_version"] if isinstance(pick["tool_version"], str) and re.fullmatch(
-        r"\d+\.\d+\.\d+", pick["tool_version"]) else None
+        VERSION_RE, pick["tool_version"]) else None
     pick["exit_code"] = pick["exit_code"] if isinstance(pick["exit_code"], int) else None
     return pick
 
@@ -276,19 +272,19 @@ def update_hint(assistant: str | None) -> str:
 
 
 def collect(args: argparse.Namespace, cwd: Path) -> dict:
-    usage = load_usage()
+    usage, base = load("pw_usage"), load("pw_base")
     tool_text = kb_tool_text()
     pw_kb = Path(args.study) if args.study else cwd / ".pw-kb"
     flags = []
     parts = {}
-    for key, probe in (("plugin", lambda: plugin_facts(tool_text)), ("host", lambda: host_facts(args, usage)),
+    for key, probe in (("plugin", lambda: plugin_facts(tool_text, base)), ("host", lambda: host_facts(args, usage)),
                        ("system", system_facts), ("study", lambda: study_facts(pw_kb, tool_text)),
                        ("usage", lambda: usage_facts(pw_kb, usage))):
         try:
             parts[key] = probe()
         except Exception:  # noqa: BLE001 - one broken probe must not stop the report
             parts[key] = {}
-    if usage is None or not tool_text:
+    if usage is None or base is None or not tool_text:
         flags.append("install-damaged")
     found = {v for v in (parts["plugin"].get("manifests") or {}).values() if v}
     if len(found) > 1:

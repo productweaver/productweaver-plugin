@@ -9,7 +9,6 @@ load a script beside it, but not fetch a file). When the build changes, the map 
 from __future__ import annotations
 
 import argparse
-import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -17,15 +16,12 @@ import math
 import os
 import pathlib
 import platform
-import re
-import shutil
 import sys
-import time
 import webbrowser
 from typing import Any
 
 Json = dict[str, Any]
-kt: Any = None  # the kb_tool module, set by cmd_map()
+kt: Any = None  # the kb_tool module, set by kb_tool's _sibling() when it loads this file
 
 
 MAP_KEYS = ["meta", "core_jobs", "job_map", "desired_outcomes", "current_solutions", "interviews", "clusters",
@@ -68,23 +64,6 @@ def embed_kb(template: str, payload: str) -> str:
     return "\n".join(lines)
 
 
-def plugin_version() -> str | None:
-    """The plugin's version from its manifest, or None outside the plugin folder."""
-    here = pathlib.Path(os.path.abspath(__file__)).parents
-    if len(here) < 4:
-        return None
-    root = here[3]  # <plugin>/skills/pw-discovery/scripts/kb_tool.py
-    for manifest in (root / "plugin.json", root / ".claude-plugin" / "plugin.json"):
-        try:
-            data = json.loads(manifest.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        version = str(data.get("version") or "") if isinstance(data, dict) else ""
-        if data.get("name") == "productweaver" and re.fullmatch(r"\d+\.\d+\.\d+", version):
-            return version
-    return None
-
-
 def now_iso() -> str:
     return dt.datetime.now().astimezone().isoformat(timespec="seconds")
 
@@ -92,7 +71,7 @@ def now_iso() -> str:
 def map_stamp() -> Json:
     """Which version made the map, for the note at the end of its Overview. `at` and `build` come in cmd_map."""
     stamp: Json = {"tool": kt.__version__}
-    version = plugin_version()
+    version = kt._sibling("pw_base").plugin_version()
     if version:
         stamp["plugin"] = version
     return stamp
@@ -105,27 +84,8 @@ def js_json(data: Any) -> str:
 
 
 def write_atomic(path: str, text: str) -> None:
-    """Write a temporary file beside the target, then swap it in, so an open map never reads half a file. On Windows
-    a browser may hold the old file for a moment: try again, then write in place as before."""
-    tmp = f"{path}.{os.getpid()}.tmp"
-    try:
-        with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
-        with contextlib.suppress(OSError):  # the map holds names and quotes: keep the mode the user gave it
-            shutil.copymode(path, tmp)
-        for attempt in range(3):
-            try:
-                os.replace(tmp, path)
-                return
-            except PermissionError:
-                if attempt == 2:
-                    with open(path, "w", encoding="utf-8", newline="\n") as handle:
-                        handle.write(text)
-                    return
-                time.sleep(0.2)
-    finally:
-        with contextlib.suppress(OSError):
-            os.remove(tmp)
+    """Swap the file in whole, so an open map never reads half a file."""
+    kt._sibling("pw_base").write_atomic(path, text)
 
 
 # ---------- the live map: status.js beside the map ----------
@@ -183,11 +143,9 @@ def expired(work: Json, now: dt.datetime) -> bool:
         return True
 
 
-def start_batch(args: argparse.Namespace, tool: Any) -> Json:
+def start_batch(args: argparse.Namespace) -> Json:
     """`context --batch N`: say how long reading N new transcripts takes, and tell an open map that the study is being
     updated. It never makes pw-output/: with no map yet there is nothing open to tell."""
-    global kt  # noqa: PLW0603 - kb_tool hands itself over once, here
-    kt = tool
     n = args.batch
     if n < 1:
         raise kt.KbError("--batch takes the number of new transcripts about to be read: 1 or more",
@@ -208,12 +166,10 @@ def start_batch(args: argparse.Namespace, tool: Any) -> Json:
     return {"n": n, "minutes": minutes(n), "map": shown}
 
 
-def batch_merged(kb_path: str, added: int, tool: Any) -> bool:
+def batch_merged(kb_path: str, added: int) -> bool:
     """After a merge: count the conversations in (new interviews and later conversations), and when the batch is in,
     tell an open map the overview comes next. True when this merge ended the batch's reading. Never fails the merge: a
     status that cannot be read or written is left as it is."""
-    global kt  # noqa: PLW0603 - kb_tool hands itself over once, here
-    kt = tool
     path = live_path(kb_path)
     old = read_status(path)
     work = old.get("work")
@@ -275,7 +231,6 @@ def map_data(kb: Json, args: argparse.Namespace) -> tuple[Json, int]:
     data["generated"] = map_stamp()
     if kb.get("survey"):  # the Survey view draws these figures; it computes none itself
         survey = kt._sibling("kb_survey")
-        survey.kt = kt
         jobs = [str(j["id"]) for j in kb["core_jobs"] if survey.survey_of(kb, str(j["id"]))]
         if jobs:
             data["generated"]["survey"] = {job: {"status": survey.status(kb, job), "results": survey.results(kb, job)}
@@ -320,12 +275,10 @@ def build_id(template: str, data: Json) -> str:
     return hashlib.sha256(embed_kb(template, js_json(same)).encode("utf-8")).hexdigest()[:12]
 
 
-def cmd_map(args: argparse.Namespace, tool: Any) -> int:
+def cmd_map(args: argparse.Namespace) -> int:
     """Rebuild the interactive discovery map with the current KB embedded, so it opens with no setup. The build is a
     hash of the map without its time: a rebuild that changes nothing keeps the build and the time, so an open map
     neither reloads nor says it was just updated."""
-    global kt  # noqa: PLW0603 - kb_tool hands itself over once, here
-    kt = tool
     kb = kt.load_kb(args.kb)
     data, missing = map_data(kb, args)
     template = read_template(args)

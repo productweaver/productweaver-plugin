@@ -12,7 +12,7 @@ import shutil
 from typing import Any, Callable
 
 Json = dict[str, Any]
-kt: Any = None  # the kb_tool module, set by cmd_migrate()
+kt: Any = None  # the kb_tool module, set by kb_tool's _sibling() when it loads this file
 
 
 def _prefixed(value: Any, job: str) -> Any:
@@ -218,10 +218,7 @@ def _migrate_format(args: argparse.Namespace, old: str) -> int:
     notes = _upgrade(kb, version)
     summary = f"migrated from schema version {version} to {kt.SCHEMA_VERSION}: " + "; ".join(notes)
     kb["changelog"].append(kt.changelog_entry(args.run, "migrate", summary=summary))
-    problems = kt.structure_problems(kb)
-    if problems:
-        raise kt.KbError("the migrated KB would break the KB structure; nothing written. Fix these first:\n  - "
-                      + "\n  - ".join(problems), code="structure")
+    kt.check_structure(kb, "the migrated KB", "written. Fix these first")
     made = kt.backup(new, source=old)
     kt.save_kb(kb, new)
     os.remove(old)
@@ -266,10 +263,7 @@ def _migrate_move(args: argparse.Namespace) -> int:
     if notes:
         summary += f"; migrated from schema version {version} to {kt.SCHEMA_VERSION}: " + "; ".join(notes)
     kb["changelog"].append(kt.changelog_entry(args.run, "migrate", summary=summary))
-    problems = kt.structure_problems(kb)
-    if problems:
-        raise kt.KbError("the migrated KB would break the KB structure; nothing moved. Fix these first:\n  - "
-                      + "\n  - ".join(problems), code="structure")
+    kt.check_structure(kb, "the migrated KB", "moved. Fix these first")
     old_folder = os.path.dirname(os.path.abspath(args.kb))
     made = _move_study(args.kb, new, kb, sources)
     args.run.moved(new)
@@ -284,10 +278,7 @@ def _migrate_move(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_migrate(args: argparse.Namespace, tool: Any) -> int:
-    """`tool` is the kb_tool module that loaded this file."""
-    global kt  # noqa: PLW0603 - kb_tool hands itself over once, here
-    kt = tool
+def cmd_migrate(args: argparse.Namespace) -> int:
     old = kt.old_yaml(args.kb)
     if old:
         return _migrate_format(args, old)
@@ -305,12 +296,7 @@ def cmd_migrate(args: argparse.Namespace, tool: Any) -> int:
     start, notes = version, _upgrade(kb, version)
     summary = f"migrated from schema version {start} to {kt.SCHEMA_VERSION}: " + "; ".join(notes)
     kb["changelog"].append(kt.changelog_entry(args.run, "migrate", summary=summary))
-    problems = kt.structure_problems(kb)
-    if problems:
-        raise kt.KbError("the migrated KB would break the KB structure; nothing written. Fix these first:\n  - "
-                      + "\n  - ".join(problems), code="structure")
-    made = kt.backup(args.kb)
-    kt.save_kb(kb, args.kb)
-    args.run.note(written=True, backup=args.run.relative(made))
+    kt.check_structure(kb, "the migrated KB", "written. Fix these first")
+    kt.commit(args, kb)
     print(f"migrated {args.kb} {summary[len('migrated '):]}")
     return 0

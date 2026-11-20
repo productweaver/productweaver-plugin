@@ -37,6 +37,13 @@ Say where the file is in words, in the user's language, then give its full path 
 
 On Windows, say File Explorer instead of Finder. When your commands ran on another machine (paths that start with `/sessions/` or `/mnt/`), give the words only: that path does not exist on the user's computer.
 
+## A `moved:` or a `git:` line
+
+A write (`merge`, `apply`, `themes`, `overview`), `review` and `map` print these lines only in two cases, so most runs never see them.
+
+- When a write, `review` or `map` printed a `moved:` line, the files left `.pw-kb/` in this run. Say so once, in one plain sentence, such as "Your map and review sheet now live in the pw-output folder, where Finder shows them", and give the new link. In that run, skip the tool's `Open the link` line: a tab still open shows the old copy, which is gone.
+- When a write, `review` or `map` printed a `git:` line (the study sits in a git repository and `.pw-kb/` has no `.gitignore`) and `pw-output/` has none either, run `git check-ignore -q .pw-kb/pw-kb.json` once. Only when it succeeds, the user keeps the study out of git some other way, such as the repository's own `.gitignore`: then write `pw-output/.gitignore` with the single line `*`, so the map stays out of git too.
+
 ## Upload hosts
 
-When no folder is connected and the interviews were uploaded to the chat, the files live in a sandbox that is gone after the chat. Put the map in front of the user first, as the table says for your host. Then hand back the whole `.pw-kb/` folder as step 6 of the skill says. Never say the map is open in their browser.
+When no folder is connected and the interviews were uploaded to the chat, the files live in a sandbox that is gone after the chat. Put the map in front of the user first, as the table says for your host. Then hand back the whole `.pw-kb/` folder as `files-and-commands.md`, part 6, says. Never say the map is open in their browser.

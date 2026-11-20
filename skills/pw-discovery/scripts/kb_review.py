@@ -14,7 +14,7 @@ import re
 from typing import Any
 
 Json = dict[str, Any]
-kt: Any = None  # the kb_tool module, set by kb_tool's _review(), cmd_review() and cmd_skeleton()
+kt: Any = None  # the kb_tool module, set by kb_tool's _sibling() when it loads this file
 
 
 # Words come from labels; each table writes its keys in full so a test can check they exist.
@@ -221,10 +221,8 @@ def _review_themes(kb: Json, text) -> list[str]:
 
 # ---------- the survey ----------
 def _survey() -> Any:
-    """kb_survey.py, which computes a survey's figures and state, with kb_tool handed to it."""
-    module = kt._sibling("kb_survey")
-    module.kt = kt
-    return module
+    """kb_survey.py, which computes a survey's figures and state."""
+    return kt._sibling("kb_survey")
 
 
 def _surveyed_jobs(kb: Json, survey: Any) -> list[str]:
@@ -503,10 +501,8 @@ def review_lines(kb: Json, since: str, text=None) -> list[str]:
             + next_lines(kb, text) + _review_tail(kb, text))
 
 
-def cmd_review(args: argparse.Namespace, tool: Any) -> int:
+def cmd_review(args: argparse.Namespace) -> int:
     """Write a plain-language sheet for people who review the KB: what changed, what needs a decision, the map."""
-    global kt  # noqa: PLW0603 - kb_tool hands itself over once, here
-    kt = tool
     kb = kt.load_kb(args.kb)
     text, missing = kt.study_text(kb, args.kb)
     last = next((c for c in reversed(kb["changelog"]) if c.get("action") in ("merge", "init")), {})
@@ -613,10 +609,8 @@ def overview_skeleton(kb: Json, job: str, style: Any) -> Json:
             "next": _skeleton_next(kb, job, word, more)}
 
 
-def cmd_skeleton(args: argparse.Namespace, kb: Json, tool: Any) -> int:
+def cmd_skeleton(args: argparse.Namespace, kb: Json) -> int:
     """`overview --skeleton JOB`: what the overview needs from the study, then the file to fill in. Writes nothing."""
-    global kt  # noqa: PLW0603 - kb_tool hands itself over once, here
-    kt = tool
     job = args.skeleton
     if job not in kt.jobs_by_id(kb):
         raise kt.KbError(f"core job {job} is not in the KB", code="overview_file")

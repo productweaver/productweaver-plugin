@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://productweaver.com/schemas/pw-kb/v3",
+  "$id": "https://productweaver.com/schemas/pw-kb/v4",
   "title": "ODI knowledge base",
-  "description": "One JSON file holding an Outcome-Driven Innovation study built from interview transcripts. Made with Product Weaver · productweaver.com. Extra fields are allowed so older and derived layers keep loading; the fields below are the contract.",
+  "description": "One JSON file holding an Outcome-Driven Innovation study built from interview transcripts. Made with Product Weaver · productweaver.com. It covers schema versions 3 and 4 (`meta.schema_version`). Extra fields are allowed so older and derived layers keep loading; the fields below are the contract.",
   "type": "object",
   "required": [
     "meta",
@@ -842,7 +842,7 @@
     },
     "survey": {
       "type": "object",
-      "description": "One survey per core job: the questions a respondent answers, worded by the assistant. Written by `kb_tool.py survey --write`. The schema types only `stale` and `stale_reasons`: a survey made by hand before 0.18 still loads. `survey --write` checks what it writes; its entries have the shape of `survey_job`.",
+      "description": "One survey per core job: the questions a respondent answers, worded by the assistant. Written by `kb_tool.py survey --write`. The schema types only `stale` and `stale_reasons`: a survey made by hand before 0.18 still loads. `survey --write` checks each entry it writes against `survey_job`, and refuses to write one that breaks it.",
       "properties": {
         "stale": {
           "type": "boolean"
@@ -863,7 +863,7 @@
     },
     "simulation": {
       "type": "object",
-      "description": "The estimate: how each person of a core job would rate each need of its survey, judged from the interviews. Written by `kb_tool.py survey --estimate`. The schema types only `stale` and `stale_reasons`: an estimate made by hand before 0.18 still loads. `survey --estimate` checks what it writes; its entries have the shape of `simulation_job`.",
+      "description": "The estimate: how each person of a core job would rate each need of its survey, judged from the interviews. Written by `kb_tool.py survey --estimate`. The schema types only `stale` and `stale_reasons`: an estimate made by hand before 0.18 still loads. `survey --estimate` checks each entry it writes against `simulation_job`, and refuses to write one that breaks it.",
       "properties": {
         "stale": {
           "type": "boolean"
@@ -1334,10 +1334,18 @@
     },
     "overview_job": {
       "type": "object",
-      "description": "One core job's overview.",
+      "description": "One core job's overview. `kb_tool.py overview` has written every required field since the layer began; `executor` came with 0.9.0, so an older overview has none.",
       "required": [
         "job",
-        "bottom_line"
+        "bottom_line",
+        "why",
+        "opening",
+        "people",
+        "today",
+        "gaps",
+        "needs",
+        "focus",
+        "next"
       ],
       "properties": {
         "job": {
@@ -1546,7 +1554,12 @@
         },
         "next": {
           "type": "object",
-          "description": "What to do next: advice, not findings.",
+          "description": "What to do next, in three tracks: advice, not findings.",
+          "required": [
+            "learn",
+            "prototype",
+            "market"
+          ],
           "properties": {
             "learn": {
               "type": "object",
@@ -1559,9 +1572,7 @@
                   "type": "string",
                   "enum": [
                     "now",
-                    "enough",
-                    "ready",
-                    "early"
+                    "enough"
                   ]
                 },
                 "action": {
@@ -1745,8 +1756,6 @@
                 "status": {
                   "type": "string",
                   "enum": [
-                    "now",
-                    "enough",
                     "ready",
                     "early"
                   ]
@@ -1800,8 +1809,6 @@
                 "status": {
                   "type": "string",
                   "enum": [
-                    "now",
-                    "enough",
                     "ready",
                     "early"
                   ]

@@ -4,6 +4,34 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.18.2 — 2026-11-20
+
+### What's improved
+
+- **`pw-discovery` keeps your study safer.** When it cannot run Python on
+  your machine, your assistant now stops and says what is missing, and does
+  not try to build the study in the chat. Before any change it has to make
+  by hand, it first saves a backup of the study. It no longer writes use
+  cases by hand, because this version has no tool for them.
+- **Saving the study copes with a busy file.** On Windows another program
+  can hold a file for a moment. The study and the usage settings are now
+  saved like the map: the tool tries again before it gives up.
+- **A first email or chat is always checked for addresses.** When your
+  assistant records a new person's conversation under a format name the tool
+  does not know, such as "email" in small letters, the tool now refuses it
+  and names the five it accepts. Before, such a message was stored as it was
+  and skipped the check for addresses and header lines.
+- **A survey, an estimate and an overview are held to the study's schema.**
+  The tool now checks each survey and estimate it writes against its
+  definition in `kb-schema.json`, and writes nothing when one breaks it. A
+  stored overview must have every part the tool has always written.
+- **For people who build on a study: the context has a schema.** The new
+  `references/context-schema.json` describes what `kb_tool.py context
+  --json` prints.
+- **The PW logo is back.** The plugin's icon and the map's title bar show
+  the Product Weaver PW circle again, the same logo productweaver.com
+  uses. It reads on light and dark backgrounds.
+
 ## 0.18.1 — 2026-11-20
 
 ### What's improved

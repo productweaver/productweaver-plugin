@@ -1,0 +1,652 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://productweaver.com/schemas/pw-context/v1",
+  "title": "ODI knowledge base context",
+  "description": "What `kb_tool.py context --json` prints: the study as it is now, for mapping new evidence against. It is read from the KB and never stored. The text that `context` prints without `--json` holds the same things. A test checks what the tool prints against this schema, and no key may be added without it. Made with Product Weaver · productweaver.com",
+  "type": "object",
+  "required": [
+    "project",
+    "language",
+    "interview_count",
+    "core_jobs",
+    "people",
+    "open_gaps",
+    "unlinked",
+    "segments",
+    "processed_files",
+    "pending_proposals",
+    "current_solutions",
+    "value_themes",
+    "overview",
+    "stale",
+    "schema_version",
+    "tool_version",
+    "labels_missing"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "The study's name, `meta.project`."
+    },
+    "language": {
+      "type": "string",
+      "description": "The study's language as a BCP 47 code, `en` when the KB records none. Every statement is written in it."
+    },
+    "interview_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many people are in the study. A person with later conversations counts once."
+    },
+    "core_jobs": {
+      "type": "array",
+      "description": "Each core job with its steps and their live outcomes, in job order.",
+      "items": {
+        "$ref": "#/$defs/core_job"
+      }
+    },
+    "people": {
+      "type": "array",
+      "description": "Each person with their own core job and the core jobs it links to, in ID order.",
+      "items": {
+        "$ref": "#/$defs/person"
+      }
+    },
+    "open_gaps": {
+      "type": "object",
+      "description": "From a core job's ID to its open gaps, ranked: the thin spots the next interviews should fill.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/open_gap"
+        }
+      }
+    },
+    "unlinked": {
+      "type": "array",
+      "description": "The people whose own core job links to none of the study's core jobs.",
+      "items": {
+        "$ref": "#/$defs/interview_id"
+      }
+    },
+    "segments": {
+      "type": "object",
+      "description": "From a segment's code to its name.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "processed_files": {
+      "type": "array",
+      "description": "The file names of the transcripts already in the study, sorted. A batch skips them.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pending_proposals": {
+      "type": "array",
+      "description": "The proposals waiting for a decision.",
+      "items": {
+        "$ref": "#/$defs/pending_proposal"
+      }
+    },
+    "current_solutions": {
+      "type": "object",
+      "description": "The solution groups and the live solutions, with the steps each is used for.",
+      "required": [
+        "groups",
+        "solutions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/solution_group"
+          }
+        },
+        "solutions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/solution"
+          }
+        }
+      }
+    },
+    "value_themes": {
+      "type": "object",
+      "description": "The value themes with the text of their outcomes, and the live outcomes that sit in no theme yet.",
+      "required": [
+        "themes",
+        "unassigned"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "themes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/value_theme"
+          }
+        },
+        "unassigned": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outcome_text"
+          }
+        }
+      }
+    },
+    "overview": {
+      "type": "array",
+      "description": "One line per written overview, in job order.",
+      "items": {
+        "type": "object",
+        "required": [
+          "job",
+          "bottom_line",
+          "executor",
+          "written"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "job": {
+            "$ref": "#/$defs/job_id"
+          },
+          "bottom_line": {
+            "type": "string"
+          },
+          "executor": {
+            "type": "string",
+            "description": "The label of whom the overview is about; empty for an overview written before 0.9.0."
+          },
+          "written": {
+            "type": "string",
+            "description": "The date the overview was written."
+          }
+        }
+      }
+    },
+    "stale": {
+      "type": "array",
+      "description": "The derived layers marked out of date. The survey and its estimate are not listed: they work out their own state.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "value_themes",
+          "overview",
+          "use_cases"
+        ]
+      }
+    },
+    "schema_version": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "The KB's `meta.schema_version`."
+    },
+    "tool_version": {
+      "type": "string",
+      "description": "The version of `kb_tool.py` that printed this."
+    },
+    "labels_missing": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many of the map's and the review sheet's labels still show in English. 0 in an English study."
+    },
+    "batch": {
+      "type": "object",
+      "description": "Present only with `--batch N`: how long reading N new transcripts takes.",
+      "required": [
+        "n",
+        "minutes",
+        "map"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "map": {
+          "type": "string",
+          "enum": [
+            "none",
+            "ok",
+            "failed"
+          ],
+          "description": "ok: an open map now shows that the study is being updated. none: there is no map to tell. failed: the map could not be told."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "interview_id": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^[A-Z]{1,2}$"
+    },
+    "step_id": {
+      "type": "string",
+      "pattern": "^[A-Z]{1,2}\\.[0-9]+$"
+    },
+    "outcome_id": {
+      "type": "string",
+      "pattern": "^[A-Z]{1,2}\\.[0-9]+\\.[0-9]+$"
+    },
+    "solution_id": {
+      "type": "string",
+      "pattern": "^S[0-9]+$"
+    },
+    "outcome_text": {
+      "type": "object",
+      "required": [
+        "id",
+        "statement"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/outcome_id"
+        },
+        "statement": {
+          "type": "string"
+        }
+      }
+    },
+    "core_job": {
+      "type": "object",
+      "required": [
+        "id",
+        "statement",
+        "status",
+        "job_executor",
+        "interviews",
+        "related_interviews",
+        "steps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/job_id"
+        },
+        "statement": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "description": "`proposed` or `approved`; empty when the KB records none."
+        },
+        "job_executor": {
+          "type": "string"
+        },
+        "interviews": {
+          "type": "array",
+          "description": "The people whose own core job links to this one.",
+          "items": {
+            "$ref": "#/$defs/interview_id"
+          }
+        },
+        "related_interviews": {
+          "type": "array",
+          "description": "Other people with a related job that links to this one.",
+          "items": {
+            "$ref": "#/$defs/interview_id"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "description": "The job's steps, by number.",
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "required": [
+        "id",
+        "stage",
+        "statement",
+        "coverage",
+        "voices",
+        "outcomes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/step_id"
+        },
+        "stage": {
+          "type": "string"
+        },
+        "statement": {
+          "type": "string"
+        },
+        "coverage": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many people are quoted on the step itself."
+        },
+        "voices": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many people are quoted on the step or on any of its outcomes."
+        },
+        "outcomes": {
+          "type": "array",
+          "description": "The step's live outcomes. An outcome merged into another is not listed.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "statement",
+              "interview_count"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/outcome_id"
+              },
+              "statement": {
+                "type": "string"
+              },
+              "interview_count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "person": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "core_functional_job",
+        "job",
+        "unlinked_reason",
+        "related",
+        "analyst_note",
+        "tags"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/interview_id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "core_functional_job": {
+          "type": "string",
+          "description": "The person's own core job, as a statement."
+        },
+        "job": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The core job their own core job links to; null when it links to none."
+        },
+        "unlinked_reason": {
+          "type": "string",
+          "description": "Why it links to none; empty otherwise."
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "statement",
+              "job"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "statement": {
+                "type": "string"
+              },
+              "job": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The core job this related job links to, if any."
+              }
+            }
+          }
+        },
+        "analyst_note": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "interactions": {
+          "type": "array",
+          "description": "Present only for a person with later conversations: each one, without its file.",
+          "items": {
+            "type": "object",
+            "required": [
+              "n",
+              "date"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "n": {
+                "type": "integer",
+                "minimum": 2
+              },
+              "format": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string"
+              },
+              "changed": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "open_gap": {
+      "type": "object",
+      "required": [
+        "ref",
+        "kind",
+        "main",
+        "people",
+        "text"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "A step ID, an outcome ID or a trait value ID such as T1.2, by `kind`."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "step",
+            "need",
+            "who"
+          ],
+          "description": "step: a step few people back. need: an outcome few people back. who: a kind of person not heard from yet."
+        },
+        "main": {
+          "type": "boolean",
+          "description": "True when the overview's main finding rests on it. These rank first."
+        },
+        "people": {
+          "type": "array",
+          "description": "Who backs it so far.",
+          "items": {
+            "$ref": "#/$defs/interview_id"
+          }
+        },
+        "text": {
+          "type": "string",
+          "description": "The step's or the outcome's statement, or the label of the kind of person."
+        }
+      }
+    },
+    "pending_proposal": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "target",
+        "proposal"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^P[0-9]+$"
+        },
+        "type": {
+          "type": "string",
+          "description": "One of the proposal types of kb-schema.json."
+        },
+        "target": {
+          "type": "string",
+          "description": "What it would change; for a new step, the core job it joins. Empty when it names none."
+        },
+        "proposal": {
+          "type": "string"
+        }
+      }
+    },
+    "solution_group": {
+      "type": "object",
+      "required": [
+        "key",
+        "name",
+        "why",
+        "solutions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "why": {
+          "type": "string"
+        },
+        "solutions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/solution_id"
+          }
+        }
+      }
+    },
+    "solution": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "group",
+        "steps",
+        "interviews",
+        "stopped_by"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/solution_id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string"
+        },
+        "steps": {
+          "type": "array",
+          "description": "The steps it is used for, now or before.",
+          "items": {
+            "$ref": "#/$defs/step_id"
+          }
+        },
+        "interviews": {
+          "type": "array",
+          "description": "Who uses it now.",
+          "items": {
+            "$ref": "#/$defs/interview_id"
+          }
+        },
+        "stopped_by": {
+          "type": "array",
+          "description": "Who is quoted only on having stopped.",
+          "items": {
+            "$ref": "#/$defs/interview_id"
+          }
+        }
+      }
+    },
+    "value_theme": {
+      "type": "object",
+      "required": [
+        "id",
+        "job",
+        "label",
+        "need",
+        "why",
+        "outcomes",
+        "interview_count"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z]{1,2}\\.T[0-9]+$"
+        },
+        "job": {
+          "$ref": "#/$defs/job_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "need": {
+          "type": "string"
+        },
+        "why": {
+          "type": "string"
+        },
+        "outcomes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outcome_text"
+          }
+        },
+        "interview_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

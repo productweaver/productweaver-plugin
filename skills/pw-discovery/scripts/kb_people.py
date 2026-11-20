@@ -22,7 +22,7 @@ import unicodedata
 from typing import Any
 
 Json = dict[str, Any]
-kt: Any = None  # the kb_tool module, set by kb_tool's _people()
+kt: Any = None  # the kb_tool module, set by kb_tool's _sibling() when it loads this file
 
 FORMATS = ("Transcript", "Notes", "Transcript + notes", "Email", "Chat")  # a conversation's format; patch-schema.json
 PRIVATE = ("Email", "Chat")  # private messages: the study keeps only a copy with no address and no header line
@@ -307,21 +307,22 @@ def follow_up_entry(ctx: Any, raw: Json, where: str, refs: set[str]) -> Json:
     """A `follow_up` entry of next.learn.round, checked as `overview` checks a `new` one: one person of the core job
     (an ID that kt.job_people lists, padded as the overview's quotes are), 1 to 4 gaps among `refs`, and 1 to 4
     questions. It has no count, who or traits: those describe people still to find."""
+    ov = kt._sibling("kb_overview")  # the overview's own checks: it is the caller
     ref = raw.get("interview")
     person = str(ref).zfill(ctx.width) if kt._is_int(ref) else str(ref or "")
     if any(key in raw for key in NOT_FOLLOW_UP) or not person:
         ctx.report.error(f"{where}: {ONE_PERSON}", code="overview_shape")
-    entry = kt._ov_mapping(ctx, {"entry": {k: v for k, v in raw.items() if k not in NOT_FOLLOW_UP}}, "entry",
+    entry = ov._ov_mapping(ctx, {"entry": {k: v for k, v in raw.items() if k not in NOT_FOLLOW_UP}}, "entry",
                            FOLLOW_UP, where)
     if person and person not in kt.job_people(ctx.kb, ctx.job):
         ctx.report.error(f"{where}: interview {person} is not one of the people of core job {ctx.job}; take the ID "
                          "from `context`", code="overview_ref")
-    gaps = kt._ov_refs(ctx, entry.get("gaps"), refs, kt.ROUND_ITEMS, f"{where} gaps")
+    gaps = ov._ov_refs(ctx, entry.get("gaps"), refs, kt.ROUND_ITEMS, f"{where} gaps")
     asks = entry.get("questions")
     if not isinstance(asks, list) or not 1 <= len(asks) <= kt.ROUND_ITEMS:
         ctx.report.error(f"{where}: questions must be a list of 1 to {kt.ROUND_ITEMS}", code="overview_count")
     return {"kind": "follow_up", "interview": person, "gaps": gaps,
-            "questions": [kt._ov_question(ctx, q, gaps, f"{where} question {i}")
+            "questions": [ov._ov_question(ctx, q, gaps, f"{where} question {i}")
                           for i, q in enumerate(asks if isinstance(asks, list) else [], 1)]}
 
 

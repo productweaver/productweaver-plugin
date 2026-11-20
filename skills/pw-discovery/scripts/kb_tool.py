@@ -72,7 +72,7 @@ try:  # optional: richer schema messages. jsonschema before 4.0 (3.2 on Ubuntu 2
 except ImportError:  # pragma: no cover - depends on the machine
     _LibraryValidator = None
 
-__version__ = "0.18.1"
+__version__ = "0.18.2"
 SCHEMA_VERSION = 3  # what a study is written as, and below which it needs `migrate`
 SCHEMA_NEWEST = 4  # the newest a command reads: written once a study holds or plans a later conversation
 
@@ -427,12 +427,7 @@ def dump_json(value: Any, indent: str = "") -> str:
 
 def save_json(data: Any, path: str) -> None:
     """Write atomically: dump to a temporary file, reload it, then replace the target."""
-    text = dump_json(data) + "\n"
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(text)
-    load_json(tmp)  # never leave a file in place that will not load
-    os.replace(tmp, path)
+    _sibling("pw_base").write_atomic(path, dump_json(data) + "\n", load_json)  # never one that will not load
 
 
 KB_ORDER = ["meta", "core_jobs", "clusters", "interviews", "job_map", "desired_outcomes", "current_solutions",
@@ -2857,6 +2852,61 @@ def apply_patch(kb: Json, patch: Json, plan: MergePlan, stamp: Json) -> Json | N
     return entry
 
 
+# ---------- the end of a write ----------
+def check_structure(kb: Json, what: str, end: str = "written") -> None:
+    """Refuse a KB that a write would leave broken, before anything is written."""
+    problems = structure_problems(kb)
+    if problems:
+        raise KbError(f"{what} would break the KB structure; nothing {end}:\n  - " + "\n  - ".join(problems),
+                      code="structure")
+
+
+def commit(args: argparse.Namespace, kb: Json) -> str:
+    """Back the KB up, write it and tell the run. Returns the backup."""
+    made = backup(args.kb)
+    save_kb(kb, args.kb)
+    args.run.note(written=True, backup=args.run.relative(made))
+    return made
+
+
+def finish_write(args: argparse.Namespace, report: Report, result: Json, lines: list[str],
+                 after: list[str] | None = None) -> int:
+    """Print what a write did, as text or as one JSON object, then rebuild what people read. `after` follows the
+    warnings."""
+    result.update({"warnings": report.warnings, "errors": report.errors})
+    args.run.add_report(report)
+    if args.json:
+        published = publish_after_write(args) if result["ok"] else None
+        if published:
+            result["published"] = published
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        return 0 if result["ok"] else 1
+    lines = lines + [f"WARN {w}" for w in report.warnings] + (after or [])
+    if report.errors:
+        lines.append(f"\n{len(report.errors)} problem(s); nothing written:")
+        lines += [f"  - {e}" for e in report.errors]
+    print("\n".join(lines))
+    if result["ok"]:
+        publish_after_write(args)
+    return 0 if result["ok"] else 1
+
+
+def write_layer(args: argparse.Namespace, report: Report, result: Json, lines: list[str], candidate: Json, *,
+                layer: str, summary: str, what: str, checked: str, **fields: Any) -> int:
+    """How `themes`, `overview` and `survey` end: the changelog entry, the structure check, then the dry run's line
+    or the write."""
+    candidate["changelog"].append(changelog_entry(args.run, "rebuild", layer=layer, job=result["job"], **fields,
+                                                  summary=summary))
+    check_structure(candidate, what)
+    if args.dry_run:
+        lines.append(f"dry run OK: {checked}; nothing written")
+    else:
+        result["backup"] = commit(args, candidate)
+        result["written"] = True
+        lines += [f"wrote {summary}", f"backup: {result['backup']}"]
+    return finish_write(args, report, result, lines)
+
+
 class MergeOutput:
     """Collects what merge has to say and prints it once, as text or as one JSON object."""
 
@@ -2871,7 +2921,6 @@ class MergeOutput:
     def log(self) -> None:
         """Hand the run log what this merge did: codes and counts, never the messages or the notes."""
         run: Run = self.args.run
-        run.add_report(self.report)
         changes = self.result.get("changes") or {}
         provenance = {k: v for k, v in (changes.get("provenance") or {}).items() if k != "notes"}
         later = len(changes.get("added_interactions") or [])
@@ -2890,23 +2939,9 @@ class MergeOutput:
                          "solution_quotes": changes.get("solution_quotes", 0)},
                  provenance=provenance or None)
 
-    def finish(self, code: int) -> int:
-        self.result.update({"warnings": self.report.warnings, "errors": self.report.errors})
+    def finish(self) -> int:
         self.log()  # first: it tells the run whether the KB was written
-        if self.args.json:
-            published = publish_after_write(self.args) if code == 0 else None
-            if published:
-                self.result["published"] = published
-            print(json.dumps(self.result, ensure_ascii=False, indent=2, default=str))
-            return code
-        lines = self.header + [f"WARN {w}" for w in self.report.warnings] + self.verdict
-        if self.report.errors:
-            lines.append(f"\n{len(self.report.errors)} problem(s); nothing written:")
-            lines += [f"  - {e}" for e in self.report.errors]
-        print("\n".join(lines))
-        if code == 0:
-            publish_after_write(self.args)
-        return code
+        return finish_write(self.args, self.report, self.result, self.header, self.verdict)
 
 
 def copy_transcripts(kb_path: str, sources: list[str]) -> None:
@@ -2927,13 +2962,12 @@ def _merge_verdict(out: MergeOutput, entry: Json, candidate: Json, copies: list[
                         f"would merge: {entry['summary']}"] + ([f"would copy {copied}"] if copies else [])
         return
     copy_transcripts(out.args.kb, copies)  # before the KB is written, so it never cites a missing copy
-    out.result["backup"] = backup(out.args.kb)
-    save_kb(candidate, out.args.kb)
+    out.result["backup"] = commit(out.args, candidate)
     out.result["written"] = True
     batch_in = False
     with contextlib.suppress(Exception):  # an open map hears that the batch is in; never fails the merge
         batch_in = _sibling("kb_map").batch_merged(out.args.kb, len(entry.get("added_interviews") or [])
-                                                   + len(entry.get("added_interactions") or []), sys.modules[__name__])
+                                                   + len(entry.get("added_interactions") or []))
     out.verdict += [f"merged: {entry['summary']}", f"backup: {out.result['backup']}"]
     if batch_in:  # only the overview ends a batch: until it is written, an open map says the study is being updated
         out.verdict.append("batch: every transcript is in. Write the overview next: until then an open map "
@@ -2958,7 +2992,7 @@ def cmd_merge(args: argparse.Namespace) -> int:
     if not report.errors:
         resolve_job_refs(kb, patch, report)
     if report.errors:
-        return out.finish(1)
+        return out.finish()
     transcripts = transcripts_for(args.transcripts or [], report, copies_folder(args.kb))
     wanted = groups_wanted(patch)
     plan = resolve_interviews(kb, patch, transcripts, report)
@@ -2974,7 +3008,7 @@ def cmd_merge(args: argparse.Namespace) -> int:
     if not report.errors:
         check_patch(kb, patch, plan, transcripts, report)
     if report.errors:
-        return out.finish(1)
+        return out.finish()
     candidate = copy.deepcopy(kb)
     stamp: Json = {"patch": os.path.basename(args.patch), **args.run.stamp()}
     if provenance:
@@ -2983,13 +3017,13 @@ def cmd_merge(args: argparse.Namespace) -> int:
     if entry is None:
         out.result.update({"ok": True, "nothing_new": True})
         out.verdict.append("nothing new to merge; KB unchanged")
-        return out.finish(0)
+        return out.finish()
     for problem in structure_problems(candidate):
         report.error(f"the merge would break the KB structure: {problem}", code="structure")
     if report.errors:
-        return out.finish(1)
+        return out.finish()
     _merge_verdict(out, entry, candidate, plan.copies)
-    return out.finish(0)
+    return out.finish()
 
 
 # ---------- apply ----------
@@ -3241,366 +3275,22 @@ def cmd_apply(args: argparse.Namespace) -> int:
             mark_stale(candidate, message)
     candidate["changelog"].append(changelog_entry(args.run, "decide", proposal=args.id, decision=status,
                                                   summary=message))
-    problems = structure_problems(candidate)
-    if problems:
-        raise KbError("applying the proposal would break the KB structure; nothing written:\n  - "
-                      + "\n  - ".join(problems), code="structure")
-    made = backup(args.kb)
-    save_kb(candidate, args.kb)
-    args.run.note(written=True, backup=args.run.relative(made))
+    check_structure(candidate, "applying the proposal")
+    commit(args, candidate)
     print(message)
     publish_after_write(args)
     return 0
 
 
-# ---------- themes ----------
-@dataclass
-class ThemeChecks:
-    """What the checks of one core job's value themes need at hand."""
-
-    kb: Json
-    job: str
-    outcomes: dict[str, Json]
-    style: Style
-    report: Report
-    solutions: list[str]  # names of the live solutions: a theme names a need, never one of these
-
-
-def read_themes_file(path: str, kb: Json) -> tuple[str, list[Any]]:
-    data = load_json(path)
-    if not isinstance(data, dict) or not isinstance(data.get("themes"), list) or not data.get("job"):
-        raise KbError(f"{path} must hold `job` (a core job ID such as A) and `themes` (a list: the full set of value "
-                      "themes for that core job)", code="themes_file")
-    unknown = sorted(str(key) for key in set(data) - {"job", "themes"})
-    if unknown:
-        raise KbError(f"{path}: unknown key {', '.join(unknown)}; the file holds `job` and `themes` only",
-                      code="themes_file")
-    job = str(data["job"])
-    if job not in jobs_by_id(kb):
-        raise KbError(f"{path}: core job {job} is not in the KB", code="themes_file")
-    return job, data["themes"]
-
-
-def _clean_highlights(items: Any, label: str, width: int, report: Report) -> list[Json]:
-    if items is None:
-        return []
-    if not isinstance(items, list):
-        report.error(f"{label}: highlights must be a list", code="theme_shape")
-        return []
-    clean = []
-    for item in items:
-        if not (isinstance(item, dict) and item.get("kind") in HIGHLIGHT_KINDS and item.get("interview") is not None
-                and str(item.get("quote") or "").strip()):
-            report.error(f"{label}: each highlight needs kind ({', '.join(HIGHLIGHT_KINDS)}), interview and quote",
-                         code="theme_shape")
-            continue
-        ref = item["interview"]
-        clean.append({"kind": item["kind"], "interview": str(ref).zfill(width) if _is_int(ref) else str(ref),
-                      "quote": str(item["quote"])})
-    return clean
-
-
-def _clean_theme(item: Any, label: str, width: int, report: Report) -> Json | None:
-    """One theme of the file in a known shape, or None when it is not an object."""
-    if not isinstance(item, dict):
-        report.error(f"{label}: must be an object with label, need, why and outcomes", code="theme_shape")
-        return None
-    unknown = sorted(str(key) for key in set(item) - set(THEME_KEYS))
-    if unknown:
-        report.error(f"{label}: unknown key {', '.join(unknown)}; a theme holds {', '.join(THEME_KEYS)}",
-                     code="theme_shape")
-    theme: Json = {"id": str(item.get("id") or "")}
-    for key in ("label", "need", "why"):
-        theme[key] = str(item.get(key) or "").strip()
-        if not theme[key]:
-            report.error(f"{label}: {key} is missing", code="theme_shape")
-    outcomes = item.get("outcomes")
-    if not isinstance(outcomes, list) or not outcomes:
-        report.error(f"{label}: outcomes must be a list of outcome IDs, at least one", code="theme_shape")
-        outcomes = []
-    theme["outcomes"] = list(dict.fromkeys(str(o) for o in outcomes))
-    theme["highlights"] = _clean_highlights(item.get("highlights"), label, width, report)
-    return theme
-
-
-def _number_themes(themes: list[Json], before: list[Json], job: str, report: Report) -> None:
-    """Keep the IDs the file gives, give a theme with an unchanged label the ID it had, and number the rest."""
-    known = {str(t["id"]) for t in before}
-    by_label = {str(t.get("label", "")).lower(): str(t["id"]) for t in before}
-    given = [t["id"] for t in themes if t["id"]]
-    for tid in sorted(set(given)):
-        if tid not in known:
-            report.error(f"value theme {tid} is not a theme of core job {job}; leave `id` out for a new theme",
-                         code="theme_id")
-        if given.count(tid) > 1:
-            report.error(f"value theme id {tid} is used more than once", code="theme_id")
-    taken = set(given)
-    for theme in themes:
-        same = by_label.get(theme["label"].lower())
-        if not theme["id"] and same and same not in taken:
-            theme["id"] = same
-            taken.add(same)
-    number = max([theme_number(t) for t in before], default=0)
-    for theme in themes:
-        if not theme["id"]:
-            number += 1
-            theme["id"] = f"{job}.T{number}"
-
-
-def _check_theme_links(ctx: ThemeChecks, theme: Json, label: str) -> None:
-    for oid in theme["outcomes"]:
-        target = ctx.outcomes.get(oid)
-        if not target:
-            ctx.report.error(f"{label}: outcome {oid} is not in the KB; take IDs from `context`",
-                             code="theme_outcome")
-        elif target.get("merged_into"):
-            ctx.report.error(f"{label}: outcome {oid} was merged into {target['merged_into']}; use that one",
-                             code="theme_outcome")
-        elif job_of(oid) != ctx.job:
-            ctx.report.error(f"{label}: outcome {oid} belongs to core job {job_of(oid)}; a theme groups the "
-                             f"outcomes of one core job, here {ctx.job}", code="theme_outcome")
-
-
-def _check_theme_text(ctx: ThemeChecks, theme: Json, label: str) -> None:
-    clarity(theme["label"], "theme", f"{label} label", ctx.style, ctx.report)
-    clarity(theme["need"], "need", f"{label} need", ctx.style, ctx.report)
-    clarity(theme["why"], "rationale", f"{label} why", ctx.style, ctx.report)
-    start = ctx.style.need_start
-    if start and theme["need"] and not theme["need"].startswith(start):
-        ctx.report.error(f"{label}: the need must start with '{start.strip()}', in the customer's voice: "
-                         f"'{theme['need']}'", code="theme_need_form")
-    text = f"{theme['label']} {theme['need']}".lower()
-    named = [name for name in ctx.solutions if name.lower() in text]
-    if named:
-        ctx.report.warn(f"{label} names a current solution ({', '.join(named)}); a theme states a need, so that "
-                        "ideas stay open", code="theme_names_solution")
-
-
-def _highlight_pool(kb: Json, outcome_ids: list[str]) -> dict[tuple[str, str], Json]:
-    """The quotes a theme may show: those on its outcomes, and on the solutions used at its outcomes' steps."""
-    outcomes = outcomes_by_id(kb)
-    members = [outcomes[o] for o in outcome_ids if o in outcomes]
-    steps = {str(o.get("step")) for o in members}
-    items = [e for o in members for e in o.get("evidence", [])]
-    items += [e for s in live_solutions(kb) for use in uses_of(s) if str(use.get("step")) in steps
-              for e in use.get("evidence", [])]
-    return {evidence_key(e): e for e in items}
-
-
-def _check_highlights(ctx: ThemeChecks, theme: Json, label: str) -> None:
-    """Every highlight must be a quote the KB already holds, so a theme never shows words nobody said."""
-    pool = _highlight_pool(ctx.kb, theme["outcomes"])
-    kept = []
-    for item in theme["highlights"]:
-        found = pool.get(evidence_key(item))
-        if not found:
-            ctx.report.error(f'{label}: highlight quote from interview {item["interview"]} is not on one of its '
-                             f'outcomes, nor on a solution used at their steps: "{short(item["quote"])}"',
-                             code="theme_highlight")
-            continue
-        kept.append({"kind": item["kind"], "interview": str(found["interview"]), "source": found["source"],
-                     "quote": found["quote"], **ix_of(found)})
-    theme["highlights"] = kept
-    if not theme["highlights"] or len(kept) > THEME_HIGHLIGHTS:
-        ctx.report.warn(f"{label} shows {len(kept)} quotes; pick 3 to {THEME_HIGHLIGHTS} that show the pain, the "
-                        "struggle and the desire", code="theme_quotes")
-
-
-def _check_theme_count(ctx: ThemeChecks, themes: list[Json], live: int) -> None:
-    low, high = THEME_COUNT
-    count, most = len(themes), max(live // THEME_MIN_OUTCOMES, 1)
-    if count > most:
-        ctx.report.warn(f"{count} value themes for {plural(live, 'outcome')} in core job {ctx.job}: keep at most one "
-                        f"theme per {THEME_MIN_OUTCOMES} outcomes, here {most}", code="theme_count")
-    elif count > high or (count < low and live >= low * THEME_MIN_OUTCOMES):
-        ctx.report.warn(f"{count} value themes in core job {ctx.job}: aim for {low} to {high}, few enough to hold in "
-                        "mind and enough to tell needs apart", code="theme_count")
-
-
-def _check_theme_sizes(ctx: ThemeChecks, themes: list[Json], live: int) -> None:
-    for theme in themes:
-        size, label = len(theme["outcomes"]), f"theme {theme['id']} '{theme['label']}'"
-        if size < THEME_MIN_OUTCOMES:
-            ctx.report.warn(f"{label} gathers {plural(size, 'outcome')}; a theme with fewer than "
-                            f"{THEME_MIN_OUTCOMES} is often one outcome reworded", code="theme_size")
-        elif live >= THEME_COUNT[0] * THEME_MIN_OUTCOMES and size * THEME_MAX_SHARE > live:
-            ctx.report.warn(f"{label} gathers {size} of the job's {live} outcomes; split a theme that holds more "
-                            f"than one in {THEME_MAX_SHARE}", code="theme_size")
-        people = {i for o in theme["outcomes"] for i in ctx.outcomes.get(o, {}).get("interviews", [])}
-        if len(people) == 1:
-            ctx.report.warn(f"{label} rests on one person; say so when you present it", code="theme_one_person")
-
-
-def _check_theme_overlap(ctx: ThemeChecks, themes: list[Json]) -> None:
-    homes: dict[str, list[str]] = {}
-    for theme in themes:
-        for oid in theme["outcomes"]:
-            homes.setdefault(oid, []).append(theme["id"])
-    for oid, where in homes.items():
-        if len(where) > THEME_MAX_PER_OUTCOME:
-            ctx.report.warn(f"outcome {oid} sits in {len(where)} themes ({', '.join(where)}); keep it in at most "
-                            f"{THEME_MAX_PER_OUTCOME}", code="theme_overlap")
-    for theme in themes:
-        if theme["outcomes"] and all(len(homes[o]) > 1 for o in theme["outcomes"]):
-            ctx.report.warn(f"theme {theme['id']} '{theme['label']}' has no outcome of its own; merge it into the "
-                            "themes that share its outcomes", code="theme_overlap")
-
-
-def _check_theme_set(ctx: ThemeChecks, themes: list[Json]) -> None:
-    labels = [theme["label"].lower() for theme in themes if theme["label"]]
-    for dup in _duplicates(labels):
-        ctx.report.error(f"two value themes of core job {ctx.job} share the label '{dup}'", code="theme_duplicate")
-    live = len([o for o in ctx.outcomes.values() if not o.get("merged_into") and job_of(o["id"]) == ctx.job])
-    if themes:
-        _check_theme_count(ctx, themes, live)
-    _check_theme_sizes(ctx, themes, live)
-    _check_theme_overlap(ctx, themes)
-
-
-def build_themes(kb: Json, job: str, items: list[Any], before: list[Json], report: Report) -> list[Json]:
-    """Check the file's themes against the KB and return them as the KB stores them."""
-    solutions = [str(s.get("name")) for s in live_solutions(kb) if s.get("name")]
-    ctx = ThemeChecks(kb, job, outcomes_by_id(kb), style_of(kb), report, solutions)
-    width = id_width(kb)
-    cleaned = [_clean_theme(item, f"themes[{index}]", width, report) for index, item in enumerate(items)]
-    themes = [theme for theme in cleaned if theme]
-    _number_themes(themes, before, job, report)
-    added = {str(t["id"]): t.get("added") for t in before}
-    for theme in themes:
-        label = f"theme {theme['id']} '{theme['label']}'"
-        _check_theme_links(ctx, theme, label)
-        _check_theme_text(ctx, theme, label)
-        _check_highlights(ctx, theme, label)
-    _check_theme_set(ctx, themes)
-    return [{"id": t["id"], "job": job, "label": t["label"], "need": t["need"], "why": t["why"],
-             "outcomes": t["outcomes"], "highlights": t["highlights"], "added": added.get(t["id"]) or today()}
-            for t in themes]
-
-
-def store_themes(kb: Json, job: str, themes: list[Json]) -> int:
-    """Replace the core job's themes and clear the stale flag. Returns how many hand-written themes were dropped."""
-    layer = kb.get("value_themes") if isinstance(kb.get("value_themes"), dict) else {}
-    old = layer.get("themes") if isinstance(layer.get("themes"), list) else []
-    kept = [t for t in themes_of(kb) if str(t.get("job")) != job]
-    rest = {k: v for k, v in layer.items() if k not in ("stale", "stale_reasons", "themes", "unassigned")}
-    merged = sorted(kept + themes, key=lambda t: (job_index(str(t["job"])), theme_number(t)))
-    kb["value_themes"] = {"stale": False, "themes": merged, **rest}
-    return len(old) - len(themes_of({"value_themes": layer}))
-
-
-def theme_changes(before: list[Json], after: list[Json]) -> list[str]:
-    """What a new set changes, in words: themes added, removed and reworded, and outcomes that joined or left."""
-    old, new = {str(t["id"]): t for t in before}, {str(t["id"]): t for t in after}
-    lines = [f"added {tid} {theme['label']}" for tid, theme in new.items() if tid not in old]
-    for tid, theme in new.items():
-        was = old.get(tid)
-        if not was:
-            continue
-        if any(str(was.get(key, "")) != theme[key] for key in ("label", "need", "why")):
-            renamed = f" (was '{was.get('label', '')}')" if was.get("label") != theme["label"] else ""
-            lines.append(f"reworded {tid} {theme['label']}{renamed}")
-        joined = [o for o in theme["outcomes"] if o not in theme_outcomes(was)]
-        left = [o for o in theme_outcomes(was) if o not in theme["outcomes"]]
-        if joined or left:
-            lines.append(f"{tid} {theme['label']}:" + (f" added {', '.join(joined)}" if joined else "")
-                         + (f" removed {', '.join(left)}" if left else ""))
-    return lines + [f"removed {tid} {theme.get('label', '')}" for tid, theme in old.items() if tid not in new]
-
-
-def _themes_text(kb: Json, job: str, themes: list[Json], result: Json) -> list[str]:
-    outcomes = outcomes_by_id(kb)
-    lines = [f"VALUE THEMES for core job {job}: {jobs_by_id(kb)[job]['statement']}"]
-    for theme in themes:
-        lines.append(f"{theme['id']} {theme['label']}: {theme['need']}  "
-                     f"({plural(len(theme['outcomes']), 'outcome')}, people {theme.get('interview_count', 0)})")
-        lines += [f"   {oid:>7}  {outcomes[oid]['statement']}" for oid in theme["outcomes"] if oid in outcomes]
-    if result["unassigned"]:
-        lines.append(f"IN NO THEME ({len(result['unassigned'])})")
-        lines += [f"   {oid:>7}  {outcomes[oid]['statement']}" for oid in result["unassigned"]]
-    if result["changes"]:
-        lines += ["CHANGES"] + [f"  {line}" for line in result["changes"]]
-    if result["legacy_dropped"]:
-        lines.append(f"dropped {plural(result['legacy_dropped'], 'theme')} written by hand before this command "
-                     "existed; the backup still has them")
-    if result["other_jobs"]:
-        lines.append(f"themes of core job {', '.join(result['other_jobs'])} were not touched; update them too if "
-                     "they are out of date")
-    return lines
-
-
-def _themes_finish(args: argparse.Namespace, report: Report, result: Json, lines: list[str]) -> int:
-    result.update({"warnings": report.warnings, "errors": report.errors})
-    args.run.add_report(report)
-    if args.json:
-        published = publish_after_write(args) if result["ok"] else None
-        if published:
-            result["published"] = published
-        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
-        return 0 if result["ok"] else 1
-    lines = lines + [f"WARN {w}" for w in report.warnings]
-    if report.errors:
-        lines.append(f"\n{len(report.errors)} problem(s); nothing written:")
-        lines += [f"  - {e}" for e in report.errors]
-    print("\n".join(lines))
-    if result["ok"]:
-        publish_after_write(args)
-    return 0 if result["ok"] else 1
-
-
+# ---------- themes, overview ----------
+# The checks and the write of both layers are in kb_themes.py and kb_overview.py, loaded only for their command. What
+# every command reads of the layers stays here.
 def cmd_themes(args: argparse.Namespace) -> int:
-    """Check one core job's value themes and write them. The dry run and the real run share every step up to the
-    write."""
-    kb = load_kb(args.kb)
-    report = Report()
-    job, items = read_themes_file(args.themes, kb)
-    args.run.note(dry_run=bool(args.dry_run), job=job)
-    candidate = copy.deepcopy(kb)
-    before = themes_of(kb, job)
-    built = build_themes(candidate, job, items, before, report)
-    result: Json = {"ok": False, "dry_run": bool(args.dry_run), "job": job, "written": False, "run_id": args.run.id}
-    if report.errors:
-        return _themes_finish(args, report, result, [])
-    legacy = store_themes(candidate, job, built)
-    recount(candidate)
-    themes = themes_of(candidate, job)
-    unassigned = [o for o in candidate["value_themes"].get("unassigned", []) if job_of(o) == job]
-    summary = f"value themes of core job {job}: {', '.join(t['id'] for t in themes) or 'none'}"
-    candidate["changelog"].append(changelog_entry(args.run, "rebuild", layer="value_themes", job=job,
-                                                  themes=[t["id"] for t in themes], summary=summary))
-    problems = structure_problems(candidate)
-    if problems:
-        raise KbError("these themes would break the KB structure; nothing written:\n  - " + "\n  - ".join(problems),
-                      code="structure")
-    result.update({"ok": True, "themes": themes, "unassigned": unassigned, "legacy_dropped": legacy,
-                   "changes": theme_changes(before, themes),
-                   "other_jobs": sorted({str(t["job"]) for t in themes_of(candidate)} - {job})})
-    args.run.note(counts={"themes": len(themes), "theme_outcomes": len({o for t in themes for o in t["outcomes"]}),
-                          "unassigned": len(unassigned)})
-    lines = _themes_text(candidate, job, themes, result)
-    if args.dry_run:
-        lines.append("dry run OK: every outcome and every quote is in the KB; nothing written")
-    else:
-        result["backup"] = backup(args.kb)
-        save_kb(candidate, args.kb)
-        result["written"] = True
-        args.run.note(written=True, backup=args.run.relative(result["backup"]))
-        lines += [f"wrote {summary}", f"backup: {result['backup']}"]
-    return _themes_finish(args, report, result, lines)
+    return _sibling("kb_themes").cmd_themes(args)
 
 
-# ---------- overview ----------
-# One core job's study as a short story, written by `overview`. The layer holds only the assistant's sentences; the
-# map counts the rest, and every quote must already be in the KB.
-@dataclass
-class OverviewChecks:
-    """What the checks of one core job's overview need at hand."""
-
-    kb: Json
-    job: str
-    style: Style
-    report: Report
-    pool: dict[tuple[str, str], Json]  # every quote the KB holds for this core job
-    width: int
+def cmd_overview(args: argparse.Namespace) -> int:
+    return _sibling("kb_overview").cmd_overview(args)
 
 
 def overviews_of(kb: Json, job: str | None = None) -> list[Json]:
@@ -3608,396 +3298,6 @@ def overviews_of(kb: Json, job: str | None = None) -> list[Json]:
     items = layer.get("jobs") if isinstance(layer, dict) else None
     found = [o for o in items if isinstance(o, dict) and o.get("job")] if isinstance(items, list) else []
     return [o for o in found if job is None or str(o["job"]) == job]
-
-
-def _own_statements(record: Json) -> list[Json]:
-    lists = [record.get(key) or [] for key in ("related_jobs", "emotional_jobs", "social_jobs")]
-    items = [record.get("job_executor"), record.get("core_functional_job")] + [s for group in lists for s in group]
-    return [s for s in items if isinstance(s, dict)]
-
-
-def _overview_pool(kb: Json, job: str) -> dict[tuple[str, str], Json]:
-    """Quotes an overview may show: on the job's steps, outcomes and solution uses, and linked people's own words."""
-    steps = [s for s in kb["job_map"]["steps"] if str(s["job"]) == job]
-    keys = {step_key(s) for s in steps}
-    items = [e for s in steps for e in s.get("evidence", [])]
-    items += [e for o in kb["desired_outcomes"]["outcomes"]
-              if not o.get("merged_into") and job_of(o["step"]) == job for e in o.get("evidence", [])]
-    items += [e for s in live_solutions(kb) for use in uses_of(s) if str(use.get("step")) in keys
-              for e in use.get("evidence", [])]
-    for record in kb["interviews"]:
-        if main_job(record) == job or job in related_links(record):
-            items += [{**e, "interview": str(record["id"])} for s in _own_statements(record)
-                      for e in s.get("evidence") or [] if isinstance(e, dict)]
-    return {evidence_key(e): e for e in items if isinstance(e, dict)}
-
-
-def read_overview_file(path: str, kb: Json) -> tuple[str, Json]:
-    data = load_json(path)
-    if not isinstance(data, dict) or not data.get("job"):
-        raise KbError(f"{path} must be an object with `job` (a core job ID such as A) and the overview of that core "
-                      f"job: {', '.join(OVERVIEW_KEYS[1:])}", code="overview_file")
-    unknown = sorted(str(key) for key in set(data) - set(OVERVIEW_KEYS))
-    if unknown:
-        raise KbError(f"{path}: unknown key {', '.join(unknown)}; the file holds {', '.join(OVERVIEW_KEYS)}",
-                      code="overview_file")
-    job = str(data["job"])
-    if job not in jobs_by_id(kb):
-        raise KbError(f"{path}: core job {job} is not in the KB", code="overview_file")
-    return job, data
-
-
-def _ov_text(ctx: OverviewChecks, data: Any, key: str, kind: str, label: str, *,
-             required: bool = True) -> str:
-    """One sentence of the overview, checked against the writing rules."""
-    value = data.get(key) if isinstance(data, dict) else None
-    text = str(value).strip() if isinstance(value, (str, int, float)) else ""
-    if not text:
-        if required:
-            ctx.report.error(f"{label}: {key} is missing", code="overview_shape")
-        return ""
-    _ov_clarity(ctx, text, kind, f"{label} {key}")
-    _ov_no_score(ctx, text, f"{label} {key}")
-    _ov_plain(ctx, text, f"{label} {key}")
-    return text
-
-
-def _ov_clarity(ctx: OverviewChecks, text: str, kind: str, label: str) -> None:
-    """An overview sentence a quarter over its limit at most (at least 1 word) is written, with a warning."""
-    clarity(text, kind, label, ctx.style, ctx.report, slack=max(1, ctx.style.limits.get(kind, 0) // 4))
-
-
-def _ov_no_score(ctx: OverviewChecks, text: str, label: str) -> None:
-    """Interviews show what people said, not how much it matters: an overview carries no score and no percentage."""
-    if SCORE_WORDS.search(text):
-        ctx.report.error(f"{label}: no percentages and no score words in an overview; say how many people said it: "
-                         f"'{text}'", code="overview_score")
-
-
-def _ov_plain(ctx: OverviewChecks, text: str, label: str) -> None:
-    """A first-time reader must understand every sentence on first read: no words of the method, few buzzwords."""
-    for pattern, word, hint in METHOD_TERMS:
-        if pattern.search(text):
-            ctx.report.error(f"{label}: '{word}' is a word of the method that readers do not know; write "
-                             f"{hint}: '{text}'", code="overview_method_word")
-    for pattern, word, hint in JARGON_TERMS:
-        if pattern.search(text):
-            ctx.report.warn(f"{label}: '{word}' is vague; {hint}, unless it is the customers' own word: '{text}'",
-                            code="overview_jargon")
-
-
-def _ov_mapping(ctx: OverviewChecks, data: Any, key: str, allowed: tuple[str, ...], label: str) -> Json:
-    section = data.get(key) if isinstance(data, dict) else None
-    if not isinstance(section, dict):
-        ctx.report.error(f"{label}: {key} must be an object with {', '.join(allowed)}", code="overview_shape")
-        return {}
-    unknown = sorted(str(k) for k in set(section) - set(allowed))
-    if unknown:
-        ctx.report.error(f"{label}: {key} has unknown key {', '.join(unknown)}; it holds {', '.join(allowed)}",
-                         code="overview_shape")
-    return section
-
-
-def _ov_quote(ctx: OverviewChecks, item: Any, label: str) -> Json | None:
-    """A quote of the overview as the KB holds it, so the overview never shows words nobody said."""
-    if not (isinstance(item, dict) and item.get("interview") is not None and str(item.get("quote") or "").strip()):
-        ctx.report.error(f"{label}: quote needs interview and quote", code="overview_shape")
-        return None
-    ref = item["interview"]
-    key = {"interview": str(ref).zfill(ctx.width) if _is_int(ref) else str(ref), "quote": str(item["quote"])}
-    found = ctx.pool.get(evidence_key(key))
-    if not found:
-        ctx.report.error(f'{label}: the quote from interview {key["interview"]} is not in the KB for core job '
-                         f'{ctx.job}; copy one from a step, an outcome, a solution or the person: '
-                         f'"{short(key["quote"])}"', code="overview_quote")
-        return None
-    return {"interview": str(found["interview"]), "source": found.get("source", "transcript"),
-            "quote": found["quote"], **ix_of(found)}
-
-
-def _ov_section(ctx: OverviewChecks, data: Json, key: str, quote: bool = False) -> Json:
-    """A step of the story: the answer in one sentence, an optional explanation, and for the people a quote."""
-    allowed = ("answer", "text", "quote") if quote else ("answer", "text")
-    section = _ov_mapping(ctx, data, key, allowed, "overview")
-    out: Json = {"answer": _ov_text(ctx, section, "answer", "headline", key)}
-    text = _ov_text(ctx, section, "text", "finding", key, required=False)
-    if text:
-        out["text"] = text
-    if quote and section.get("quote") is not None:
-        found = _ov_quote(ctx, section["quote"], key)
-        if found:
-            out["quote"] = found
-    return out
-
-
-def _ov_executor(ctx: OverviewChecks, data: Json) -> Json:
-    """Who the study is about: label, sentence, a drawable icon, and others in the story."""
-    section = _ov_mapping(ctx, data, "executor", EXECUTOR_KEYS, "overview")
-    out: Json = {"label": _ov_text(ctx, section, "label", "role", "executor"),
-                 "text": _ov_text(ctx, section, "text", "who", "executor")}
-    icon = str(section.get("icon") or "").strip()
-    if section and icon not in ROLE_ICONS:
-        ctx.report.error(f"executor: icon {f'{icon!r} is not one the map can draw' if icon else 'is missing'}; "
-                         f"pick one of {', '.join(ROLE_ICONS)} (person when none fits)", code="overview_shape")
-    out["icon"] = icon or "person"
-    others = section.get("others")
-    if others is None:
-        return out
-    if not isinstance(others, list) or not all(isinstance(x, str) and x.strip() for x in others):
-        ctx.report.error(f"executor: others must be a list of at most {EXECUTOR_OTHERS} people, such as "
-                         "'their clients'", code="overview_shape")
-        return out
-    items = [x.strip() for x in others]
-    if len(items) > EXECUTOR_OTHERS:
-        ctx.report.error(f"executor: others holds {len(items)} people; keep at most {EXECUTOR_OTHERS}",
-                         code="overview_count")
-    for text in items:
-        _ov_clarity(ctx, text, "role", "executor others")
-        _ov_plain(ctx, text, "executor others")
-    if items:
-        out["others"] = items
-    return out
-
-
-def _ov_gap_solutions(ctx: OverviewChecks, item: Json, label: str) -> list[str]:
-    given = item.get("solutions")
-    if given is None:
-        return []
-    if not isinstance(given, list):
-        ctx.report.error(f"{label}: solutions must be a list of solution IDs such as S3", code="overview_shape")
-        return []
-    known = {str(s.get("id")) for s in live_solutions(ctx.kb)}
-    ids = list(dict.fromkeys(str(s) for s in given))
-    for sid in ids:
-        if sid not in known:
-            ctx.report.error(f"{label}: solution {sid} is not a solution in use in the KB; take IDs from `context`",
-                             code="overview_solution")
-    return [sid for sid in ids if sid in known]
-
-
-def _ov_gap(ctx: OverviewChecks, item: Any, label: str) -> Json | None:
-    keys = ("label", "text", "kind", "solutions", "quote")
-    if not isinstance(item, dict):
-        ctx.report.error(f"{label}: must be an object with {', '.join(keys)}", code="overview_shape")
-        return None
-    unknown = sorted(str(k) for k in set(item) - set(keys))
-    if unknown:
-        ctx.report.error(f"{label}: unknown key {', '.join(unknown)}; a gap holds {', '.join(keys)}",
-                         code="overview_shape")
-    gap: Json = {"label": _ov_text(ctx, item, "label", "theme", label),
-                 "text": _ov_text(ctx, item, "text", "rationale", label), "kind": str(item.get("kind") or "")}
-    if gap["kind"] not in GAP_KINDS:
-        ctx.report.error(f"{label}: kind must be one of {', '.join(GAP_KINDS)}", code="overview_shape")
-    gap["solutions"] = _ov_gap_solutions(ctx, item, label)
-    quote = _ov_quote(ctx, item.get("quote"), label)
-    if quote:
-        gap["quote"] = quote
-    return gap
-
-
-def _ov_gaps(ctx: OverviewChecks, data: Json) -> Json:
-    section = _ov_mapping(ctx, data, "gaps", ("answer", "items"), "overview")
-    items = section.get("items")
-    if not isinstance(items, list) or not items:
-        ctx.report.error("gaps: items must be a list with at least one gap", code="overview_shape")
-        items = []
-    gaps = [g for g in (_ov_gap(ctx, item, f"gaps.items[{index}]") for index, item in enumerate(items)) if g]
-    if len(gaps) > GAP_MAX:
-        ctx.report.warn(f"{len(gaps)} gaps; keep at most {GAP_MAX}, the ones most people described",
-                        code="overview_count")
-    for dup in _duplicates([g["label"].lower() for g in gaps if g["label"]]):
-        ctx.report.error(f"two gaps share the label '{dup}'", code="overview_shape")
-    return {"answer": _ov_text(ctx, section, "answer", "headline", "gaps"), "items": gaps}
-
-
-def _ov_list(ctx: OverviewChecks, track: Json, key: str, label: str) -> list[str]:
-    given = track.get(key)
-    if not isinstance(given, list) or not given or not all(isinstance(x, str) and x.strip() for x in given):
-        ctx.report.error(f"{label}: {key} must be a list of 1 to {NEXT_LISTS[key]} sentences", code="overview_shape")
-        return []
-    items = [x.strip() for x in given]
-    if len(items) > NEXT_LISTS[key]:
-        ctx.report.error(f"{label}: {key} holds {len(items)} items; keep at most {NEXT_LISTS[key]}",
-                         code="overview_count")
-    for text in items:
-        _ov_clarity(ctx, text, "rationale", f"{label} {key}")
-        _ov_no_score(ctx, text, f"{label} {key}")
-        if key != "words":  # the customers' own words stay as they said them
-            _ov_plain(ctx, text, f"{label} {key}")
-    return items
-
-
-def _ov_words(ctx: OverviewChecks, words: list[str], label: str) -> None:
-    """The customers' words to reuse in messaging must be words a customer said."""
-    said = [norm(str(e.get("quote", ""))).lower() for e in ctx.pool.values()]
-    for text in words:
-        needle = norm(text).lower().strip(" .!?\"'")
-        if not any(needle in quote for quote in said):
-            ctx.report.error(f'{label}: "{short(text)}" is not part of a quote in the KB for core job {ctx.job}; '
-                             "use the customers' exact words", code="overview_quote")
-
-
-def _ov_track(ctx: OverviewChecks, data: Json, name: str) -> Json:
-    statuses, fields = NEXT_TRACKS[name]
-    label = f"next.{name}"
-    extra = LEARN_PLAN if name == "learn" else ()
-    track = _ov_mapping(ctx, data, name, ("status", "action", *fields, *extra), "next")
-    out: Json = {"status": str(track.get("status") or ""), "action": _ov_text(ctx, track, "action", "action", label)}
-    if out["status"] not in statuses:
-        ctx.report.error(f"{label}: status must be one of {', '.join(statuses)}", code="overview_shape")
-    for key in fields:
-        out[key] = _ov_list(ctx, track, key, label) if key in NEXT_LISTS else \
-            _ov_text(ctx, track, key, "rationale", label)
-    if out.get("words"):
-        _ov_words(ctx, out["words"], label)
-    if any(key in track for key in extra):
-        _ov_plan(ctx, track, out)
-    return out
-
-
-def _ov_refs(ctx: OverviewChecks, given: Any, allowed: set[str], most: int, label: str, *,
-             least: int = 1) -> list[str]:
-    if not isinstance(given, list) or not all(isinstance(x, str) for x in given):
-        ctx.report.error(f"{label} must be a list of IDs", code="overview_shape")
-        return []
-    if not least <= len(given) <= most:
-        ctx.report.error(f"{label} holds {len(given)} IDs; give {least} to {most}", code="overview_count")
-    unknown = [ref for ref in given if ref not in allowed]
-    if unknown:
-        ctx.report.error(f"{label}: {', '.join(unknown)} is not a step, outcome or trait value of core job {ctx.job} "
-                         "it may name", code="overview_ref")
-    return list(given)
-
-
-def _ov_traits(ctx: OverviewChecks, given: Any) -> list[Json]:
-    """2 or 3 traits, each value with its people (none: not heard yet)."""
-    if not isinstance(given, list) or not TRAIT_COUNT[0] <= len(given) <= TRAIT_COUNT[1]:
-        ctx.report.error("next.learn: traits must be a list of 2 or 3 traits", code="overview_count")
-    main = {str(r["id"]) for r in ctx.kb["interviews"] if main_job(r) == ctx.job}
-    traits = []
-    for trait in given if isinstance(given, list) else []:
-        tid = str(trait.get("id") or "") if isinstance(trait, dict) else ""
-        values = trait.get("values") if isinstance(trait, dict) else None
-        if not TRAIT_ID.match(tid):
-            ctx.report.error(f"next.learn: a trait needs an id like T1, not '{tid}'", code="overview_shape")
-        if not isinstance(values, list) or not TRAIT_VALUES[0] <= len(values) <= TRAIT_VALUES[1]:
-            ctx.report.error(f"next.learn {tid}: a trait has 2 to 5 values", code="overview_count")
-        kept, seen = [], set()
-        for value in values if isinstance(values, list) else []:
-            vid = str(value.get("id") or "") if isinstance(value, dict) else ""
-            if not (TRAIT_VALUE_ID.match(vid) and vid.startswith(f"{tid}.")):
-                ctx.report.error(f"next.learn {tid}: value '{vid}' needs an id like {tid}.1", code="overview_shape")
-            people = [str(i) for i in (value.get("interviews") or [] if isinstance(value, dict) else [])]
-            if set(people) - main:
-                ctx.report.error(f"next.learn {vid}: {', '.join(sorted(set(people) - main))} is no one whose main goal "
-                                 f"is core job {ctx.job}", code="overview_ref")
-            if seen & set(people):
-                ctx.report.error(f"next.learn: {', '.join(sorted(seen & set(people)))} is in two values of {tid}",
-                                 code="overview_shape")
-            seen |= set(people)
-            kept.append({"id": vid, "label": _ov_text(ctx, value, "label", "role", f"next.learn {vid}"),
-                         "interviews": people})
-        traits.append({"id": tid, "name": _ov_text(ctx, trait, "name", "role", f"next.learn {tid}"), "values": kept})
-    for twice in _duplicates([t["id"] for t in traits] + [v["id"] for t in traits for v in t["values"]]):
-        ctx.report.error(f"next.learn: {twice} is used twice", code="overview_shape")
-    return traits
-
-
-def _ov_question(ctx: OverviewChecks, item: Any, gaps: list[str], label: str) -> Json:
-    item = _ov_mapping(ctx, {"question": item}, "question", ("ask", "listen", "gaps"), label)
-    ask = _ov_text(ctx, item, "ask", "question", label)
-    refs = _ov_refs(ctx, item.get("gaps"), set(gaps), ROUND_ITEMS, f"{label} gaps")
-    stray = [ref for ref in refs if ref not in gaps]
-    if stray:
-        ctx.report.error(f"{label}: {', '.join(stray)} is not one of this entry's gaps", code="overview_shape")
-    if ctx.style.english and LEADING.search(ask):
-        ctx.report.warn(f"{label}: '{ask}' asks what they would do; ask about the last time they did it",
-                        code="plan_leading")
-    return {"ask": ask, "listen": _ov_text(ctx, item, "listen", "listen", label), "gaps": refs}
-
-
-def _ov_round(ctx: OverviewChecks, given: Any, refs: set[str], values: set[str]) -> list[Json]:
-    """Who to talk to next, in order, with the gaps each fills and the questions."""
-    if not isinstance(given, list) or not given or len(given) > ROUND_MAX:
-        count = len(given) if isinstance(given, list) else 0
-        ctx.report.error(f"next.learn: round holds {count} entries; keep at most {ROUND_MAX}, at least 1",
-                         code="overview_count")
-    entries = []
-    for n, raw in enumerate(given if isinstance(given, list) else [], 1):
-        where = f"next.learn round {n}"
-        if isinstance(raw, dict) and raw.get("kind") == "follow_up":  # asks someone in the study again
-            entries.append(_people().follow_up_entry(ctx, raw, where, refs))
-            continue
-        entry = _ov_mapping(ctx, {"entry": raw}, "entry", ("kind", "count", "who", "traits", "gaps", "questions"),
-                             where)
-        count = entry.get("count")
-        if entry.get("kind") != "new":
-            ctx.report.error(f"{where}: kind must be new or follow_up", code="overview_shape")
-        if not (isinstance(count, int) and not isinstance(count, bool) and ROUND_COUNT[0] <= count <= ROUND_COUNT[1]):
-            ctx.report.error(f"{where}: count must be 1 to 3 people", code="overview_shape")
-        gaps = _ov_refs(ctx, entry.get("gaps"), refs, ROUND_ITEMS, f"{where} gaps")
-        asks = entry.get("questions")
-        if not isinstance(asks, list) or not 1 <= len(asks) <= ROUND_ITEMS:
-            ctx.report.error(f"{where}: questions must be a list of 1 to {ROUND_ITEMS}", code="overview_count")
-        out: Json = {"kind": "new", "count": count, "who": _ov_text(ctx, entry, "who", "plan_who", where)}
-        if entry.get("traits"):
-            out["traits"] = _ov_refs(ctx, entry["traits"], values, ROUND_ITEMS, f"{where} traits")
-        out["gaps"] = gaps
-        out["questions"] = [_ov_question(ctx, q, gaps, f"{where} question {i}")
-                            for i, q in enumerate(asks if isinstance(asks, list) else [], 1)]
-        entries.append(out)
-    return entries
-
-
-def _ov_plan(ctx: OverviewChecks, track: Json, out: Json) -> None:
-    """The plan for the next round; every ref belongs to this core job."""
-    traits = _ov_traits(ctx, track.get("traits"))
-    values = {v["id"] for t in traits for v in t["values"]}
-    steps = {step_key(s) for s in ctx.kb["job_map"]["steps"] if s.get("job") == ctx.job}
-    outs = {str(o["id"]) for o in ctx.kb["desired_outcomes"]["outcomes"]
-            if not o.get("merged_into") and job_of(str(o["step"])) == ctx.job}
-    out["traits"] = traits
-    out["rests_on"] = _ov_refs(ctx, track.get("rests_on"), outs, RESTS_ON_MAX, "next.learn rests_on")
-    out["round"] = _ov_round(ctx, track.get("round"), steps | outs | values, values)
-    gaps = open_gaps(ctx.kb, ctx.job, out)
-    if any(entry["kind"] == "follow_up" for entry in out["round"]):
-        _people().warn_no_gain(ctx, out["round"], gaps)
-    covered = {ref for entry in out["round"] for ref in entry["gaps"]}
-    closed = sorted(covered - {g["ref"] for g in gaps})
-    if closed:
-        ctx.report.warn(f"next.learn round: {', '.join(closed)} is not an open gap any more; aim at what is thin",
-                        code="plan_gap_closed")
-    bare = [g["ref"] for g in gaps if g["main"] and g["ref"] not in covered]
-    if bare:
-        ctx.report.warn(f"next.learn round: the main finding rests on {', '.join(bare)}, which no entry covers",
-                        code="plan_main_uncovered")
-    if out["status"] == "enough" and any(g["main"] or g["kind"] == "step" for g in gaps):
-        ctx.report.warn("next.learn: status is enough while thin steps or main-finding gaps remain", code="plan_status")
-
-
-def build_overview(kb: Json, job: str, data: Json, report: Report) -> Json:
-    """Check the file's overview against the KB and return it as the KB stores it."""
-    ctx = OverviewChecks(kb, job, style_of(kb), report, _overview_pool(kb, job), id_width(kb))
-    entry: Json = {"job": job, "executor": _ov_executor(ctx, data),
-                   "bottom_line": _ov_text(ctx, data, "bottom_line", "headline", "overview"),
-                   "why": _ov_text(ctx, data, "why", "rationale", "overview"),
-                   "opening": _ov_text(ctx, data, "opening", "rationale", "overview"),
-                   "people": _ov_section(ctx, data, "people", quote=True), "today": _ov_section(ctx, data, "today"),
-                   "gaps": _ov_gaps(ctx, data), "needs": _ov_section(ctx, data, "needs"),
-                   "focus": _ov_section(ctx, data, "focus")}
-    steps = _ov_mapping(ctx, data, "next", tuple(NEXT_TRACKS), "overview")
-    entry["next"] = {name: _ov_track(ctx, steps, name) for name in NEXT_TRACKS}
-    entry["written"] = today()
-    return entry
-
-
-def store_overview(kb: Json, entry: Json) -> None:
-    """Replace the core job's overview, keep those of other core jobs and clear the layer's stale flag."""
-    layer = kb.get("overview") if isinstance(kb.get("overview"), dict) else {}
-    kept = [o for o in overviews_of(kb) if str(o["job"]) != entry["job"]]
-    rest = {k: v for k, v in layer.items() if k not in ("stale", "stale_reasons", "jobs")}
-    kb["overview"] = {"stale": False, "jobs": sorted(kept + [entry], key=lambda o: job_index(str(o["job"]))),
-                      **rest}
 
 
 def _recount_overview(kb: Json, names: dict[str, str]) -> None:
@@ -4028,87 +3328,6 @@ def _overview_problems(kb: Json, jobs: dict[str, Json]) -> list[str]:
         if not str(entry.get("bottom_line") or "").strip():
             problems.append(f"overview of core job {job}: bottom_line is missing")
     return problems
-
-
-def _overview_text(kb: Json, entry: Json, result: Json) -> list[str]:
-    job = entry["job"]
-    who = entry["executor"]
-    lines = [f"OVERVIEW for core job {job}: {jobs_by_id(kb)[job]['statement']}",
-             f"about: {who['label']} [{who['icon']}]: {who['text']}"
-             + (f" (also in the story: {', '.join(who['others'])})" if who.get("others") else ""),
-             f"bottom line: {entry['bottom_line']}", f"opening: {entry['opening']}"]
-    lines += [f"{key}: {entry[key]['answer']}" for key in ("people", "today", "gaps", "needs", "focus")]
-    lines += [f"   gap ({g['kind']}): {g['label']}" for g in entry["gaps"]["items"]]
-    lines += [f"next, {name} ({track['status']}): {track['action']}" for name, track in entry["next"].items()]
-    lines += [f"next, learn round: {e['count']} × {e['who']} (gaps {', '.join(e['gaps'])})" if "who" in e else
-              f"next, learn round: ask interview {e['interview']} again (gaps {', '.join(e['gaps'])})"
-              for e in entry["next"]["learn"].get("round", [])]
-    if result["other_jobs"]:
-        lines.append(f"the overview of core job {', '.join(result['other_jobs'])} was not touched; update it too if "
-                     "it is out of date")
-    if result["missing_jobs"]:
-        lines.append(f"core job {', '.join(result['missing_jobs'])} has no overview yet")
-    return lines
-
-
-def placeholders(data: Any, where: str = "") -> list[str]:
-    """Where a file still holds a skeleton's <…>, such as next.learn.round[0].who."""
-    if isinstance(data, dict):
-        return [p for k, v in data.items() for p in placeholders(v, f"{where}.{k}" if where else str(k))]
-    if isinstance(data, list):
-        return [p for i, v in enumerate(data) for p in placeholders(v, f"{where}[{i}]")]
-    text = data.strip() if isinstance(data, str) else ""
-    return [where] if text.startswith("<") and text.endswith(">") else []
-
-
-def cmd_overview(args: argparse.Namespace) -> int:
-    """Check one core job's overview and write it. The dry run and the real run share every step up to the write."""
-    kb = load_kb(args.kb)
-    if bool(args.overview) == bool(args.skeleton):
-        raise KbError("give overview the file to check and write, or --skeleton JOB for the file to fill in",
-                      code="overview_file")
-    if args.skeleton:
-        return _review().cmd_skeleton(args, kb, sys.modules[__name__])
-    report = Report()
-    job, data = read_overview_file(args.overview, kb)
-    args.run.note(dry_run=bool(args.dry_run), job=job)
-    for where in placeholders(data):
-        report.error(f"{where} still holds a <…> of the skeleton: write it, or delete it where it says so",
-                     code="overview_placeholder")
-    candidate = copy.deepcopy(kb)
-    entry = build_overview(candidate, job, data, report)
-    result: Json = {"ok": False, "dry_run": bool(args.dry_run), "job": job, "written": False, "run_id": args.run.id}
-    if report.errors:
-        return _themes_finish(args, report, result, [])
-    learn, old = entry["next"]["learn"], learn_of(kb, job)
-    if learn.get("round"):
-        learn["at_write"] = round_snapshot(kb, learn)
-        was = old.get("at_write") if isinstance(old.get("at_write"), dict) else {}
-        moved = bool(was) and any(was.get(k) != learn["at_write"].get(k) for k in ("interviews", "interactions"))
-        if moved or isinstance(old.get("previous"), dict):  # moved: a batch came in since
-            learn["previous"] = was if moved else old["previous"]
-    store_overview(candidate, entry)
-    recount(candidate)
-    summary = f"overview of core job {job}"
-    candidate["changelog"].append(changelog_entry(args.run, "rebuild", layer="overview", job=job, summary=summary))
-    problems = structure_problems(candidate)
-    if problems:
-        raise KbError("this overview would break the KB structure; nothing written:\n  - " + "\n  - ".join(problems),
-                      code="structure")
-    written = {str(o["job"]) for o in overviews_of(candidate)}
-    result.update({"ok": True, "overview": overviews_of(candidate, job)[0], "other_jobs": sorted(written - {job}),
-                   "missing_jobs": sorted(set(jobs_by_id(candidate)) - written)})
-    args.run.note(counts={"overview_gaps": len(entry["gaps"]["items"]), "overviews": len(written)})
-    lines = _overview_text(candidate, entry, result)
-    if args.dry_run:
-        lines.append("dry run OK: every quote and every solution is in the KB; nothing written")
-    else:
-        result["backup"] = backup(args.kb)
-        save_kb(candidate, args.kb)
-        result["written"] = True
-        args.run.note(written=True, backup=args.run.relative(result["backup"]))
-        lines += [f"wrote {summary}", f"backup: {result['backup']}"]
-    return _themes_finish(args, report, result, lines)
 
 
 # ---------- init, context ----------
@@ -4221,7 +3440,7 @@ def cmd_context(args: argparse.Namespace) -> int:
     data = context_data(kb)
     data["labels_missing"] = study_labels(kb, args.kb)[1]
     if args.batch is not None:  # a batch starts: how long it takes; an open map says the study is being updated
-        data["batch"] = _sibling("kb_map").start_batch(args, sys.modules[__name__])
+        data["batch"] = _sibling("kb_map").start_batch(args)
     if args.json:
         print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
         return 0
@@ -4248,18 +3467,14 @@ def labels_missing_note(args: argparse.Namespace, kb: Json, missing: int) -> Non
 
 
 def _review() -> Any:
-    """kb_review.py, which writes review.md and the interview guide, with this module handed to it."""
-    module = _sibling("kb_review")
-    module.kt = sys.modules[__name__]
-    return module
+    """kb_review.py, which writes review.md and the interview guide."""
+    return _sibling("kb_review")
 
 
 def _people() -> Any:
-    """kb_people.py, with this module: later conversations with someone already in the study, and the same-person
-    and contact checks of a patch's new interviews."""
-    module = _sibling("kb_people")
-    module.kt = sys.modules[__name__]
-    return module
+    """kb_people.py: later conversations with someone already in the study, and the same-person and contact checks
+    of a patch's new interviews."""
+    return _sibling("kb_people")
 
 
 def guide_lines(kb: Json, text: Text, job: str | None = None) -> list[str]:
@@ -4269,7 +3484,7 @@ def guide_lines(kb: Json, text: Text, job: str | None = None) -> list[str]:
 
 def cmd_review(args: argparse.Namespace) -> int:
     """Write review.md and interview-guide.md. The code is in kb_review.py, loaded only for this."""
-    return _review().cmd_review(args, sys.modules[__name__])
+    return _review().cmd_review(args)
 
 
 # ---------- labels ----------
@@ -4450,11 +3665,11 @@ MAP_ASSETS = (LABELS_FILE, "map-survey.js")
 
 def cmd_map(args: argparse.Namespace) -> int:
     """Rebuild the interactive map. The code is in kb_map.py, loaded only for this command."""
-    return _sibling("kb_map").cmd_map(args, sys.modules[__name__])
+    return _sibling("kb_map").cmd_map(args)
 
 
 def cmd_survey(args: argparse.Namespace) -> int:
-    return _sibling("kb_survey").cmd_survey(args, sys.modules[__name__])
+    return _sibling("kb_survey").cmd_survey(args)
 
 
 # ---------- the rebuild after a write ----------
@@ -4605,9 +3820,7 @@ def _accept_drift(kb: Json, drifted: dict[str, str], args: argparse.Namespace) -
     kb["changelog"].append(changelog_entry(args.run, "edit",
                                            summary="accepted changed transcripts for interviews "
                                            + ", ".join(map(ref_words, drifted))))
-    made = backup(args.kb)
-    save_kb(kb, args.kb)
-    args.run.note(written=True, backup=args.run.relative(made))
+    commit(args, kb)
     print(f"rehashed interviews {', '.join(map(ref_words, drifted))}")
 
 
@@ -4653,8 +3866,10 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
 
 def _sibling(name: str) -> Any:
-    """A module shipped beside this script, loaded without writing a bytecode cache into the plugin folder."""
+    """A module shipped beside this script, loaded without writing a bytecode cache into the plugin folder. This
+    module is handed to it as its `kt`."""
     if name in sys.modules:  # loaded already: keep one copy, as tests patch it
+        sys.modules[name].kt = sys.modules[__name__]
         return sys.modules[name]
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{name}.py")
     if not os.path.isfile(path):
@@ -4670,12 +3885,13 @@ def _sibling(name: str) -> Any:
         spec.loader.exec_module(module)
     finally:
         sys.dont_write_bytecode = before
+    module.kt = sys.modules[__name__]
     return module
 
 
 def cmd_migrate(args: argparse.Namespace) -> int:
     """Bring an older study up to date. The code is in kb_migrate.py, loaded only for this command."""
-    return _sibling("kb_migrate").cmd_migrate(args, sys.modules[__name__])
+    return _sibling("kb_migrate").cmd_migrate(args)
 
 
 # ---------- cli ----------

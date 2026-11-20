@@ -324,7 +324,15 @@
           "type": "string"
         },
         "format": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "Transcript",
+            "Notes",
+            "Transcript + notes",
+            "Email",
+            "Chat"
+          ],
+          "description": "How the conversation happened. An Email or a Chat is checked for addresses and header lines."
         },
         "same_name_ok": {
           "type": "boolean",

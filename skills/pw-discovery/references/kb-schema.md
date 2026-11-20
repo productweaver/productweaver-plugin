@@ -8,6 +8,8 @@ One JSON file, `.pw-kb/pw-kb.json` at the root of the workspace, holds a whole s
 
 **Extra fields are allowed.** Anything not listed here is kept and ignored, so older files and your own notes keep loading.
 
+**Two more schemas.** A batch is checked against `patch-schema.json`, explained in `patch-format.md`. What `kb_tool.py context --json` prints is described by `context-schema.json`: the study in short, read from this file and never stored.
+
 **The file.** The script writes it in UTF-8 with two-space indents, and keeps each object that holds no list or object, such as an evidence item, on one line. A date is a string such as `"2026-03-05"`. A study written in YAML by plugin 0.7.0 or earlier, `.pw-kb/pw-kb.yaml`, becomes this file with `kb_tool.py migrate .pw-kb/pw-kb.yaml`.
 
 ## At a glance
@@ -41,7 +43,7 @@ One JSON file, `.pw-kb/pw-kb.json` at the root of the workspace, holds a whole s
 - `overview`: the study as a short story with what to do next, optional
 - `survey`: one survey per core job, the questions a respondent answers, optional, built on request
 - `simulation`: the estimate, how each person would rate each need of a survey, optional, built on request
-- `use_cases`: another derived layer, rebuilt on request (not shown)
+- `use_cases`: another derived layer, which this version of the tool does not build (not shown)
 
 Required at the top level: `meta`, `core_jobs`, `interviews`, `job_map`, `desired_outcomes`.
 
@@ -139,7 +141,7 @@ An object from a short segment code (`seq`, `fleet`) to an object with `name`, `
 | `sha256` | 64 hex characters | no | *Computed.* Content hash; catches a renamed copy of the same transcript |
 | `date` | date | no | When the conversation happened |
 | `added` | date | no | *Computed.* When it entered the KB |
-| `format` | string | no | `Transcript`, `Notes`, `Transcript + notes`, `Email` or `Chat`. A first contact by email or chat is stored as `Email` or `Chat` |
+| `format` | string | no | `Transcript`, `Notes`, `Transcript + notes`, `Email` or `Chat`. A first contact by email or chat is stored as `Email` or `Chat`. A patch must use one of these five; the KB's schema leaves it a free string, because older studies hold other values |
 | `interactions` | list | no | Each later conversation with the same person, see below. The fields above (`file`, `sha256`, `date`, `added`, `format`) are the first conversation |
 | `cluster` | string | no | Segment code from `clusters` |
 | `tags` | list of strings | no | Details that don't belong in statements, such as city or years in business |
@@ -349,7 +351,7 @@ The layer holds only the sentences the assistant writes. The map counts the rest
 | `gaps` | object | yes | Where today's way falls short: `answer` and `items`, 1 to 5 gaps |
 | `needs` | object | yes | What they most want to get better: `answer`, optional `text`. The map lists the needs |
 | `focus` | object | yes | Where a new solution should focus: `answer`, optional `text`. The map lists the themes |
-| `next` | object | yes | What to do next, in three tracks: `learn`, `prototype`, `market`. Advice, not findings |
+| `next` | object | yes | What to do next, in three tracks: `learn`, `prototype`, `market`, all three required. Advice, not findings |
 | `written` | date | no | *Computed.* When this overview was written |
 
 **Who the study is about** (`executor`) holds:
@@ -394,7 +396,7 @@ One survey per core job: the questions a respondent answers about the job's need
 | `jobs` | list of surveys | no | One survey per core job, in job order |
 | `legacy` | list | no | What a survey made by hand before 0.18 left in this layer: its entries and other keys, kept unchanged by the first `survey --write` that met them. Nothing reads it |
 
-The schema checks only `stale` and `stale_reasons` here, so a survey made by hand before 0.18 still loads. `survey --write` checks every entry it writes. An entry is read as a survey only when it has a string `job`, an integer `version` and a list `needs` whose every item has a string `outcome` and `text` (and a string `explain`, if any). Any other entry, even half right, counts as no survey.
+The schema checks only `stale` and `stale_reasons` here, so a survey made by hand before 0.18 still loads. `survey --write` checks every entry it writes, last against the schema's definition `survey_job`, and writes nothing when one breaks it. An entry is read as a survey only when it has a string `job`, an integer `version` and a list `needs` whose every item has a string `outcome` and `text` (and a string `explain`, if any). Any other entry, even half right, counts as no survey.
 
 **`survey.jobs[]`**
 
@@ -422,7 +424,7 @@ The estimate: how each person of a core job would rate each need of its survey, 
 | `jobs` | list of estimates | no | One estimate per core job, in job order |
 | `legacy` | list | no | What an estimate made by hand before 0.18 left in this layer: its entries and other keys, kept unchanged by the first `survey --estimate` that met them. Nothing reads it |
 
-The schema checks only `stale` and `stale_reasons` here, so an estimate made by hand before 0.18 still loads. `survey --estimate` checks every cell it writes. An entry is read as an estimate only when it has a string `job`, an integer `version` and a list `cells` whose every cell has a string `interview` and `outcome`, `importance` and `satisfaction` as whole numbers from 1 to 5, and `basis` `said` or `context`. Any other entry, even half right, counts as no estimate.
+The schema checks only `stale` and `stale_reasons` here, so an estimate made by hand before 0.18 still loads. `survey --estimate` checks every cell it writes, last against the schema's definition `simulation_job`, and writes nothing when one breaks it. An entry is read as an estimate only when it has a string `job`, an integer `version` and a list `cells` whose every cell has a string `interview` and `outcome`, `importance` and `satisfaction` as whole numbers from 1 to 5, and `basis` `said` or `context`. Any other entry, even half right, counts as no estimate.
 
 **`simulation.jobs[]`**
 
@@ -447,4 +449,4 @@ The schema checks only `stale` and `stale_reasons` here, so an estimate made by 
 
 ## Other derived layers
 
-`use_cases` is built from the layers above, on request. Its content is free-form, but it may carry `stale: true` and `stale_reasons`. The script sets these when new evidence arrives, and a rebuild clears them.
+`use_cases` is a derived layer that this version of the tool has no command for; a KB may hold one from earlier work. Its content is free-form, but it may carry `stale: true` and `stale_reasons`. The script sets these when new evidence arrives. Do not write the layer by hand.

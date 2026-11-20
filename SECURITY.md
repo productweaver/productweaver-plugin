@@ -23,13 +23,15 @@ This helps you judge the impact of a problem:
 
 - The `pw-start` and `pw-discovery` skills run two local Python scripts. The
   first is `skills/pw-discovery/scripts/kb_tool.py` (with `kb_map.py`,
-  `kb_review.py`, `kb_people.py`, `kb_migrate.py` and `kb_survey.py`, next to
-  it, which it loads for some of its commands), which reads the interview files you
+  `kb_review.py`, `kb_people.py`, `kb_migrate.py`, `kb_survey.py`,
+  `kb_overview.py` and `kb_themes.py`, next to it, which it loads for some of its commands), which reads the interview files you
   give it and writes the knowledge base, review sheet and discovery map next
   to them.
   The second is `skills/pw-discovery/scripts/pw_usage.py`, which keeps the
   user's answer about usage statistics in `.pw-kb/usage/` and, only after a
-  yes, sends the events.
+  yes, sends the events. Both load `skills/pw-discovery/scripts/pw_base.py`,
+  a small file that reads the plugin's version and replaces a file in one
+  step; it makes no network calls.
 - `kb_tool.py` makes no network calls. `pw_usage.py` makes one kind of network
   call, to www.productweaver.com, only after the user has said yes to usage
   statistics for a study. It sends counts, codes and versions, never

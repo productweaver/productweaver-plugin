@@ -194,11 +194,13 @@ with them.
 
 - **It runs on your computer.** The plugin is two local Python scripts
   inside the skill. `kb_tool.py` (with `kb_map.py`, `kb_review.py`,
-  `kb_people.py`, `kb_migrate.py` and `kb_survey.py`, next to it, which it
-  loads for some of its commands) reads the files you point it to and writes
+  `kb_people.py`, `kb_migrate.py`, `kb_survey.py`, `kb_overview.py` and
+  `kb_themes.py`, next to it, which it loads for some of its commands) reads the files you point it to and writes
   the files listed under [Files it writes](#files-it-writes); it makes no
   network calls. `pw_usage.py` keeps your answer about usage statistics
-  and, only after a yes, sends the events.
+  and, only after a yes, sends the events. Both load `pw_base.py`, a small
+  file that reads the plugin's version and replaces a file in one step; it
+  makes no network calls.
 - **It has no hooks, no MCP servers and no background processes**, and it
   downloads nothing. An open map stays current by reading one small file
   beside it on your disk every few seconds; it holds no names or quotes.

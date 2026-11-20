@@ -20,11 +20,12 @@ import argparse
 import copy
 import math
 import random
+import re
 from fractions import Fraction
 from typing import Any
 
 Json = dict[str, Any]
-kt: Any = None  # the kb_tool module, set by cmd_survey()
+kt: Any = None  # the kb_tool module, set by kb_tool's _sibling() when it loads this file
 
 MAX_NEEDS = 30  # a trial found 31 needs tiring
 SECONDS_A_NEED = 16  # measured on a phone, one need on a screen
@@ -38,6 +39,7 @@ SKELETON_KEYS = {"step", "plain", "name"}  # help in the skeleton's file: accept
 CELL_KEYS = ("interview", "outcome", "importance", "satisfaction", "basis", "quote", "why")
 BASES = ("said", "context")
 WHY_WORDS = 20
+_DAY = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")  # how `created` and `made` are written
 USAGE = ("Use: kb_tool survey <kb.json> --skeleton JOB, --evidence JOB, or --write FILE or --estimate FILE "
          "[--dry-run] [--json] [--no-publish] [--open]")
 
@@ -326,6 +328,17 @@ def _ordered(kb: Json, job: str, version: int, needs: list[Json]) -> list[Json]:
     return out
 
 
+def check_entry(entry: Json, name: str, what: str) -> None:
+    """Refuse an entry that breaks its definition in kb-schema.json: `survey_job` or `simulation_job`. The schema
+    leaves `survey.jobs` and `simulation.jobs` open, so that a study made by hand before 0.18 still loads; what this
+    command writes is held to the definition here."""
+    schema = {"$ref": f"#/$defs/{name}", "$defs": kt.load_schema("kb-schema.json")["$defs"]}
+    problems = kt.schema_errors(entry, schema, name)
+    if problems:
+        raise kt.KbError(f"{what} would break the KB structure; nothing written:\n  - " + "\n  - ".join(problems),
+                         code="structure")
+
+
 def store_survey(kb: Json, entry: Json, key: str = "survey") -> int:
     """Replace the core job's entry in the layer `key` (the survey, or the estimate in `simulation`) and clear the
     stale flag; the other jobs' entries stay as they are. What a survey made by hand before 0.18 left there (entries
@@ -362,7 +375,7 @@ def _write(args: argparse.Namespace, path: str) -> int:
     result: Json = {"ok": False, "dry_run": bool(args.dry_run), "job": built["job"] if built else None,
                     "written": False, "run_id": args.run.id}
     if built is None:
-        return kt._themes_finish(args, report, result, [])
+        return kt.finish_write(args, report, result, [])
     job, needs = built["job"], built["needs"]
     old = survey_of(kb, job)
     old_version = old.get("version") if old and isinstance(old.get("version"), int) else 0
@@ -382,11 +395,12 @@ def _write(args: argparse.Namespace, path: str) -> int:
         args.run.note(nothing_new=True)
         result["nothing_changed"] = True
         lines.append(f"nothing changed: the survey of core job {job} is already version {version}; nothing written")
-        return kt._themes_finish(args, report, result, lines)
-    created = old.get("created") if same and old.get("created") else kt.today()
+        return kt.finish_write(args, report, result, lines)
+    created = old["created"] if same and _DAY.match(str(old.get("created") or "")) else kt.today()
     entry = {"job": job, "version": version, "created": created, "frame": built["frame"], "gate": built["gate"],
              "profile": built["profile"], "needs": _ordered(candidate, job, version, needs),
              "left_out": built["left_out"]}
+    check_entry(entry, "survey_job", "this survey")
     lines += _aside_line(store_survey(candidate, entry), "survey")
     others = sorted({str(e.get("job")) for e in candidate["survey"]["jobs"] if isinstance(e, dict)} - {job},
                     key=kt.job_index)
@@ -395,20 +409,8 @@ def _write(args: argparse.Namespace, path: str) -> int:
         lines.append(f"surveys of core job {', '.join(others)} were not touched; update them too if they are out "
                      "of date")
     summary = f"survey of core job {job}, version {version}"
-    candidate["changelog"].append(kt.changelog_entry(args.run, "rebuild", layer="survey", job=job, summary=summary))
-    problems = kt.structure_problems(candidate)
-    if problems:
-        raise kt.KbError("this survey would break the KB structure; nothing written:\n  - " + "\n  - ".join(problems),
-                         code="structure")
-    if args.dry_run:
-        lines.append("dry run OK: every need and every question passed the checks; nothing written")
-    else:
-        result["backup"] = kt.backup(args.kb)
-        kt.save_kb(candidate, args.kb)
-        result["written"] = True
-        args.run.note(written=True, backup=args.run.relative(result["backup"]))
-        lines += [f"wrote {summary}", f"backup: {result['backup']}"]
-    return kt._themes_finish(args, report, result, lines)
+    return kt.write_layer(args, report, result, lines, candidate, layer="survey", summary=summary, what="this survey",
+                          checked="every need and every question passed the checks")
 
 
 # ---------- the estimate ----------
@@ -578,11 +580,12 @@ def _estimate(args: argparse.Namespace, path: str) -> int:
     result: Json = {"ok": False, "dry_run": bool(args.dry_run), "job": built["job"] if built else None,
                     "written": False, "run_id": args.run.id}
     if built is None:
-        return kt._themes_finish(args, report, result, [])
+        return kt.finish_write(args, report, result, [])
     job, cells = built["job"], built["cells"]
     version = survey_of(candidate, job)["version"]
-    moved = store_survey(candidate, {"job": job, "version": version, "made": kt.today(), "cells": cells},
-                         key="simulation")
+    entry = {"job": job, "version": version, "made": kt.today(), "cells": cells}
+    check_entry(entry, "simulation_job", "this estimate")
+    moved = store_survey(candidate, entry, key="simulation")
     figures = results(candidate, job)
     # the counts results() gives, so the line and the Survey view agree: a need no longer live is not counted
     cover, possible = figures["coverage"], figures["possible"]
@@ -601,21 +604,8 @@ def _estimate(args: argparse.Namespace, path: str) -> int:
         lines.append(f"estimates of core job {', '.join(others)} were not touched; update them too if they are out "
                      "of date")
     summary = f"estimate of core job {job}, survey version {version}"
-    candidate["changelog"].append(kt.changelog_entry(args.run, "rebuild", layer="simulation", job=job,
-                                                     summary=summary))
-    problems = kt.structure_problems(candidate)
-    if problems:
-        raise kt.KbError("this estimate would break the KB structure; nothing written:\n  - "
-                         + "\n  - ".join(problems), code="structure")
-    if args.dry_run:
-        lines.append("dry run OK: every cell passed the checks; nothing written")
-    else:
-        result["backup"] = kt.backup(args.kb)
-        kt.save_kb(candidate, args.kb)
-        result["written"] = True
-        args.run.note(written=True, backup=args.run.relative(result["backup"]))
-        lines += [f"wrote {summary}", f"backup: {result['backup']}"]
-    return kt._themes_finish(args, report, result, lines)
+    return kt.write_layer(args, report, result, lines, candidate, layer="simulation", summary=summary,
+                          what="this estimate", checked="every cell passed the checks")
 
 
 def _figure_lines(figures: Json) -> list[str]:
@@ -736,10 +726,8 @@ def status(kb: Json, job: str) -> Json:
             "gone_needs": [ref for ref in asked if ref not in live], "estimate_old": old}
 
 
-def cmd_survey(args: argparse.Namespace, tool: Any) -> int:
+def cmd_survey(args: argparse.Namespace) -> int:
     """`kb_tool survey <kb> MODE`: one mode a run. The options are parsed here, so kb_tool.py holds only the hook."""
-    global kt  # noqa: PLW0603 - kb_tool hands itself over once, here
-    kt = tool
     rest = list(args.rest or [])
     args.rest = None  # the run log keeps the parsed options below, never a raw path
     if rest[:1] == ["--"]:
