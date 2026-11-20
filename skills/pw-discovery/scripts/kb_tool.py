@@ -72,7 +72,7 @@ try:  # optional: richer schema messages. jsonschema before 4.0 (3.2 on Ubuntu 2
 except ImportError:  # pragma: no cover - depends on the machine
     _LibraryValidator = None
 
-__version__ = "0.18.0"
+__version__ = "0.18.1"
 SCHEMA_VERSION = 3  # what a study is written as, and below which it needs `migrate`
 SCHEMA_NEWEST = 4  # the newest a command reads: written once a study holds or plans a later conversation
 

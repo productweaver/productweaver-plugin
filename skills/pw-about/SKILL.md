@@ -27,25 +27,27 @@ The script only reads. It never changes the study and never records usage statis
 
 ## 2. Show the result
 
-- Put the summary in a code block, exactly as printed. If the user writes in another language, translate the labels (the words on the left), and keep every value as it is.
-- With `--report`, then show the block under "For a bug report:" exactly as printed, in English. Say: "Paste this into your report: it holds no names, file names or study content." Bug reports go to https://github.com/productweaver/productweaver-plugin/issues.
+- Put the summary in a code block, exactly as printed. If the user writes in another language, translate the labels (the words on the left) and the plain sentences. Keep versions, paths, names, commands and flags as they are.
+- With `--report`, then show the block under "For a bug report:" exactly as printed, in English. Say: "Paste this into your report: it hides your home folder and login name, and holds no study content. Look at the path before you post." Bug reports go to https://github.com/productweaver/productweaver-plugin/issues.
 - Without `--report`, end with one line: "Say 'pw-about for a bug report' to get a block to paste."
 
 ## 3. When a line starts with `!`
 
-Each `!` line is a flag. Add at most 2 lines after the block: what it means, and the one thing to do.
+Each `!` line is a flag. For each flag, add one line after the block: what it means, and the one thing to do.
 
 | Flag | Say |
 |---|---|
 | `versions-differ` | Parts of the plugin come from different versions. Update or reinstall the plugin. |
 | `install-damaged` | Files of the plugin are missing. Reinstall it. |
-| `python-too-old` | The plugin needs Python 3.9 or newer. |
-| `study-needs-migrate` | The study in this folder was made by an older version. Say "Update my study" to bring it up to date. |
+| `python-too-old` | The plugin needs Python 3.9 or newer. Install it, then run pw-about again. |
+| `study-needs-migrate` | The study in this folder was made by an older version. Ask pw-discovery to update the study. |
 | `study-newer-than-plugin` | A newer version of the plugin wrote this study. Update the plugin. |
-| `study-unreadable` | The study file cannot be read. Say "Check my study" to see what is wrong. |
+| `study-unreadable` | The study file cannot be read. Ask pw-discovery to open the study: it says what is wrong. |
 | `update-available` | The summary already says how to update. Add nothing. |
 | `check-failed` | The update check could not reach productweaver.com. Try again later, or see https://www.productweaver.com/plugin. |
 
-## 4. When you cannot run commands
+## 4. When the script does not run
 
-If your host cannot run commands at all, read `<plugin folder>/plugin.json` and show the same block with what you know: the version, your assistant and model, and `Scripts: cannot run here` in place of the System line. Say in one line that the study and usage lines need a host that runs commands.
+This covers three cases: your host cannot run commands at all, the command fails (for example, Python is missing), or the script prints "could not finish". Do not retry with other commands and do not guess the facts.
+
+Read `<plugin folder>/plugin.json` and show the same block with what you know: the version, your assistant and model, and `Scripts: cannot run here` in place of the System line. Say in one line that the study and usage lines need the script to run. If the command failed, add the error it gave.

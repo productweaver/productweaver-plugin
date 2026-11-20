@@ -4,6 +4,17 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.18.1 — 2026-11-20
+
+### What's improved
+
+- **`pw-about` is clearer when something goes wrong.** When its script
+  cannot run or does not finish, your assistant shows what it knows and the
+  error, and does not guess. Each warning now comes with one thing to do,
+  and the note on the bug report block says what it hides: your home folder
+  and login name, not every folder name. In another language, the plain
+  sentences are translated too.
+
 ## 0.18.0 — 2026-11-18
 
 ### What's new
