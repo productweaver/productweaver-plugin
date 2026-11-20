@@ -39,7 +39,9 @@ One JSON file, `.pw-kb/pw-kb.json` at the root of the workspace, holds a whole s
 - `changelog`: what happened to the KB, and when
 - `value_themes`: a few needs that group the outcomes, optional, built on request
 - `overview`: the study as a short story with what to do next, optional
-- `survey`, `simulation`, `use_cases`: other derived layers, rebuilt on request (not shown)
+- `survey`: one survey per core job, the questions a respondent answers, optional, built on request
+- `simulation`: the estimate, how each person would rate each need of a survey, optional, built on request
+- `use_cases`: another derived layer, rebuilt on request (not shown)
 
 Required at the top level: `meta`, `core_jobs`, `interviews`, `job_map`, `desired_outcomes`.
 
@@ -267,7 +269,7 @@ A person quoted on both a current and a stopped use counts as a current user. So
 
 ## `changelog[]`
 
-One entry per thing that happened to the KB. Every entry has `date`, `action` and usually `summary`, a sentence for people. `action` is one of `init`, `merge`, `decide`, `rebuild`, `edit` or `migrate`. The script logs `init`, `merge`, `decide`, `migrate`, `edit` (when `validate --rehash` accepts changed transcripts) and `rebuild` (when `themes` writes value themes). Log `rebuild` yourself when another derived layer is rebuilt, and `edit` after a hand edit.
+One entry per thing that happened to the KB. Every entry has `date`, `action` and usually `summary`, a sentence for people. `action` is one of `init`, `merge`, `decide`, `rebuild`, `edit` or `migrate`. The script logs `init`, `merge`, `decide`, `migrate`, `edit` (when `validate --rehash` accepts changed transcripts) and `rebuild` (when `themes` writes value themes, `survey` writes a survey, or `survey --estimate` writes an estimate). Log `rebuild` yourself when another derived layer is rebuilt, and `edit` after a hand edit.
 
 Entries the script writes also carry `ts`, the time with timezone, and `run_id`, the ID of the run in `logs/kb_tool.jsonl` (see `run-log.md`), so a change can be traced to its log line and its backup. A `merge` entry may carry `provenance`, copied from the patch: `assistant`, `model`, `started`, `transcripts_read` (as KB interview IDs) and `notes`.
 
@@ -288,7 +290,7 @@ A `merge` entry also carries structured fields, so tools do not have to parse th
 | `proposals` | list of `P<n>` | Proposals this merge filed |
 | `bootstrap` | boolean | Present and true when the merge created the core jobs and job map |
 
-A `decide` entry carries `proposal` (the ID) and `decision` (`approved` or `rejected`). A `rebuild` entry written by `themes` carries `layer` (`value_themes`), `job` (the core job) and `themes` (the IDs of that job's themes after the run).
+A `decide` entry carries `proposal` (the ID) and `decision` (`approved` or `rejected`). A `rebuild` entry written by `themes` carries `layer` (`value_themes`), `job` (the core job) and `themes` (the IDs of that job's themes after the run). A `rebuild` entry written by `survey` carries `layer` (`survey`, or `simulation` for an estimate) and `job`.
 
 ## Backups
 
@@ -381,6 +383,68 @@ The layer holds only the sentences the assistant writes. The map counts the rest
 | `at_write` | object | *Computed.* When the plan was written: the round's targets and the people heard so far |
 | `previous` | object | *Computed.* The `at_write` of the plan before the last batch, so the next plan can say how that round went |
 
+## `survey`
+
+One survey per core job: the questions a respondent answers about the job's needs. The layer is optional and built on request. The assistant writes every word: `kb_tool.py survey --skeleton JOB` prints the file to fill in, and `kb_tool.py survey --write FILE` checks it and stores it. The file holds the fields of `survey.jobs[]` below without `version` and `created`.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `stale` | boolean | no | True when interviews, outcomes or approved proposals arrived after a survey was written. Any `survey --write` that writes clears it, even with the same words |
+| `stale_reasons` | list of strings | no | Why, one line per change, with its date |
+| `jobs` | list of surveys | no | One survey per core job, in job order |
+| `legacy` | list | no | What a survey made by hand before 0.18 left in this layer: its entries and other keys, kept unchanged by the first `survey --write` that met them. Nothing reads it |
+
+The schema checks only `stale` and `stale_reasons` here, so a survey made by hand before 0.18 still loads. `survey --write` checks every entry it writes. An entry is read as a survey only when it has a string `job`, an integer `version` and a list `needs` whose every item has a string `outcome` and `text` (and a string `explain`, if any). Any other entry, even half right, counts as no survey.
+
+**`survey.jobs[]`**
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `job` | core job ID | yes | The core job the survey is about |
+| `version` | integer | yes | 1 for the first survey. It goes up by 1 when the frame, the check question, the questions about the person, or a need's words change. A change to `left_out` alone, or a write that only clears `stale`, keeps the version. When nothing differs and the layer is not stale, nothing is written |
+| `created` | date | yes | When this version was written |
+| `frame` | string | yes | One line shown on every step, at most 120 characters: "Think of a typical client and a typical month." |
+| `gate` | object | yes | The check question made from the core job: `text`, `yes`, `no` and `explain`. "No" ends the survey there |
+| `profile` | list | yes | One question for each people trait of the plan (`overview.jobs[].next.learn.traits`), in the plan's order: `{trait, text, other, explain, choices}`. `choices` gives every value of the trait once, as `{value, label}`; `other` is the words of the last choice, such as "Something else". Empty when the plan has no traits |
+| `needs` | list | yes | The needs asked: `{outcome, text, explain}`. At most 30. Grouped by step in the job's order, and shuffled inside a step, the same for every respondent of a version |
+| `left_out` | list | yes | Live needs of the core job not asked: `{outcome, why}`. Together, `needs` and `left_out` hold every live need of the core job once |
+
+Every text a respondent reads (`text`, `yes`, `no`, `other`, `label`, `why`) is plain text of at most 160 characters, with no `<` or `>`. Every `explain` is what the page shows when the person taps "Explain": one sentence of at most 25 words.
+
+## `simulation`
+
+The estimate: how each person of a core job would rate each need of its survey, judged from what they said in the interviews. The layer is optional and built on request. `kb_tool.py survey --evidence JOB` prints, for each person and each need of the survey, the person's quotes on the need (`said`) and on its step or on a tool used at that step (`context`). The assistant writes `{job, cells}` and `kb_tool.py survey --estimate FILE` checks it and stores it. A new estimate of a core job replaces the old one. A rating with no quote to rest on is left out: an estimate covers only part of the people times the needs.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `stale` | boolean | no | True when interviews, outcomes or approved proposals arrived after an estimate was written. Any `survey --estimate` that writes clears it |
+| `stale_reasons` | list of strings | no | Why, one line per change, with its date |
+| `jobs` | list of estimates | no | One estimate per core job, in job order |
+| `legacy` | list | no | What an estimate made by hand before 0.18 left in this layer: its entries and other keys, kept unchanged by the first `survey --estimate` that met them. Nothing reads it |
+
+The schema checks only `stale` and `stale_reasons` here, so an estimate made by hand before 0.18 still loads. `survey --estimate` checks every cell it writes. An entry is read as an estimate only when it has a string `job`, an integer `version` and a list `cells` whose every cell has a string `interview` and `outcome`, `importance` and `satisfaction` as whole numbers from 1 to 5, and `basis` `said` or `context`. Any other entry, even half right, counts as no estimate.
+
+**`simulation.jobs[]`**
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `job` | core job ID | yes | The core job the estimate is about |
+| `version` | integer | yes | The version of the core job's survey when the estimate was written |
+| `made` | date | yes | When the estimate was written |
+| `cells` | list | yes | One cell for each person and need with evidence, by person in ID order, then in the survey's order of needs |
+
+**`simulation.jobs[].cells[]`**
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `interview` | interview ID | yes | The person, one of the core job's people |
+| `outcome` | outcome ID | yes | The need, one of the survey's needs |
+| `importance` | integer | yes | 1 to 5: how much the need matters to the person |
+| `satisfaction` | integer | yes | 1 to 5: how well the way they work today meets the need |
+| `basis` | `said` or `context` | yes | `said`: the quote is the person's, on this need. `context`: it is the person's, on the need's step or on a tool used at that step (a current solution's use) |
+| `quote` | string | yes | The quote the ratings rest on, as the KB holds it. The check ignores quote marks, spaces and a final full stop, and stores the KB's text |
+| `why` | string | yes | Why these ratings, in at most 20 words |
+
 ## Other derived layers
 
-`survey`, `simulation` and `use_cases` are built from the layers above, on request. Their content is free-form, but each may carry `stale: true` and `stale_reasons`. The script sets these when new evidence arrives, and a rebuild clears them.
+`use_cases` is built from the layers above, on request. Its content is free-form, but it may carry `stale: true` and `stale_reasons`. The script sets these when new evidence arrives, and a rebuild clears them.

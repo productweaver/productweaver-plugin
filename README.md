@@ -27,7 +27,10 @@ words. You get back a discovery map you can open in any browser. It shows
 - **value themes**: the outcomes grouped into a few needs, such as "Help me
   order what the week will really need", so your team can sort ideas;
 - **your next interviews**: who to talk to and what to ask, to back up what
-  still rests on too few people.
+  still rests on too few people;
+- **a survey of the needs**: for each need, how much it matters and how well
+  it is served today, with a first estimate from your interviews of which
+  needs look unmet.
 
 Leave the map open while you work: it updates itself a few seconds after
 each run, keeps your place, says what changed, and marks what is new. While
@@ -157,6 +160,22 @@ The assistant reads the transcripts, proposes what to add, and merges it into
 the knowledge base. It then writes a review sheet and a discovery map you can
 open in any browser.
 
+Once the study shows a clear pattern and has value themes, check which needs
+matter most
+
+- "Create the survey." The assistant writes a survey from the needs of one
+  goal, at most 30. For each need, a person says how much it matters and how
+  well it is served today. Needs that mean the same thing are merged first,
+  and the assistant names each merge.
+- "Estimate the answers." The assistant rates each need as each person you
+  interviewed would. Each rating rests on one real quote of that person. When
+  the interviews say nothing about a need, the rating stays empty.
+
+The map's Survey view shows the questions and, with the estimate, which
+needs look unmet. The survey and the estimate are made on your machine, from
+your interviews. The estimate is always marked as an estimate: it is not
+survey answers. Sending the survey to real people is not in this version.
+
 When the interviews are not in English, the assistant asks once, when the
 study starts, whether to write the study in the interviews' language or in
 English. Everything you read follows your answer: the findings, the review
@@ -175,8 +194,8 @@ with them.
 
 - **It runs on your computer.** The plugin is two local Python scripts
   inside the skill. `kb_tool.py` (with `kb_map.py`, `kb_review.py`,
-  `kb_people.py` and `kb_migrate.py`, next to it, which it loads for some of
-  its commands) reads the files you point it to and writes
+  `kb_people.py`, `kb_migrate.py` and `kb_survey.py`, next to it, which it
+  loads for some of its commands) reads the files you point it to and writes
   the files listed under [Files it writes](#files-it-writes); it makes no
   network calls. `pw_usage.py` keeps your answer about usage statistics
   and, only after a yes, sends the events.
@@ -290,10 +309,14 @@ holds one study.
   open map that a newer one is ready, or that your assistant is working on a
   batch. It holds no names or quotes.
 
+The survey and the estimate add no new file to `pw-output/`. The map shows
+them in its Survey view, and `review.md` in a Survey section.
+
 `.pw-kb/` holds the study itself. Finder and most file dialogs hide it,
 because its name starts with a dot
 
-- `pw-kb.json`, the knowledge base;
+- `pw-kb.json`, the knowledge base. The survey and its estimate live inside
+  it too;
 - `transcripts/`, a copy of each transcript the knowledge base quotes. Your own
   files are never changed. An email or a chat you paste, or send as a file, is
   also saved here as text. Your assistant saves emails and chats without
@@ -301,7 +324,8 @@ because its name starts with a dot
   copy that still holds an email address or a header line;
 - `labels.json`, only for a study in another language than English: the map's
   and the review sheet's own text in that language;
-- `patches/`, one file per batch, the audit trail of what each batch added;
+- `patches/`, one file per batch, the audit trail of what each batch added.
+  The survey and estimate files the assistant writes go here too;
 - `backups/`, copies of the knowledge base before each merge (the newest 20);
 - `logs/kb_tool.jsonl`, one line per run, for debugging. It holds no quotes,
   names or file names;

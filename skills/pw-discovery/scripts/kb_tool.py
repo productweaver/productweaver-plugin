@@ -27,17 +27,16 @@ Commands
   overview  <kb.json> <overview.json> [--dry-run] [--json]  check one core job's overview and write it: the
                                                               study as a short story, with what to do next
   overview  <kb.json> --skeleton JOB                          print what it needs and the file to fill in
+  survey    <kb.json> --skeleton JOB | --write FILE | --evidence JOB | --estimate FILE
 After a write, merge, apply, themes and overview rebuild review.md and the map (--open shows it, --no-publish skips).
   validate  <kb.json> [--structure-only] [--schema FILE] [--rehash]
                                                               check the structure, then every quote and transcript hash
   migrate   <kb> [--to .pw-kb/pw-kb.json] [--transcripts DIR ...]
-                                                              bring an older KB up to the current schema version, turn
-                                                              a YAML study into JSON, and move a study made by an
-                                                              earlier version into .pw-kb/
+                                                              bring an older study up to date and into .pw-kb/
 
 Run it with python3 kb_tool.py <command> ... It needs Python 3.9 or newer and nothing else: only the standard library.
 Two packages help when they are installed, and nothing needs them: pypdf==6.21.4 reads .pdf transcripts, and
-pyyaml==6.0.3 lets migrate read a study written in YAML by version 0.10.0 or earlier.
+pyyaml==6.0.3 lets migrate read a YAML study.
 
 Every run, including a failed one or a dry run, appends one JSON line to .pw-kb/logs/kb_tool.jsonl:
 what was asked, how it ended, error and warning codes, counts, versions. Never quotes, names or file names.
@@ -73,7 +72,7 @@ try:  # optional: richer schema messages. jsonschema before 4.0 (3.2 on Ubuntu 2
 except ImportError:  # pragma: no cover - depends on the machine
     _LibraryValidator = None
 
-__version__ = "0.17.2"
+__version__ = "0.18.0"
 SCHEMA_VERSION = 3  # what a study is written as, and below which it needs `migrate`
 SCHEMA_NEWEST = 4  # the newest a command reads: written once a study holds or plans a later conversation
 
@@ -1339,7 +1338,7 @@ def sure_level(kb: Json, job: str) -> Json:
 
 
 def stale_layers(kb: Json) -> list[str]:
-    return [key for key in DERIVED if isinstance(kb.get(key), dict) and kb[key].get("stale")]
+    return [key for key in DERIVED[2:] if isinstance(kb.get(key), dict) and kb[key].get("stale")]
 
 
 # ---------- current solutions ----------
@@ -4446,12 +4445,16 @@ def cmd_labels(args: argparse.Namespace) -> int:
 # ---------- map ----------
 MAP_SCHEMA = f"/* @kb-schema:{SCHEMA_NEWEST} */"  # the template can draw a KB of this schema version
 # English labels ship beside the template (size limit); `map` inlines them so each map works offline.
-MAP_ASSETS = (LABELS_FILE,)
+MAP_ASSETS = (LABELS_FILE, "map-survey.js")
 
 
 def cmd_map(args: argparse.Namespace) -> int:
     """Rebuild the interactive map. The code is in kb_map.py, loaded only for this command."""
     return _sibling("kb_map").cmd_map(args, sys.modules[__name__])
+
+
+def cmd_survey(args: argparse.Namespace) -> int:
+    return _sibling("kb_survey").cmd_survey(args, sys.modules[__name__])
 
 
 # ---------- the rebuild after a write ----------
@@ -4737,6 +4740,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--dry-run", action="store_true", help="run every check, write nothing")
     sp.add_argument("--json", action="store_true", help="print the result as one JSON object")
     publishes(sp)
+    command("survey", cmd_survey, "a core job's survey and its estimate").add_argument("rest", nargs=argparse.REMAINDER)
     sp = command("validate", cmd_validate, f"check the KB's structure, then its quotes against {KB_FOLDER}/{COPIES}/")
     sp.add_argument("--structure-only", action="store_true", help="check the structure, not the quotes")
     sp.add_argument("--schema", help="path to kb-schema.json, if it is not next to the script")

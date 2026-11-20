@@ -17,7 +17,7 @@ Every line has these fields. The order is stable, so lines are easy to compare.
 | `run_id` | 12 hex characters, unique per run. Changelog entries the script writes carry the same value |
 | `ts` | When the run started, ISO 8601 with timezone |
 | `duration_ms` | How long the run took |
-| `command` | `init`, `labels`, `context`, `merge`, `apply`, `themes`, `overview`, `review`, `map`, `validate` or `migrate` |
+| `command` | `init`, `labels`, `context`, `merge`, `apply`, `themes`, `overview`, `survey`, `review`, `map`, `validate` or `migrate` |
 | `args` | The options given, with paths relative to the KB folder. `--note`, `--project`, `--interviewer` and the KB path are left out. `transcripts` lists the roots; a root that is a file shows as `<file>`. On the `review` and `map` lines of a rebuild after a write, `via` names the write, such as `merge` |
 | `exit_code` | 0 success, 1 refused or failed with a message, 2 crashed |
 | `written` | True when the run changed the KB file |
@@ -32,16 +32,17 @@ Commands add their own fields:
 
 | Field | Command | Meaning |
 |---|---|---|
-| `dry_run`, `nothing_new` | merge, themes, overview | Whether it was a dry run, and for merge whether the patch had nothing new |
+| `dry_run`, `nothing_new` | merge, themes, overview, survey | Whether it was a dry run, and for merge whether the patch had nothing new; for survey whether the file matched the stored survey and the layer was not out of date, so nothing was written |
 | `patch_sha256` | merge | Hash of the patch file, so retries of the same patch can be counted |
 | `bootstrap` | merge | True when the merge created the core job and job map |
 | `counts` | merge | `interviews_added`, `interviews_skipped`, `outcomes_added`, `step_quotes`, `outcome_quotes`, `proposals_filed`, `transcripts_copied` (new transcripts copied into `.pw-kb/transcripts/`), `solutions_added`, `solution_groups_added`, `solution_quotes` (quotes added to solutions already in the KB), and `follow_ups` (later conversations added: a person's second conversation or after; only when not 0). `interviews_skipped` counts interviews only, not a later conversation that was skipped |
 | `counts` | themes | `themes` (that core job's themes after the run), `theme_outcomes` (outcomes in at least one of them), `unassigned` (that job's outcomes in no theme) |
 | `counts` | overview | `overview_gaps` (gaps in the overview just written), `overviews` (core jobs that have an overview after the run) |
+| `counts` | survey | `survey_needs` (the needs the survey asks); with `--estimate`, `estimate_cells` (the ratings the estimate holds) |
 | `provenance` | merge | The patch's provenance block without `notes`: `assistant`, `model`, `started`, `transcripts_read` as KB IDs |
-| `backup` | merge, apply, themes, overview, labels, validate, migrate | The backup made before the write, relative to the KB folder |
-| `job` | themes, overview | The core job whose value themes or overview the run was about |
-| `skeleton` | overview | True when `--skeleton` printed the file to fill in; it writes nothing |
+| `backup` | merge, apply, themes, overview, survey, labels, validate, migrate | The backup made before the write, relative to the KB folder |
+| `job` | themes, overview, survey | The core job whose value themes, overview or survey the run was about |
+| `skeleton` | overview, survey | True when `--skeleton` printed the file to fill in; it writes nothing |
 | `proposal`, `proposal_type`, `decision` | apply | What was decided on and how. Logged even when the apply is refused |
 | `out`, `since` | review, map, labels | The file written; for review, the date new items are counted from |
 | `live`, `tab` | map | `live`: `ok` when it wrote `pw-output/.map-live/status.js`, so an open map updates itself; `failed` when it could not; `off` with `--out`, which writes no status. `tab`: the map that was there before: `none`, `old` (one that does not update itself, made by plugin 0.14 or earlier) or `live` |
@@ -53,7 +54,7 @@ Commands add their own fields:
 | `git` | init, migrate | True when `.pw-kb/` sits in a git repository and has no `.gitignore` of its own |
 | `language` | init, labels | The study's language, a BCP 47 code such as `en`, `it` or `pt-BR` |
 | `labels` | init, labels, review, map, migrate | Counts only, never a label's text: `missing` (labels that still show in English), `added` (labels `labels --add` kept), `refused` (problems that stopped `labels --add`). `migrated` (migrate: 1 when it turned `labels.yaml` into `labels.json`, else 0) |
-| `published` | merge, apply, themes, overview | Only after a write: true when the rebuild of `review.md`, the interview guide and the map that follows the write worked, false when part of it failed (`publish_failed`). Missing with `--no-publish`, on a dry run, and when nothing was written. The rebuild logs its own `review` and `map` lines right after the write's line, with `args.via` |
+| `published` | merge, apply, themes, overview, survey | Only after a write: true when the rebuild of `review.md`, the interview guide and the map that follows the write worked, false when part of it failed (`publish_failed`). Missing with `--no-publish`, on a dry run, and when nothing was written. The rebuild logs its own `review` and `map` lines right after the write's line, with `args.via` |
 | `exception` | any | The exception class when the tool crashed |
 
 ## Codes
@@ -129,6 +130,32 @@ Each problem has a short stable code. Errors block the command; warnings do not.
 | `theme_need_form` | A theme's need does not start with "Help me". Only in an English study, or when `meta.style.need_start` sets the opening |
 | `theme_duplicate` | Two themes of one core job share a label |
 | `theme_highlight` | A highlight quote is not on one of the theme's outcomes, nor on a solution used at their steps |
+
+### Errors that refuse a survey
+
+`survey` reports these. Nothing is written.
+
+| Code | Meaning |
+|---|---|
+| `survey_file` | The command has no mode or two, or the file is not one object with `job`, `frame`, `gate`, `profile` and `needs` (and optional `left_out`), holds an unknown key, or names a core job the KB does not have |
+| `survey_needs` | A live need of the core job is in neither `needs` nor `left_out`, a need appears twice, or a need is merged, unknown or of another core job |
+| `survey_cap` | The survey asks more than 30 needs |
+| `survey_text` | A text a respondent reads is empty, longer than 160 characters (the frame: 120), or holds `<` or `>` |
+| `survey_explain` | An "Explain" sentence is empty, longer than 25 words, or holds `<` or `>` |
+| `survey_gate` | The check question lacks `text`, `yes`, `no` or `explain`, has an empty one, or holds another key |
+| `survey_profile` | The questions about the person do not match the people traits of the plan: a trait has no question or two, a question names no trait of the plan, or a trait value has no choice, two, or a choice that is not its value |
+
+### Errors that refuse an estimate
+
+`survey --estimate` reports these, and `survey --evidence` reports `estimate_no_survey`. Nothing is written.
+
+| Code | Meaning |
+|---|---|
+| `estimate_file` | The file is not one object with `job` and `cells` only, names a core job the KB does not have, or has no cells |
+| `estimate_no_survey` | The core job has no survey yet: the estimate rates the needs a survey asks |
+| `estimate_cell` | A cell holds an unknown key, names a person who is not one of the core job's people or a need the survey does not ask, has a rating that is not a whole number from 1 to 5, a `basis` other than `said` or `context`, or rates the same person and need twice |
+| `estimate_basis` | A cell's quote is missing, or is not that person's quote on the need (`said`), nor on its step or on a tool used at that step (`context`), or its `basis` names the wrong one of the two |
+| `estimate_why` | A cell's `why` is empty or longer than 20 words |
 
 ### Warnings
 

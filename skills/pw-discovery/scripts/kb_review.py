@@ -219,6 +219,106 @@ def _review_themes(kb: Json, text) -> list[str]:
     return lines
 
 
+# ---------- the survey ----------
+def _survey() -> Any:
+    """kb_survey.py, which computes a survey's figures and state, with kb_tool handed to it."""
+    module = kt._sibling("kb_survey")
+    module.kt = kt
+    return module
+
+
+def _surveyed_jobs(kb: Json, survey: Any) -> list[str]:
+    return [str(job["id"]) for job in kb["core_jobs"] if survey.survey_of(kb, str(job["id"]))]
+
+
+def _review_unmet(kb: Json, figures: Json, text, mark: str) -> list[str]:
+    """What looks unmet, from the estimate: each line says it is an estimate and for how many people."""
+    labels = {str(t["id"]): str(t.get("label", "")) for t in kt.themes_of(kb)}
+    needs = {n["outcome"]: n for n in figures["needs"]}
+    lines = [f"{mark} " + text("review.sv.unmet_h"), ""]
+    for ref in figures["unmet"]:
+        need = needs[ref]
+        where = text("review.list_sep").join([ref] + ([labels[need["theme"]]] if need["theme"] in labels else []))
+        lines.append("- " + text("review.sv.unmet_line", need=need["text"], ref=where, n=need["satisfied"],
+                                 matters=need["matters"], rated=need["n"], people=figures["people"]))
+    if not figures["unmet"]:
+        lines.append(text("review.sv.none_unmet"))
+    lines.append("")
+    return lines + ([text("review.sv.single", n=figures["single"]), ""] if figures["single"] else [])
+
+
+def _review_questions(kb: Json, entry: Json, text, mark: str) -> list[str]:
+    """What the survey asks, step by step (its needs are stored in the job's step order)."""
+    steps = kt.steps_by_id(kb)
+    lines = [f"{mark} " + text("review.sv.questions_h"), ""]
+    last = None
+    for need in entry.get("needs") or []:
+        step = kt.step_of(str(need.get("outcome")))
+        if step != last:
+            title = f"{step} {steps.get(step, {}).get('statement', '')}".strip()
+            lines += ([""] if last else []) + [f"**{title}**"]
+            last = step
+        lines.append(f"- {need.get('text', '')} ({need.get('outcome')})")
+    return lines + [""]
+
+
+def _review_survey_job(kb: Json, job: str, survey: Any, text, mark: str) -> list[str]:
+    state, figures = survey.status(kb, job), survey.results(kb, job)
+    if figures is None:
+        lines = [text("review.sv.ready", n=state["needs"], version=state["version"]), ""]
+    else:
+        cover, possible = figures["coverage"], figures["possible"]
+        share = {key: f"{survey.percent(cover[key], possible)}%" for key in ("cells", "said", "context")}
+        # a part with no rating is not named: "all from the person's words", never "0% from context"
+        key = "review.sv.coverage" if cover["said"] and cover["context"] else \
+            "review.sv.coverage_said" if cover["said"] else "review.sv.coverage_context"
+        lines = [f"*{text('review.sv.estimate_note', n=figures['people'])}* "
+                 + text(key, share=share["cells"], said=share["said"], context=share["context"]), ""]
+    new, gone = len(state["new_needs"]), len(state["gone_needs"])
+    why = ([text("review.sv.new_needs", n=new)] if new else []) + \
+        ([text("review.sv.gone_needs", n=gone)] if gone else []) + \
+        ([text("review.sv.estimate_old")] if state["estimate_old"] and figures is not None else [])
+    if why:  # only the reasons that apply, each its own sentence
+        lines += [f"*{' '.join(why)}*", ""]
+    if figures is not None:
+        lines += _review_unmet(kb, figures, text, mark)
+    return lines + _review_questions(kb, survey.survey_of(kb, job), text, mark)
+
+
+def _review_survey(kb: Json, text: Any) -> list[str]:
+    """The Survey section: a text copy of the map's Survey view. Need texts and counts only, never a quote or a why;
+    an estimate says so on every line."""
+    survey = _survey()
+    jobs = _surveyed_jobs(kb, survey)
+    if not jobs:
+        return []
+    lines = ["## " + text("review.h.survey"), ""]
+    many = len(kb["core_jobs"]) > 1
+    for job in jobs:
+        if many:
+            lines += ["### " + text("review.core_job_id", id=job), ""]
+        lines += _review_survey_job(kb, job, survey, text, "####" if many else "###")
+    return lines
+
+
+def survey_context_lines(kb: Json) -> list[str]:
+    """The SURVEY block of `context`: one line for each core job with a survey, what is out of date first."""
+    survey = _survey()
+    lines = []
+    for job in _surveyed_jobs(kb, survey):
+        state, figures = survey.status(kb, job), survey.results(kb, job)
+        new, gone = len(state["new_needs"]), len(state["gone_needs"])
+        why = ([f"{kt.plural(new, 'new need')} {'is' if new == 1 else 'are'} not in it"] if new else []) + \
+            ([f"{kt.plural(gone, 'need')} of it {'is' if gone == 1 else 'are'} no longer in the study"]
+             if gone else []) + (["the estimate is older than the study"] if state["estimate_old"] else [])
+        facts = (f"version {state['version']}, {kt.plural(state['needs'], 'need')}, about "
+                 f"{kt.plural(state['minutes'], 'minute')}, "
+                 + (f"estimate for {kt.plural(figures['coverage']['cells'], 'rating')}" if figures
+                    else "no estimate yet"))
+        lines.append(f"SURVEY {job}{' [out of date]' if why else ''}: " + "; ".join([*why, facts]))
+    return lines
+
+
 def _review_people(kb: Json, text) -> list[str]:
     jobs = kt.jobs_by_id(kb)
     named = [r for r in kb["interviews"] if kt.main_job(r) or kt.related_links(r)] if len(jobs) > 1 else []
@@ -398,7 +498,8 @@ def review_lines(kb: Json, since: str, text=None) -> list[str]:
     new_outcomes = {o["id"] for o in kb["desired_outcomes"]["outcomes"] if since and str(o.get("added", "")) >= since}
     return (_review_head(kb, live_outcomes, text) + _review_decisions(kb, text)
             + _review_new(kb, since, new_outcomes, text) + _review_map(kb, live_outcomes, new_outcomes, text)
-            + _review_solutions(kb, text) + _review_themes(kb, text) + _review_people(kb, text)
+            + _review_solutions(kb, text) + _review_themes(kb, text) + _review_survey(kb, text)
+            + _review_people(kb, text)
             + next_lines(kb, text) + _review_tail(kb, text))
 
 
@@ -631,6 +732,9 @@ def print_context(kb: Json, data: Json) -> None:
             print("\n".join(lines))
     _print_solutions(data["current_solutions"])
     _print_themes(data["value_themes"], "value_themes" in data["stale"])
+    surveys = survey_context_lines(kb)
+    if surveys:
+        print("\n" + "\n".join(surveys))
     _print_overview(data)
     if data["segments"]:
         print("\nSEGMENTS: " + "; ".join(f"{k}={v}" for k, v in data["segments"].items()))

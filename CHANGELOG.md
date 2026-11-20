@@ -4,7 +4,43 @@ Changes to the productweaver plugin, newest first. Versions follow semantic
 versioning. Releases after 0.8.0 group their changes under What's new, What's
 improved and What's fixed.
 
+## 0.18.0 — 2026-11-18
+
+### What's new
+
+- **A survey from your study, and a first estimate.** Say "create the
+  survey": your assistant writes a survey from the needs of one goal, at most
+  30, and asks for each need how much it matters and how well it is served
+  today. Say "estimate the answers": it rates each need as each person you
+  interviewed would, each rating resting on one of their quotes, and leaves a
+  rating empty when the interviews say nothing. The map's new Survey view
+  shows the questions and, always marked as an estimate, which needs look
+  unmet. Both are made on your machine; sending the survey to real people is
+  not in this version. A need's figures come from the average rating; once
+  more than 30 people have ratings, they come from the share who rate a need
+  4 or 5, as in classic ODI.
+
+### What's improved
+
+- **Needs that mean the same thing are merged first.** Before it writes the
+  survey, your assistant merges two needs a person could not rate
+  differently, and names each merge. If two should stay apart, say so before
+  you add more interviews, and it puts them back.
+- **The review sheet and "What should I do next?" know the survey.**
+  `review.md` has a Survey section, the same as the map's view. Once a study
+  has value themes, the next step is the survey, then the estimate. A survey
+  that misses new needs is marked out of date, with the reason.
+
 ## 0.17.2 — 2026-11-17
+
+### What's improved
+
+- **A new icon.** The plugin's icon is the new Product Weaver mark, the
+  same one the map and productweaver.com use.
+- **The map says it comes from Product Weaver.** The map's title bar now
+  shows the new Product Weaver logo (light and dark versions) and name, with
+  "Customer discovery map" next to them. The study's title and what it was
+  built from moved to a row of their own, and the view switch sits in the middle of the bar.
 
 ### What's fixed
 

@@ -112,9 +112,10 @@ Then go down this list. The first item that applies is the next step:
 6. **An old summary.** No `OVERVIEW` block, or `OVERVIEW [out of date]`: update the overview, which also rebuilds the map.
 7. **Not sure enough yet.** Under `OPEN GAPS for core job X`, the line `level N of 3 after M conversations` with N of 1 or 2. Run the next round: how many more conversations, with which kinds of people, from the plan in the map's Next interviews tab, where the guide can be printed or copied.
 8. **A clear pattern, no themes.** Level 3, and no `VALUE THEMES` block: group the needs into value themes, so a team can sort ideas into a few needs.
-9. **Otherwise:** the overview's prototype step, or, once that is done, its market step. Say it is advice.
+9. **Themes, and the survey.** Level 3 with a `VALUE THEMES` block. No `SURVEY` line: check which needs matter most. Say "create the survey". A `SURVEY` line with "no estimate yet": say "estimate the answers". `SURVEY … [out of date]`: bring it up to date, as `<plugin folder>/skills/pw-discovery/references/survey-rules.md` says. With an estimate that is not out of date, go on to 10.
+10. **Otherwise:** the overview's prototype step, or, once that is done, its market step. Say it is advice. After an estimate, start with the needs that look most unmet, and say it is an estimate.
 
-**When the level line is missing.** `context` prints it only for a core job that still has open gaps. Then read that job's `overview.jobs[].next.learn.status` in `.pw-kb/pw-kb.json`: `now` counts as item 7, `enough` means go on to items 8 and 9. Item 9 reads `next.prototype` and `next.market` there too.
+**When the level line is missing.** `context` prints it only for a core job that still has open gaps. Then read that job's `overview.jobs[].next.learn.status` in `.pw-kb/pw-kb.json`: `now` counts as item 7, `enough` means go on to items 8, 9 and 10. Item 10 reads `next.prototype` and `next.market` there too.
 
 **When the study has several core jobs.** Give one step, not one per job. The first item that applies to any job wins. For item 7, take the job at the lowest level; on a tie, the job with the first letter. Name the job by what the people do, never by its letter alone.
 
@@ -124,7 +125,7 @@ Then go down this list. The first item that applies is the next step:
 > Next: talk to 2 more groomers who work from a van, about how they book the day. The questions are in your interview guide.
 > Say "show me the interview guide", or, when the calls are done, "Add my interviews to the study".
 
-For items 2, 3, 6 and 8, and a migrate in item 1, offer to do it now ("Shall I do it now?"). For items 4 and 5 the question is the step: run `end` as `pw-discovery`'s "Usage statistics" says for a decision. Level names in words: 1 is "a hunch", 2 is "an early signal", 3 is "a clear pattern".
+For items 2, 3, 6, 8 and 9, and a migrate in item 1, offer to do it now ("Shall I do it now?"). For items 4 and 5 the question is the step: run `end` as `pw-discovery`'s "Usage statistics" says for a decision. Level names in words: 1 is "a hunch", 2 is "an early signal", 3 is "a clear pattern".
 
 The files people read are in `pw-output/`, a folder Finder shows: point there, never inside `.pw-kb/`, which Finder hides. Check that the map exists. If it is missing, run `map` (a study made by plugin 0.11 or earlier keeps it in `.pw-kb/`, and `map` moves it): `python3 <plugin folder>/skills/pw-discovery/scripts/kb_tool.py map .pw-kb/pw-kb.json`. Then put it in front of the user as `<plugin folder>/skills/pw-discovery/references/open-files.md` says for your host: one link or file card that opens `pw-output/discovery-map.html`. Name its Next interviews tab, in words, for the interview guide.
 

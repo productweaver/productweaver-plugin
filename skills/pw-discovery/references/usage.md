@@ -84,7 +84,7 @@ One per run-log line after the yes. Fields marked "optional" are present only wh
 
 | Field | Type or allowed values | Meaning |
 |---|---|---|
-| `command` | `init`, `labels`, `context`, `merge`, `apply`, `themes`, `overview`, `review`, `map`, `validate` or `migrate` | The command that ran |
+| `command` | `init`, `labels`, `context`, `merge`, `apply`, `themes`, `overview`, `survey`, `review`, `map`, `validate` or `migrate` | The command that ran |
 | `exit_code` | int from 0 to 2 | 0 success, 1 refused or failed with a message, 2 crashed |
 | `written` | bool | Whether the run changed the KB file |
 | `duration_ms` | int from 0 to 86,400,000, rounded to the nearest 100 | How long the run took |
@@ -96,7 +96,7 @@ One per run-log line after the yes. Fields marked "optional" are present only wh
 | `git` | bool, optional | `.pw-kb/` sits in a git repository and has no `.gitignore` of its own |
 | `errors` | counts map, optional | Error codes with counts, such as `{"quote_not_found": 1}` |
 | `warnings` | counts map, optional | Warning codes with counts |
-| `counts` | object, optional, see `counts` below | What a merge, themes or overview run changed |
+| `counts` | object, optional, see `counts` below | What a merge, themes, overview or survey run changed |
 | `kb` | object, optional, see `kb` below | The size of the KB after the run |
 | `labels` | object, optional, see `labels` below | Counts of labels, never their text |
 | `language` | same pattern as in `usage_on`, optional; left out when it does not match | The study's language (`init`, `labels`) |
@@ -135,6 +135,8 @@ The keys are the ones `run-log.md` documents. Each value is an int. A key that t
 | `unassigned` | int | themes: outcomes in no theme |
 | `overview_gaps` | int | overview: gaps in the overview just written |
 | `overviews` | int | overview: core jobs that have an overview after the run |
+| `survey_needs` | int | survey: the needs the survey asks |
+| `estimate_cells` | int | survey with `--estimate`: the ratings the estimate holds |
 
 ### `kb`
 

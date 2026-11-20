@@ -250,13 +250,14 @@ INT_MAX = 1_000_000
 VERSION_PATTERN = r"[0-9]+\.[0-9]+\.[0-9]+"
 CODE_PATTERN = r"[a-z][a-z0-9_]{0,39}"
 LANGUAGE_PATTERN = r"[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|[0-9]{3}))?"
-COMMANDS = ("init", "labels", "context", "merge", "apply", "themes", "overview", "review", "map", "validate", "migrate")
+COMMANDS = ("init", "labels", "context", "merge", "apply", "themes", "overview", "survey", "review", "map", "validate",
+            "migrate")
 KB_KEYS = ("interviews", "core_jobs", "unlinked_interviews", "steps", "thin_steps", "outcomes", "pending_proposals",
            "solutions", "solution_groups", "themes", "overviews", "stale")
 COUNTS_KEYS = ("interviews_added", "interviews_skipped", "outcomes_added", "step_quotes", "outcome_quotes",
                "proposals_filed", "transcripts_copied", "solutions_added", "solution_groups_added", "solution_quotes",
                "follow_ups",
-               "themes", "theme_outcomes", "unassigned", "overview_gaps", "overviews")
+               "themes", "theme_outcomes", "unassigned", "overview_gaps", "overviews", "survey_needs", "estimate_cells")
 LABELS_KEYS = ("missing", "added", "refused", "migrated")
 MAX_CODES = 50  # the server accepts at most this many keys in an errors or warnings map
 

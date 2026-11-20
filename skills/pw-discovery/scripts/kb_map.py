@@ -265,13 +265,26 @@ MAP_NEXT = {
 
 
 def map_data(kb: Json, args: argparse.Namespace) -> tuple[Json, int]:
-    """What the map embeds: the KB's parts it draws, the overview and themes, the stamp, the guides and the labels."""
+    """What the map embeds: the KB's parts it draws, the overview and themes, the stamp, the guides, each survey's state
+    and figures, and the labels."""
     data = {key: kb[key] for key in MAP_KEYS if key in kb}
     if kt.themes_of(kb):  # a KB with no themes gives the map it always gave
         data["value_themes"] = kb["value_themes"]
     if kt.overviews_of(kb):  # the written findings of the Overview view; the map counts the rest itself
         data["overview"] = kb["overview"]
     data["generated"] = map_stamp()
+    if kb.get("survey"):  # the Survey view draws these figures; it computes none itself
+        survey = kt._sibling("kb_survey")
+        survey.kt = kt
+        jobs = [str(j["id"]) for j in kb["core_jobs"] if survey.survey_of(kb, str(j["id"]))]
+        if jobs:
+            data["generated"]["survey"] = {job: {"status": survey.status(kb, job), "results": survey.results(kb, job)}
+                                           for job in jobs}
+            # only the entries kb_survey reads, one per job: the page makes no choice of its own
+            for key, entry_of in (("survey", survey.survey_of), ("simulation", survey.estimate_of)):
+                entries = [entry_of(kb, job) for job in jobs if entry_of(kb, job)]
+                if entries:
+                    data[key] = {"jobs": entries}
     own, missing = kt.study_labels(kb, args.kb)
     text = kt.Text(kt.study_language(kb), own)
     data["generated"]["guides"] = {str(j["id"]): "\n".join(kt.guide_lines(kb, text, str(j["id"])))

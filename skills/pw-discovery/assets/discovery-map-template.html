@@ -23,7 +23,7 @@
   /* status colors, only where something moves toward a goal: red (no one yet), orange (needs more), green (reached).
      The -ink shades are for text; the plain ones for bars and dots. */
   --ok:#34c759; --ok-ink:#1f7a37; --ok-soft:#e8f8ec;
-  --amber:#a85700; --amber-dot:#ff9500; --amber-soft:#fff3e3;
+  --amber:#a85700; --amber-dot:#ff9500; --amber-soft:#fff3e3; --amber-ink:#8a4700;
   --bad:#ff3b30; --bad-ink:#d70015; --bad-soft:#ffecea;
   /* what people use today, by kind: systemPurple, systemTeal, systemIndigo, systemBrown, apart from the status colors */
   --sol-product:#af52de; --sol-tool:#30b0c7; --sol-people:#5856d6; --sol-own:#a2845e;
@@ -50,7 +50,7 @@
     --fill:rgba(120,120,128,.24); --fill2:rgba(120,120,128,.34);
     --accent-ring:#0a84ff; --link:#2997ff; --accent-soft:rgba(10,132,255,.2);
     --ok:#30d158; --ok-ink:#30d158; --ok-soft:rgba(48,209,88,.16);
-    --amber:#ff9f0a; --amber-dot:#ff9f0a; --amber-soft:rgba(255,159,10,.14);
+    --amber:#ff9f0a; --amber-dot:#ff9f0a; --amber-soft:rgba(255,159,10,.14); --amber-ink:#ff9f0a;
     --bad:#ff453a; --bad-ink:#ff6961; --bad-soft:rgba(255,69,58,.16);
     --sol-product:#bf5af2; --sol-tool:#40c8e0; --sol-people:#5e5ce6; --sol-own:#ac8e68;
     --step-line:rgba(255,255,255,.14); --out-fill:#2a3240; --out-line:#3b5378; --out-ink:#2997ff;
@@ -66,7 +66,7 @@
   --fill:rgba(120,120,128,.24); --fill2:rgba(120,120,128,.34);
   --accent-ring:#0a84ff; --link:#2997ff; --accent-soft:rgba(10,132,255,.2);
   --ok:#30d158; --ok-ink:#30d158; --ok-soft:rgba(48,209,88,.16);
-  --amber:#ff9f0a; --amber-dot:#ff9f0a; --amber-soft:rgba(255,159,10,.14);
+  --amber:#ff9f0a; --amber-dot:#ff9f0a; --amber-soft:rgba(255,159,10,.14); --amber-ink:#ff9f0a;
   --bad:#ff453a; --bad-ink:#ff6961; --bad-soft:rgba(255,69,58,.16);
   --sol-product:#bf5af2; --sol-tool:#40c8e0; --sol-people:#5e5ce6; --sol-own:#ac8e68;
   --step-line:rgba(255,255,255,.14); --out-fill:#2a3240; --out-line:#3b5378; --out-ink:#2997ff;
@@ -101,17 +101,22 @@ aside.side,.search,.tgroup,.viewsw,.ap-cap,.legend,.madewith,.drawer,.tip,.lv-no
   :root{--line:rgba(0,0,0,.3);--muted:#515154}
   aside.side,.search,.tgroup,.viewsw,.ap-cap,.legend,.madewith,.drawer,.tip,.lv-note{background:var(--surface);outline:1px solid var(--muted)} }
 
-/* title bar: the study on the left, the views in the middle, help on the right (like Calendar and Mail) */
-header.ap-bar{padding:10px 16px;display:grid;grid-template-columns:minmax(0,1.5fr) auto minmax(0,1fr);gap:8px 16px;align-items:center;
+/* title bar, two rows. Row 1: Product Weaver on the left, the views in the middle, help on the right (like Calendar and
+   Mail); equal side columns keep the views centred. Row 2: the study's title and what it was built from. */
+header.ap-bar{padding:8px 16px 0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px 16px;align-items:center;
   background:var(--bg);box-shadow:0 .5px 0 var(--line);position:relative;z-index:8}
-.ap-lead{display:flex;gap:12px;align-items:center;min-width:0}
-.brand{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:9px;color:#fff;text-decoration:none;
-  background:linear-gradient(180deg,#2e8bff,#0064d6);box-shadow:inset 0 .5px 0 rgba(255,255,255,.4),0 1px 2px rgba(0,0,0,.18)}
-.brand:hover{filter:brightness(1.06)}
-.pwmark{width:20px;height:20px;flex:none}
-.pwmark path{fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
-.titles{min-width:0;display:grid;gap:1px}
-h1{margin:0;font-size:15px;line-height:1.3;font-weight:600;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ap-brand{display:inline-flex;align-items:center;gap:9px;min-width:0;justify-self:start;color:var(--ink);text-decoration:none;
+  white-space:nowrap;border-radius:999px;padding:2px 10px 2px 2px;margin-left:-2px}
+.ap-brand:hover{background:var(--fill)}
+/* the brand mark's colours: ink and indigo on light, white and lilac on dark (pw-mark-reversed) */
+.pwlogo{width:24px;height:24px;flex:none;margin:2px;--pw-warp:#1B2340;--pw-weft:#4C5BD4}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .pwlogo{--pw-warp:#FFFFFF;--pw-weft:#9AA4F7}}
+:root[data-theme="dark"] .pwlogo{--pw-warp:#FFFFFF;--pw-weft:#9AA4F7}
+.wordmark{font-size:15px;font-weight:650;letter-spacing:-.015em}
+.kicker{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.kicker::before{content:"·";margin-right:9px}
+.ap-study{grid-column:1 / -1;display:grid;gap:2px;min-width:0;padding:10px 0 12px;box-shadow:0 -.5px 0 var(--line)}
+h1{margin:0;font-size:17px;line-height:1.3;font-weight:600;letter-spacing:-.015em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 h1 .goal{color:inherit}
 .sub{color:var(--muted);font-size:12px;line-height:1.35}
 .sub .linkbtn{color:var(--link);text-decoration:none}
@@ -179,6 +184,7 @@ h1 .goal{color:inherit}
   header.ap-bar{grid-template-columns:minmax(0,1fr) auto}
   .viewsw{grid-column:1 / -1;grid-row:2}
 }
+@media (max-width:620px){.kicker{display:none}}
 
 /* several core jobs: a scope bar under the title bar, like Finder's search scopes */
 .jobs{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 16px;background:var(--bg);box-shadow:0 .5px 0 var(--line);position:relative;z-index:7}
@@ -370,6 +376,55 @@ svg.mk-ic{width:14px;height:14px;display:inline-block;flex:none;cursor:inherit;v
 .hlk{display:grid;gap:6px}
 .hlk + .hlk{margin-top:8px}
 .hlk .tag{justify-self:start;font-weight:600}
+/* Survey view (map-survey.js): an estimate is never drawn like answers: hollow dots with a dashed edge */
+.sv-strip{background:var(--surface);border-radius:14px;padding:14px 16px;display:grid;gap:6px;max-width:760px}
+.sv-strip p{margin:0;color:var(--muted);font-size:14px}
+.sv-strip.sv-dash{background:transparent;border:1.5px dashed var(--edge)}
+.sv-chart{max-width:760px;gap:8px;padding:16px}
+.sv-chart svg{display:block;width:100%;height:auto;overflow:visible}
+.sv-chart text{font-size:13px;fill:var(--muted)}
+.sv-zu{fill:var(--accent-soft)}
+.sv-zo{fill:var(--fill)}
+.sv-gl{stroke:var(--line)}
+.sv-chart .sv-zl{font-weight:600;font-size:14px;fill:var(--ink)}
+.sv-chart .sv-wm{font-size:44px;font-weight:700;opacity:.3;letter-spacing:.04em}
+.sv-dot{cursor:pointer;outline:none}
+.sv-hit{fill:transparent}
+.sv-mark{fill:none;stroke:var(--link);stroke-width:2;stroke-dasharray:3 2.5}
+.sv-dot:hover .sv-mark,.sv-dot.sv-sel .sv-mark{stroke:var(--ink);stroke-width:2.5}
+.sv-dot:focus-visible .sv-hit{stroke:var(--accent-ring);stroke-width:3}
+.sv-dim{opacity:.18}
+.sv-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.sv-key{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px dashed var(--link);vertical-align:-1px;margin-right:6px}
+.sv-key.sv-small{width:8px;height:8px;vertical-align:0}
+.sv-chips .tag{font-size:13px;padding:4px 11px;color:var(--ink)}
+.sv-chips .tag[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.sv-more{max-width:760px}
+.sv-more summary{cursor:pointer;font-weight:600;font-size:15px;padding:4px 0}
+.sv-more > p,.sv-more > div{margin:8px 0 0}
+.sv-more p{font-size:14px;max-width:66ch}
+.sv-table thead th:nth-child(1){width:44%}
+.sv-table thead th:nth-child(2){width:20%}
+.sv-table td:nth-child(n+3){font-variant-numeric:tabular-nums}
+.solin > .sv-unmet{max-width:760px;list-style:none;margin:0;padding:0}
+.sv-line{width:100%;padding:11px 14px;font-size:14px}
+.sv-line small{display:block;color:var(--muted);font-size:13px;margin-top:4px}
+.sv-need{font-family:var(--font-read);font-size:16px;line-height:1.4}
+.sv-tag{font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:11px;background:transparent;border:1.5px dashed var(--edge);margin-right:4px;vertical-align:2px}
+.sv-thin{color:var(--amber-ink)}
+.sv-src{margin:0;font-weight:600;font-size:14px}
+.sv-scale{margin:0;font-size:13px;color:var(--muted)}
+.sv-table caption{text-align:left;padding:10px 14px 2px;font-weight:600;font-size:13px}
+.sv-table small{display:block;color:var(--muted);font-size:12px}
+.sv-how{margin:0}
+.sv-qs h4{margin:16px 0 4px;font-size:14px;font-weight:600}
+.sv-qs ol{margin:0;padding-left:20px;display:grid;gap:6px}
+.sv-qs small,.sv-ask + small{display:block;color:var(--muted);font-size:13px}
+.sv-ask{margin:0;font-weight:500}
+.sv-cell{display:grid;gap:6px;padding-top:12px;border-top:1px solid var(--line)}
+.sv-rates{font-size:13px;font-weight:600}
+@media (max-width:860px){.sv-table caption{display:block}}
+@media (max-width:560px){.sv-chart{padding:10px 6px}.sv-chart text,.sv-chart .sv-zl{font-size:21px}.sv-mark{r:9}.sv-one .sv-mark{r:5}}
 @media (max-width:860px){
   .solview{padding-left:12px;padding-right:12px}
   .soltable thead{display:none}
@@ -839,6 +894,15 @@ table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
   <symbol id="mk-i-people" viewBox="0 0 16 16"><circle cx="8" cy="5.2" r="2.8" fill="currentColor"/><path d="M2.6 14c.5-3 2.6-4.8 5.4-4.8s4.9 1.8 5.4 4.8z" fill="currentColor"/></symbol>
   <symbol id="mk-i-own_method" viewBox="0 0 16 16"><path d="M3 13l.6-2.6 7.5-7.5 2 2-7.5 7.5zM9.6 4.4l2 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
   <symbol id="mk-i-other" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="currentColor"/></symbol>
+  <!-- the Product Weaver mark, from design/brand/pw-mark-color.svg (light) and pw-mark-reversed.svg (dark): warp in
+       --pw-warp, weft in --pw-weft, the gold evidence thread fixed -->
+  <symbol id="pw-logo" viewBox="0 0 84 84">
+    <g fill="var(--pw-warp)"><rect x="0" y="25" width="22" height="34" rx="3"/><rect x="31" y="0" width="22" height="28" rx="3"/>
+      <rect x="31" y="56" width="22" height="28" rx="3"/><rect x="62" y="25" width="22" height="34" rx="3"/></g>
+    <g fill="var(--pw-weft)"><rect x="0" y="0" width="28" height="22" rx="3"/><rect x="56" y="0" width="28" height="22" rx="3"/>
+      <rect x="0" y="62" width="28" height="22" rx="3"/><rect x="56" y="62" width="28" height="22" rx="3"/></g>
+    <rect x="25" y="31" width="34" height="22" rx="3" fill="#EE9A2E"/>
+  </symbol>
   <!-- interface glyphs in the SF Symbols manner (our own drawings): stroke only, sized by svg.ap-ic -->
   <symbol id="ap-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4L14 14"/></symbol>
   <symbol id="ap-x" viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></symbol>
@@ -871,18 +935,13 @@ table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
   <symbol id="ov-r-parent" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6.5" r="2.6"/><path d="M4.5 20v-5a4.5 4.5 0 0 1 9 0v5"/><circle cx="17.5" cy="11" r="1.9"/><path d="M15 20v-2.5a2.5 2.5 0 0 1 5 0V20"/></g></symbol>
 </defs></svg>
 <header class="ap-bar">
-  <div class="ap-lead">
-    <a class="brand" href="https://www.productweaver.com/" data-pw="header-logo" target="_blank" rel="noopener" data-t-title="map.header.kicker"><svg class="pwmark" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8c4 0 6 8 9 8s5-8 9-8" /><path d="M3 16c4 0 6-8 9-8s5 8 9 8" /></svg><span class="ap-sr">Product Weaver</span></a>
-    <div class="titles">
-      <h1 id="title"></h1>
-      <span class="sub" id="subtitle"></span>
-    </div>
-  </div>
+  <a class="ap-brand" href="https://www.productweaver.com/" data-pw="header-logo" target="_blank" rel="noopener"><svg class="pwlogo" viewBox="0 0 84 84" aria-hidden="true"><use href="#pw-logo"/></svg><span class="wordmark">Product Weaver</span><span class="kicker" data-t="map.header.kicker"></span></a>
   <div class="viewsw" id="viewsw" role="tablist" data-t-aria="map.aria.views" hidden>
     <button type="button" role="tab" id="vOver" aria-selected="false" aria-controls="overview" tabindex="-1" hidden data-t="map.view.over"></button>
     <button type="button" role="tab" id="vMap" aria-selected="true" tabindex="0" data-t="map.view.map"></button>
     <button type="button" role="tab" id="vSol" aria-selected="false" aria-controls="solview" tabindex="-1" data-t="map.view.sol"></button>
     <button type="button" role="tab" id="vThemes" aria-selected="false" aria-controls="themeview" tabindex="-1" hidden data-t="map.view.themes"></button>
+    <button type="button" role="tab" id="vSurvey" aria-selected="false" aria-controls="svview" tabindex="-1" hidden data-t="map.view.survey"></button>
     <button type="button" role="tab" id="vNext" aria-selected="false" aria-controls="nextview" tabindex="-1" hidden><span data-t="map.view.next"></span><span class="ap-dot" id="thinChip" data-tip="" hidden><span class="ap-sr" id="thinWords"></span></span></button>
   </div>
   <div class="actions">
@@ -893,6 +952,10 @@ table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
       <button class="ap-ib" id="btnBuilt" type="button" data-t-title="map.btn.built"><svg class="ap-ic" viewBox="0 0 16 16" aria-hidden="true"><use href="#ap-info"/></svg><span class="ap-sr" data-t="map.btn.built"></span></button>
     </div>
     <input type="file" id="file" accept=".json" hidden>
+  </div>
+  <div class="ap-study">
+    <h1 id="title"></h1>
+    <span class="sub" id="subtitle"></span>
   </div>
 </header>
 <div class="jobs" id="jobs" role="group" data-t-aria="map.aria.jobs" hidden></div>
@@ -912,6 +975,7 @@ table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
     <div class="solview" id="overview" role="tabpanel" aria-labelledby="vOver" hidden></div>
     <div class="solview" id="solview" role="tabpanel" aria-labelledby="vSol" hidden></div>
     <div class="solview" id="themeview" role="tabpanel" aria-labelledby="vThemes" hidden></div>
+    <div class="solview" id="svview" role="tabpanel" aria-labelledby="vSurvey" hidden></div>
     <div class="solview" id="nextview" role="tabpanel" aria-labelledby="vNext" hidden></div>
     <div class="toolbar" id="toolbar">
       <label class="search"><svg class="ap-ic" viewBox="0 0 16 16" aria-hidden="true"><use href="#ap-search"/></svg><input id="q" type="search" data-t-ph="map.search.placeholder" data-t-aria="map.search.aria"></label>
@@ -944,6 +1008,7 @@ table.kit-calls{width:100%;border-collapse:collapse;font-size:inherit}
 <div class="drop" id="drop" data-t="map.file.drop" hidden></div>
 
 <script src="labels-en.js"></script>
+<script src="map-survey.js"></script>
 <script>
 /* @kb-schema:4 */ /* @live:1 */ /* draws KBs of schema 4 and 3 (and 2, the same data in YAML), with one or more core jobs, and still reads schema 1 */
 /* @kb-data:start */
@@ -1248,6 +1313,8 @@ function chooseJob(id){
   M.goal = j ? j.statement : ""; M.goalStatus = j ? j.status : ""; M.executor = j ? j.executor : "";
   M.sols = j ? j.sols : M.solAll;
   M.themes = j ? j.themes : M.themeAll; M.loose = j ? j.loose : []; M.over = j ? j.over : null;
+  // the Survey view draws the figures kb_tool put in the map (map-survey.js); a study file opened here has none
+  M.hasSurvey = !!(j && M.made && M.made.survey && M.made.survey[j.id]) && typeof renderSvView==="function";
 }
 const many = () => M.jobs.length>1;
 const doers = n => t("map.count.doers", {n});
@@ -1261,6 +1328,7 @@ function setJob(id, keep){
   if(themeMode) renderThemeView();
   if(overMode) renderOverView();
   if(nextMode) renderNxView();
+  syncSolControls(); if(svMode){ if(M.hasSurvey) renderSvView(); else setView("map"); }
 }
 
 /* ---------- header, strip, sidebar ---------- */
@@ -1437,7 +1505,7 @@ const WID = {root:260, stage:150, step:320, out:320, sol:250, cap:320};
 // where the title starts: after a step's number, a measure's target, a solution's icon
 const TX = {step:64, out:38, sol:44};
 let expanded = new Set(), selected=null, personHL=null, searchHL=null;
-let showSols = false, solHL = null, solMode = false, themeMode = false, overMode = false, nextMode = false; // solHL: {kind:"sol"|"group", id}
+let showSols = false, solHL = null, solMode = false, themeMode = false, overMode = false, nextMode = false, svMode = false; // solHL: {kind:"sol"|"group", id}
 const solOn = sol => !!solHL && (solHL.kind==="group" ? sol.group===solHL.id : sol.id===solHL.id);
 let view = {x:40,y:40,k:1};
 /* Lines of a box's text, about `chars` wide. A wide character (Chinese, Japanese, Korean, full-width forms) takes the
@@ -1758,30 +1826,32 @@ function pickGroup(id){
 }
 function syncSolControls(){
   const b=document.getElementById("bSols"); b.hidden=!M.hasSols; b.setAttribute("aria-pressed", String(showSols && M.hasSols));
-  document.getElementById("viewsw").hidden=!M.hasSols && !M.hasThemes && !M.hasOver && !M.hasNext;
+  document.getElementById("viewsw").hidden=!M.hasSols && !M.hasThemes && !M.hasOver && !M.hasNext && !M.hasSurvey;
+  document.getElementById("vSurvey").hidden=!M.hasSurvey;
   document.getElementById("vNext").hidden=!M.hasNext;
   document.getElementById("vOver").hidden=!M.hasOver;
   document.getElementById("vSol").hidden=!M.hasSols; document.getElementById("vThemes").hidden=!M.hasThemes;
 }
-const stageEl=document.getElementById("stage"), solview=document.getElementById("solview"), themeview=document.getElementById("themeview"), toolbar=document.getElementById("toolbar");
-const VIEWS = [["over","vOver"],["map","vMap"],["sol","vSol"],["themes","vThemes"],["next","vNext"]];
-const viewNow = () => overMode ? "over" : nextMode ? "next" : solMode ? "sol" : themeMode ? "themes" : "map";
+const stageEl=document.getElementById("stage"), solview=document.getElementById("solview"), themeview=document.getElementById("themeview"), svview=document.getElementById("svview"), toolbar=document.getElementById("toolbar");
+const VIEWS = [["over","vOver"],["map","vMap"],["sol","vSol"],["themes","vThemes"],["survey","vSurvey"],["next","vNext"]];
+const viewNow = () => overMode ? "over" : nextMode ? "next" : svMode ? "survey" : solMode ? "sol" : themeMode ? "themes" : "map";
 /* The Solutions view is an overlay inside the stage, so the drawer still opens beside it and the map keeps its size underneath. */
 function setView(want, keepMap){
   // "over", "map", "sol" or "themes"; true and false are the older calls for the Solutions view and the map
   let v = want===true ? "sol" : (want || "map");
-  if((v==="sol" && !(M && M.hasSols)) || (v==="themes" && !(M && M.hasThemes)) || (v==="over" && !(M && M.hasOver)) || (v==="next" && !(M && M.hasNext))) v = "map";
-  const panel = v==="sol" ? solview : v==="themes" ? themeview : v==="over" ? overview : v==="next" ? nextview : null;
+  if((v==="sol" && !(M && M.hasSols)) || (v==="themes" && !(M && M.hasThemes)) || (v==="over" && !(M && M.hasOver)) || (v==="next" && !(M && M.hasNext)) || (v==="survey" && !(M && M.hasSurvey))) v = "map";
+  const panel = v==="sol" ? solview : v==="themes" ? themeview : v==="over" ? overview : v==="next" ? nextview : v==="survey" ? svview : null;
   if(v===viewNow() && (!panel || !panel.hidden)) return;
-  solMode = v==="sol"; themeMode = v==="themes"; overMode = v==="over"; nextMode = v==="next"; hideTip();
+  solMode = v==="sol"; themeMode = v==="themes"; overMode = v==="over"; nextMode = v==="next"; svMode = v==="survey"; hideTip();
   const over = !!panel;
   stageEl.classList.toggle("solmode", over); document.querySelector("main").classList.toggle("wide", over);
-  solview.hidden = !solMode; themeview.hidden = !themeMode; overview.hidden = !overMode; nextview.hidden = !nextMode; svg.toggleAttribute("inert", over);
+  solview.hidden = !solMode; themeview.hidden = !themeMode; overview.hidden = !overMode; nextview.hidden = !nextMode; svview.hidden = !svMode; svg.toggleAttribute("inert", over);
   VIEWS.forEach(([name,id])=>{ const b=document.getElementById(id); b.setAttribute("aria-selected", String(name===v)); b.tabIndex = name===v?0:-1; });
   if(solMode) renderSolView();
   if(themeMode) renderThemeView();
   if(overMode) renderOverView();
   if(nextMode) renderNxView();
+  if(svMode) renderSvView();
   if(panel){ panel.scrollTop=0; }
   else if(!keepMap) requestAnimationFrame(()=>{ if(Date.now()>LV.keep) fit(true); }); // not while a reload restores the place
   try{ history.replaceState(null, "", "#"+v); }catch(e){} // a reload after a rebuild keeps this view
@@ -2587,7 +2657,7 @@ const lvList = v => Array.isArray(v) ? v : [];
 const lvTime = c => Date.parse(c && (c.ts || c.date)) || 0;
 const lvNewest = log => Math.max(0, ...lvList(log).map(lvTime));
 const lvFile = () => { try{ return decodeURIComponent(location.pathname.split("/").pop() || ""); }catch(_){ return ""; } };
-const lvPanel = () => ["overview","solview","themeview","nextview"].map(id=>document.getElementById(id)).find(p=>!p.hidden) || null;
+const lvPanel = () => ["overview","solview","themeview","svview","nextview"].map(id=>document.getElementById(id)).find(p=>!p.hidden) || null;
 /* what is new: the people, measures of success, solutions and groups that merges added after the reader's baseline */
 function lvFresh(log, base){
   const f={iv:new Set(), out:new Set(), sol:new Set(), group:new Set()};

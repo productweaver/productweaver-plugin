@@ -828,7 +828,7 @@
           },
           "job": {
             "type": "string",
-            "description": "rebuild: the core job whose value themes were written."
+            "description": "rebuild: the core job whose value themes or survey were written."
           },
           "themes": {
             "type": "array",
@@ -841,10 +841,46 @@
       }
     },
     "survey": {
-      "$ref": "#/$defs/derived"
+      "type": "object",
+      "description": "One survey per core job: the questions a respondent answers, worded by the assistant. Written by `kb_tool.py survey --write`. The schema types only `stale` and `stale_reasons`: a survey made by hand before 0.18 still loads. `survey --write` checks what it writes; its entries have the shape of `survey_job`.",
+      "properties": {
+        "stale": {
+          "type": "boolean"
+        },
+        "stale_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "jobs": {
+          "description": "One survey per core job, each shaped like `survey_job`. Any other shape is allowed and ignored: only an entry with a string `job`, an integer `version` and `needs` whose every item has a string `outcome` and `text` is read as a survey."
+        },
+        "legacy": {
+          "description": "What a survey made by hand before 0.18 held, kept unchanged by the first `survey --write` that met it: a list of its entries and other content. Never read."
+        }
+      }
     },
     "simulation": {
-      "$ref": "#/$defs/derived"
+      "type": "object",
+      "description": "The estimate: how each person of a core job would rate each need of its survey, judged from the interviews. Written by `kb_tool.py survey --estimate`. The schema types only `stale` and `stale_reasons`: an estimate made by hand before 0.18 still loads. `survey --estimate` checks what it writes; its entries have the shape of `simulation_job`.",
+      "properties": {
+        "stale": {
+          "type": "boolean"
+        },
+        "stale_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "jobs": {
+          "description": "One estimate per core job, each shaped like `simulation_job`. Any other shape is allowed and ignored: only an entry with a string `job`, an integer `version` and `cells` whose every cell has string `interview` and `outcome`, ratings from 1 to 5 and a `basis` is read as an estimate."
+        },
+        "legacy": {
+          "description": "What an estimate made by hand before 0.18 held, kept unchanged by the first `survey --estimate` that met it: a list of its entries and other content. Never read."
+        }
+      }
     },
     "value_themes": {
       "type": "object",
@@ -1814,6 +1850,278 @@
         "written": {
           "type": "string",
           "description": "Computed. Date the overview was written."
+        }
+      }
+    },
+    "survey_job": {
+      "type": "object",
+      "description": "One core job's survey, as `survey --write` writes it. The schema does not apply it to `survey.jobs`, so a hand-made survey from 0.17 still loads.",
+      "required": [
+        "job",
+        "version",
+        "created",
+        "frame",
+        "gate",
+        "profile",
+        "needs",
+        "left_out"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "job": {
+          "$ref": "#/$defs/job_id"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Goes up by 1 when the words a respondent reads change."
+        },
+        "created": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "When this version was written."
+        },
+        "frame": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One line shown on every step, such as \"Think of a typical client and a typical month.\""
+        },
+        "gate": {
+          "$ref": "#/$defs/survey_gate"
+        },
+        "profile": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/survey_question"
+          }
+        },
+        "needs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/survey_need"
+          }
+        },
+        "left_out": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/survey_left_out"
+          }
+        }
+      }
+    },
+    "survey_gate": {
+      "type": "object",
+      "description": "The check question made from the core job. \"No\" ends the survey there.",
+      "required": [
+        "text",
+        "yes",
+        "no",
+        "explain"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The question, such as \"Do you close clients' books each month?\""
+        },
+        "yes": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The words of the yes answer."
+        },
+        "no": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The words of the no answer."
+        },
+        "explain": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What \"Explain\" shows: one sentence of at most 25 words."
+        }
+      }
+    },
+    "survey_question": {
+      "type": "object",
+      "description": "One question about the person, made from a people trait of the plan.",
+      "required": [
+        "trait",
+        "text",
+        "other",
+        "explain",
+        "choices"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "trait": {
+          "type": "string",
+          "pattern": "^T[0-9]+$",
+          "description": "The trait of `overview.jobs[].next.learn.traits`, such as T1."
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The question, such as \"Do you work alone or in a firm?\""
+        },
+        "other": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The words of the last choice, such as \"Something else\"."
+        },
+        "explain": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What \"Explain\" shows: one sentence of at most 25 words."
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "value",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "value": {
+                "type": "string",
+                "pattern": "^T[0-9]+\\.[0-9]+$",
+                "description": "The trait value, such as T1.2."
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The choice as the respondent reads it."
+              }
+            }
+          }
+        }
+      }
+    },
+    "survey_need": {
+      "type": "object",
+      "description": "One need the survey asks about.",
+      "required": [
+        "outcome",
+        "text",
+        "explain"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "$ref": "#/$defs/outcome_id"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The need as the respondent reads it, starting with a verb. At most 160 characters."
+        },
+        "explain": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What \"Explain\" shows: one sentence of at most 25 words."
+        }
+      }
+    },
+    "simulation_job": {
+      "type": "object",
+      "description": "One core job's estimate, as `survey --estimate` writes it. The schema does not apply it to `simulation.jobs`, so a hand-made estimate from 0.17 still loads.",
+      "required": [
+        "job",
+        "version",
+        "made",
+        "cells"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "job": {
+          "$ref": "#/$defs/job_id"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The version of the survey whose needs were rated."
+        },
+        "made": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "When the estimate was written."
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/simulation_cell"
+          }
+        }
+      }
+    },
+    "simulation_cell": {
+      "type": "object",
+      "description": "How one person would rate one need, and the quote it rests on.",
+      "required": [
+        "interview",
+        "outcome",
+        "importance",
+        "satisfaction",
+        "basis",
+        "quote",
+        "why"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "interview": {
+          "$ref": "#/$defs/interview_id"
+        },
+        "outcome": {
+          "$ref": "#/$defs/outcome_id"
+        },
+        "importance": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1 to 5: how much the need matters to the person."
+        },
+        "satisfaction": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1 to 5: how well the person's way of working today meets the need."
+        },
+        "basis": {
+          "type": "string",
+          "enum": [
+            "said",
+            "context"
+          ],
+          "description": "said: the quote is on the need. context: it is on the need's step, or on a tool used at that step."
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The person's quote the ratings rest on, as the KB holds it."
+        },
+        "why": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why these ratings, in at most 20 words."
+        }
+      }
+    },
+    "survey_left_out": {
+      "type": "object",
+      "description": "A live need the survey does not ask about, and why.",
+      "required": [
+        "outcome",
+        "why"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "$ref": "#/$defs/outcome_id"
+        },
+        "why": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why it is left out, such as \"Only one person named it.\""
         }
       }
     }
